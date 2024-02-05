@@ -6,15 +6,15 @@
 #include <string>
 Pos::Pos(int _x,int _y):line(_x),column(_y){
 }
-Token::Token(string literal,enum::tokenType type):literal(literal), type(type){
+Token::Token(string literal,enum::tokenType type):literal(literal), type(type),tok_pos(0,0){
 }
-Token::Token(string literal,enum::tokenType type,int line,int column):literal(literal), type(type),line(line),column(column){
+Token::Token(string literal,enum::tokenType type,int line,int column):literal(literal), type(type),tok_pos(line,column){
 }
-Token::Token(int ch,enum::tokenType type): literal(1,ch), type(type){  
+Token::Token(int ch,enum::tokenType type): literal(1,ch), type(type),tok_pos(0,0){  
 }
-Token::Token(string literal):literal(literal),type(lookupIdent()){
-}
-Token::Token(string literal,int line,int column):literal(literal),type(lookupIdent()),line(line),column(column){
+// Token::Token(string literal):literal(literal),type(lookupIdent()){
+// }
+Token::Token(string literal,int line,int column):literal(literal),type(lookupIdent()),tok_pos(line ,column){
 }
 enum::tokenType Token::lookupIdent(){
     tokenType ret;
@@ -159,8 +159,8 @@ std::unique_ptr<Token>   Lexer::nextToken(/*std::unique_ptr<Lexer> l*/){
     // if(flagRead){
     //     this->readChar();
     // }
-    tok->line=l;
-    tok->column=c;
+    tok->tok_pos.line=l;
+    tok->tok_pos.column=c;
     this->readChar();
 
     return std::move(tok);

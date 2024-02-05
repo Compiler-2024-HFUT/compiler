@@ -43,8 +43,6 @@ enum tokenType{
     CONST,
     DEFINT,
     DEFFLOAT,
-    DEFINTADDR,
-    DEFFLOATADDR,
     VOID,
 
 };
@@ -53,15 +51,19 @@ struct Pos{
     int column;
     Pos(int,int);
 };
+union PosUinon{
+    Pos pos;
+    long l;
+};
 struct Token{
     string literal;
     enum::tokenType type;
-    int line;
-    int column;
-
+    // int line;
+    // int column;
+    Pos tok_pos;
     Token(string,enum::tokenType);
     Token(string,enum::tokenType,int,int);
-    Token(string);
+    // Token(string);
     Token(string,int,int);
     Token(int,enum::tokenType);
     enum::tokenType lookupIdent();

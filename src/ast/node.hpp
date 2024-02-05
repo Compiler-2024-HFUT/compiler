@@ -12,18 +12,24 @@ using std::cout,std::string,std::vector;
 
 namespace ast {
 enum StmtType{
+    NULL_STMT,
     VAL_DEF_STMT,
     VAL_DECL_STMT,
     FUNSTMT,
     CONSTSTMT,
     RETURNSTMT,
-    IFSTMT
+    IFSTMT,
+    WHILE_STMT
 };
 enum ValType{
     INT_VAL=1,
     INT_CONST,
+    INT_POINT,
+    INT_POINT_CONST,
     FLOAT_VAL,
     FLOAT_CONST,
+    FLOAT_POINT,
+    FLOAT_POINT_CONST,
     VOID_VAL,
 };
 
@@ -36,6 +42,7 @@ struct SyntaxNode {
     // SyntaxNode(Pos pos):pos(pos ){}
     Pos pos;
     SyntaxNode(Pos);
+    virtual int getType()=0;
 };
 struct ExprNode: SyntaxNode {
 //   public:
@@ -44,7 +51,7 @@ struct ExprNode: SyntaxNode {
     //std::unique_ptr<Token> tok;//记录位置
 };
 struct PrefixExpr:public ExprNode{
-    string Operat;
+    int Operat;//type
     unique_ptr<ExprNode> rhs;
 
 };
@@ -61,6 +68,14 @@ struct Statement:public SyntaxNode{
     Statement(Pos pos );
     virtual int getType()=0;
 };
+struct BlockStmt :public  Statement
+{
+    //vector<tokenType> argvType;
+    // unique_ptr<FuncDef> fundef;
+    vector<unique_ptr<Statement>> block_items;
+    virtual int getType();
+};
+//抽象类
 struct DefStmt:public Statement{
     string name;
     ValType val_type;//变量类型
@@ -84,28 +99,28 @@ struct stynaxTree{
     unique_ptr<CompunitNode >root;
 };
 
-// struct funcDef :public  funcStmt
+// struct FuncDef :public  FuncStmt
 // {   
 //     vector<unique_ptr<int>> body;
 //     std::map<tokenType, string>  argv;
-//     funcDef(string name ,Pos pos);
+//     FuncDef(string name ,Pos pos);
 // };
 
 /*函数声明*/
-struct funcStmt :public  DefStmt
+struct FuncStmt :public  DefStmt
 {
     //vector<tokenType> argvType;
-    // unique_ptr<funcDef> fundef;
-    funcStmt(string name ,Pos pos,ValType );
+    // unique_ptr<FuncDef> fundef;
+    FuncStmt(string name ,Pos pos,ValType );
     virtual int getType();
 };
 /*函数定义*/
-struct funcDef :public  funcStmt
+struct FuncDef :public  FuncStmt
 {   
     vector<unique_ptr<Statement>> body;
     std::vector<std::pair<ValType, string>>  argv;
-    // funcDef(string name ,Pos pos);
-    funcDef(string name ,Pos pos,ValType );
+    // FuncDef(string name ,Pos pos);
+    FuncDef(string name ,Pos pos,ValType );
     virtual int getType();
     bool isReDef(string tok_name);
 };
@@ -118,21 +133,29 @@ struct GlobalValState :public  Statement
 };
 struct ValDefStmt :public  DefStmt
 {   
-    unique_ptr<ExprNode> expr;
+    unique_ptr<ExprNode> init_expr;
     ValDefStmt(string name ,Pos pos,ValType);
+    ValDefStmt(string name ,Pos pos,ValType,unique_ptr<ExprNode>);
     //vector<unique_ptr<int>> body;
     virtual int getType();
-
 };
-struct ValDeclStmt :public  DefStmt
-{   
+struct LvalStmt:public DefStmt{
     unique_ptr<ExprNode> expr;
-    ValDeclStmt(string name ,Pos pos,ValType);
+    LvalStmt(string name ,Pos pos,ValType);
+    LvalStmt(string name ,Pos pos,ValType,unique_ptr<ExprNode>);
+
+};
+
+struct ValDeclStmt :public  Statement
+{   
+    vector<unique_ptr<ValDefStmt>> var_def_list;
+    //ValDeclStmt(string name ,Pos pos,ValType);
     //vector<unique_ptr<int>> body;
+    ValDeclStmt(Pos pos);
     virtual int getType();
 
 };
-struct ifStmt :public  Statement
+struct IfStmt :public  Statement
 {   
     unique_ptr<ExprNode>pred;
     vector<unique_ptr<Statement>> if_body;
@@ -140,7 +163,18 @@ struct ifStmt :public  Statement
     //unique_ptr<ExpreNode> expr;
     //vector<unique_ptr<int>> body;
     //RetStmt(Pos pos);
-    ifStmt(Pos Pos);
+    IfStmt(Pos Pos);
+    virtual int getType();
+
+};
+struct WhileStmt :public  Statement
+{   
+    unique_ptr<ExprNode>pred;
+    vector<unique_ptr<Statement>> loop_body;
+    //unique_ptr<ExpreNode> expr;
+    //vector<unique_ptr<int>> body;
+    //RetStmt(Pos pos);
+    WhileStmt(Pos Pos);
     virtual int getType();
 
 };
@@ -152,9 +186,9 @@ struct RetStmt :public  Statement
     virtual int getType();
 
 };
-struct BodyNode: public SyntaxNode{
+// struct BodyNode: public SyntaxNode{
 
-};
+// };
 // struct block_syntax : stmt_syntax
 // {
 //     ptr_list<stmt_syntax> body;
