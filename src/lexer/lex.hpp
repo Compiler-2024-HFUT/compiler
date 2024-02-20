@@ -10,6 +10,9 @@ enum tokenType{
     ILLEGAL=1,//illegal
     IDENT, //标识符
     INT,//字面量
+    INT_BIN,
+    INT_OCTAL,
+    INT_HEX,
     FLOAT,
     EQUAL,//==
     NOTEQUAL,//!=
@@ -44,7 +47,8 @@ enum tokenType{
     DEFINT,
     DEFFLOAT,
     VOID,
-
+    CONTINUE,
+    BREAK,
 };
 struct Pos{
     int line;
@@ -84,7 +88,7 @@ struct Lexer{
     int peekChar();
     unique_ptr<Token>  nextToken();
     string readIdentifier();
-    string readNumber();
+    string readNumber(int &type);
     
     
 };

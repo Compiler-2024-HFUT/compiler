@@ -1,6 +1,4 @@
 #include "lex.hpp"
-#include <algorithm>
-#include <cassert>
 #include <cctype>
 #include <memory>
 #include <string>
@@ -146,8 +144,17 @@ std::unique_ptr<Token>   Lexer::nextToken(/*std::unique_ptr<Lexer> l*/){
             tok=std::make_unique<Token>(readIdentifier(),l,c);
             // flagRead=false;
             return std::move(tok);
-        }else if(isdigit(this->ch)){
-            tok=std::make_unique<Token>(readNumber(),tokenType::INT,l,c);
+        }else if(isdigit(this->ch)||ch=='.'){
+            int type;
+            string s{readNumber(type)};
+            tok=std::make_unique<Token>(s,(tokenType)type,l,c);
+            // if(tok->literal[1]=='x'||tok->literal[1]=='X'){
+            //     tok->type=INT_HEX;
+            // }else if(tok->literal[1]=='b'||tok->literal[1]=='B'){
+            //     tok->type=INT_BIN;
+            // }else if(tok->literal[0]=='0'){
+            //     tok->type=INT_OCTAL;
+            // }
             return std::move(tok);
         }
         else{
@@ -218,17 +225,61 @@ void Lexer::skipOther(){
     this->skipwhite();
     }
 }
-string Lexer::readNumber(){
+int isodigit(int c){
+    if(c>47&&c<'8')
+        return 1;
+    return 0;
+}
+int isbdigit(int c){
+    if(c=='0'||c=='1')
+        return 1;
+    return 0;
+}
+string Lexer::readNumber(int &type){
     int beginpos=this->position;
     int sublen=0;
+    int (*tmpIsDigit)(int)=isdigit;
+    type=tokenType::INT;
+    int dot_num=0;
     if(this->input[position]=='0'){
-        if(this->input[readPosition]=='x'||this->input[readPosition]=='X'||this->input[readPosition]=='b'||this->input[readPosition]=='B'){
+        if(this->input[readPosition]=='x'||this->input[readPosition]=='X'){
             readChar();
             readChar();
             sublen+=2;
+            tmpIsDigit=isxdigit;
+            type=tokenType::INT_HEX;
+        }else if(this->input[readPosition]=='b'||this->input[readPosition]=='B'){
+            readChar();
+            readChar();
+            sublen+=2;
+            tmpIsDigit=isbdigit;
+            type=tokenType::INT_BIN;
+        }else if(isodigit(this->input[readPosition])){
+            tmpIsDigit=isodigit;
+            readChar();
+            ++sublen;
+            type=tokenType::INT_OCTAL;
         }
+        // else if(this->input[readPosition]=='.'){
+        //     tmpIsDigit=isdigit;
+        //     type=tokenType::FLOAT;
+        // }
     }
-    while(isdigit(this->input[position])||this->input[position]=='.'){
+    while(tmpIsDigit(this->input[position])||this->input[position]=='.'){
+        if(ch=='.'&&(type==INT||type==FLOAT)){
+            type=tokenType::FLOAT;
+            if(dot_num){
+                exit(111);
+            }
+            ++dot_num;
+        }else if(ch=='.'&&(type==INT_BIN||type==INT_HEX||type==INT_OCTAL)){
+            exit(123);
+        }
+        readChar();
+        sublen++;
+    }
+    if(ch=='f'||ch=='F'){
+        if(type!=tokenType::FLOAT)exit(51);
         readChar();
         sublen++;
     }
