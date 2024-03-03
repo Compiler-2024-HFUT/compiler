@@ -1,5 +1,6 @@
 #include "lex.hpp"
 #include <cctype>
+#include <cstdio>
 #include <memory>
 #include <string>
 Pos::Pos(int _x,int _y):line(_x),column(_y){
@@ -220,6 +221,10 @@ void Lexer::skipOther(){
         if(peekChar()=='/'){
             while(this->ch!='\n'){ 
                 readChar();
+                if(this->ch==0){
+                    cout<<11<<endl;
+                break;
+            }
             }
         line++;
         column=0;
@@ -229,12 +234,16 @@ void Lexer::skipOther(){
         else if(peekChar()=='*'){
             readChar();
             readChar();
-            while(ch!='*'||peekChar()!='/'){
+            while(!(ch=='*'&&peekChar()=='/')){
                 if(this->ch=='\n'){
                     this->column=0;
                     this->line++;
                 }
                 readChar();
+                if(this->ch==0){
+                    cout<<11<<endl;
+                    break;
+                }
             }
             readChar();
             readChar();
