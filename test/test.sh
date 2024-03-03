@@ -34,7 +34,8 @@ assert() {
 
 # assert 期待值 输入值
 # [1] 返回指定数值
-echo $f
+f=$(ls ../src/sy/*.sy)
+# echo $f
 #ls /home/user | grep ".*\.png\|.*\.jpg"
 for file in $f
 do
