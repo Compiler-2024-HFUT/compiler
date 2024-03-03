@@ -56,7 +56,7 @@ struct Parser{
     // unique_ptr<ast::Statement> parserStmt();
     unique_ptr<ast::DefStmt> parserValDefStmt(type::ValType);
     unique_ptr<ast::ArrDefStmt> parserArrDefStmt(type::ValType);
-    vector<unique_ptr<ast::ExprNode>> parserInitlizer();
+    unique_ptr<ast::InitializerExpr> parserInitlizer();
     unique_ptr<ast::ValDeclStmt> parserValDeclStmt(type::ValType);
     unique_ptr<ast::FuncDef> parserFuncStmt(type::ValType type);
     unique_ptr<ast::IfStmt> parserIfStmt();
