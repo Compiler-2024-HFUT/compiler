@@ -6,7 +6,7 @@
 using namespace std;
 int main(int argc , char**argv){
     ifstream ifs;
-        ifs.open("../../../../test/4.sy",ios::in);
+        ifs.open("../../../../test/1.sy",ios::in);
 
     //std::string some_str(begin, end);
 

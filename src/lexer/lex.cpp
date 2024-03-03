@@ -4,6 +4,8 @@
 #include <string>
 Pos::Pos(int _x,int _y):line(_x),column(_y){
 }
+Pos::Pos():line(0),column(0){
+}
 Token::Token(string literal,enum::tokenType type):literal(literal), type(type),tok_pos(0,0){
 }
 Token::Token(string literal,enum::tokenType type,int line,int column):literal(literal), type(type),tok_pos(line,column){
@@ -66,8 +68,7 @@ std::unique_ptr<Token>   Lexer::nextToken(/*std::unique_ptr<Lexer> l*/){
     std::unique_ptr<Token> tok=nullptr;
     // bool flagRead=true;
     this->skipOther();
-    int l=this->line,c=this->column;
-    // cout<<"ch is "<<(char)ch<<endl;
+    // int l1=this->line,c1=this->column;
     switch (this->ch){
     case '|':
         if(this->peekChar()=='|'){
@@ -90,6 +91,22 @@ std::unique_ptr<Token>   Lexer::nextToken(/*std::unique_ptr<Lexer> l*/){
         }
         else
             tok=std::make_unique<Token>("!",tokenType::BANG);
+        break;
+    case '<':
+        if(this->peekChar()=='='){
+            this->readChar();
+            tok=std::make_unique<Token>("<=",tokenType::LE);
+        }
+        else
+            tok=std::make_unique<Token>("<",tokenType::LT);
+        break;
+    case '>':
+        if(this->peekChar()=='='){
+            this->readChar();
+            tok=std::make_unique<Token>(">=",tokenType::GE);
+        }
+        else
+            tok=std::make_unique<Token>(">",tokenType::GT);
         break;
     case '=':
         if(this->peekChar()=='='){
@@ -141,13 +158,13 @@ std::unique_ptr<Token>   Lexer::nextToken(/*std::unique_ptr<Lexer> l*/){
         break;
     default:
         if(isalpha(this->ch)||this->ch=='_'){
-            tok=std::make_unique<Token>(readIdentifier(),l,c);
+            tok=std::make_unique<Token>(readIdentifier(),line,column);
             // flagRead=false;
             return std::move(tok);
         }else if(isdigit(this->ch)||ch=='.'){
             int type;
             string s{readNumber(type)};
-            tok=std::make_unique<Token>(s,(tokenType)type,l,c);
+            tok=std::make_unique<Token>(s,(tokenType)type,line,column);
             // if(tok->literal[1]=='x'||tok->literal[1]=='X'){
             //     tok->type=INT_HEX;
             // }else if(tok->literal[1]=='b'||tok->literal[1]=='B'){
@@ -166,8 +183,8 @@ std::unique_ptr<Token>   Lexer::nextToken(/*std::unique_ptr<Lexer> l*/){
     // if(flagRead){
     //     this->readChar();
     // }
-    tok->tok_pos.line=l;
-    tok->tok_pos.column=c;
+    tok->tok_pos.line=line;
+    tok->tok_pos.column=column;
     this->readChar();
 
     return std::move(tok);

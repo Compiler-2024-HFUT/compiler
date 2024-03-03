@@ -10,24 +10,27 @@ enum tokenType{
     ILLEGAL=1,//illegal
     IDENT, //标识符
     INT,//字面量
+    FLOAT,
     INT_BIN,
     INT_OCTAL,
     INT_HEX,
-    FLOAT,
-    EQUAL,//==
-    NOTEQUAL,//!=
     BANG,//!
     ASSIGN,//=
     PLUS,//+
     MINUS,//-
     ASTERISK,// *
-    ESPERLUTTE,//&
-    D_ESPERLUTTE,//&&
-    OR,//|
-    D_OR,//||
     SLASH,// /
+    OR,//|
+    ESPERLUTTE,//&
+    
+    D_ESPERLUTTE,//&&
+    D_OR,//||
+    EQUAL,//==
+    NOTEQUAL,//!=
     LT,// <
+    LE,//,=
     GT,//> 
+    GE,//>=
     COMMA,//,
     SEMICOLON,//;
     LPAREM,//(
@@ -54,6 +57,7 @@ struct Pos{
     int line;
     int column;
     Pos(int,int);
+    Pos();
 };
 union PosUinon{
     Pos pos;
