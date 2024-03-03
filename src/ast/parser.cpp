@@ -369,6 +369,8 @@ unique_ptr<ast::ExprNode> Parser::parserExpr(parserOpPrec prec){
     auto leftExp=(this->*prefixFn)();
     if(curTokIs(tokenType::LPAREM)){
         leftExp=parserCall(std::move(leftExp));
+    }else if(curTokIs(tokenType::LSQ_BRACE)){
+        leftExp=parserArrUse(std::move(leftExp));
     }
     while(!curTokIs(tokenType::SEMICOLON)&&prec<curPrecedence()){
         selectInFn(curTok->type);
@@ -379,6 +381,16 @@ unique_ptr<ast::ExprNode> Parser::parserExpr(parserOpPrec prec){
         leftExp=(this->*InfixFn)(std::move(leftExp));
     }
     return leftExp;
+}
+unique_ptr<ast::ExprNode> Parser::parserArrUse(unique_ptr<ast::ExprNode> name){
+    unique_ptr<ast::ArrUse> ret=make_unique<ast::ArrUse>(cur_pos);
+    ret->Lval_name=std::move(name);
+    while(curTokIs(tokenType::LSQ_BRACE)){
+        skipIfCurIs(tokenType::LSQ_BRACE);
+        ret->index_num.push_back(std::move(parserExpr()));
+        skipIfCurIs(tokenType::RSQ_BRACE);
+    }
+    return ret;
 }
 unique_ptr<ast::CallExpr> Parser::parserCall(unique_ptr<ast::ExprNode> name){
     if(name==nullptr){
@@ -425,9 +437,9 @@ unique_ptr<ast::ExprNode> Parser::parserLval(){
 
     ret=make_unique<ast::LvalExpr>(curTok->tok_pos,curTok->literal);
     skipIfCurIs(tokenType::IDENT);
-    while(curTokIs(tokenType::LSQ_BRACE)){
-        ret=parserSuffixExpr(std::move(ret));
-    }
+    // while(curTokIs(tokenType::LSQ_BRACE)){
+    //     ret=parserSuffixExpr(std::move(ret));
+    // }
     return ret;
 }
 unique_ptr<ast::ExprNode> Parser::parserSuffixExpr(unique_ptr<ast::ExprNode> left){

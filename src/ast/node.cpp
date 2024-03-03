@@ -30,6 +30,7 @@ FloatLiteral::FloatLiteral(Pos pos,valUnion val):Literal(pos,val){};
 Literal::Literal(Pos pos,valUnion val):ExprNode(pos),Value(val){};
 PrefixExpr::PrefixExpr(Pos pos):ExprNode(pos){};
 SuffixExpr::SuffixExpr(Pos pos):ExprNode(pos){};
+ArrUse::ArrUse(Pos pos):ExprNode(pos){}
 InfixExpr::InfixExpr(Pos pos,unique_ptr<ExprNode> lhs):ExprNode(pos),lhs(std::move(lhs)){}
 AssignExpr::AssignExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
 RelopExpr::RelopExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
@@ -94,6 +95,9 @@ int BinopExpr::getType(){
     return (int)ast::ExprType::INFIX;
 }
 int SuffixExpr::getType(){
+    return (int)ast::ExprType::SUFFIX;
+}
+int ArrUse::getType(){
     return (int)ast::ExprType::SUFFIX;
 }
 // int ExprStmt::getType(){
@@ -234,6 +238,14 @@ void SuffixExpr::print(int level){
         rhs->print(level);
     level--;
 }
+void ArrUse::print(int level){
+    level++;
+    string s(level,'|');
+    Lval_name->print(level);
+    for(auto&i:this->index_num)
+        i->print(level);
+    level--;
+}
 // void InfixExpr::print(int level){
 //     level++;
 //     string s(level,'|');
@@ -325,6 +337,9 @@ void BinopExpr::accept(Visitor &visitor) {
     visitor.visit(*this);
 }
 void SuffixExpr::accept(Visitor &visitor) {
+    visitor.visit(*this);
+}
+void ArrUse::accept(Visitor &visitor) {
     visitor.visit(*this);
 }
 void LvalExpr::accept(Visitor &visitor) {

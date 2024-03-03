@@ -69,6 +69,14 @@ struct PrefixExpr:public ExprNode{
     virtual void print(int level=0)override;
     virtual void accept(Visitor &visitor) override final;
 };
+struct ArrUse:public ExprNode{
+    unique_ptr<ExprNode> Lval_name;
+    vector<unique_ptr<ExprNode>> index_num;
+    ArrUse(Pos pos);
+    virtual int getType()override;
+    virtual void print(int level=0)override;
+    virtual void accept(Visitor &visitor)  final;
+};
 struct SuffixExpr:public ExprNode{
     string Operat;//type
     unique_ptr<ExprNode> lhs;
@@ -327,6 +335,7 @@ class Visitor
     virtual void visit(ValDeclStmt &node) = 0;
     virtual void visit(ValDefStmt &node) = 0;
     virtual void visit(ArrDefStmt &node) = 0;
+    virtual void visit(ArrUse &node) = 0;
     virtual void visit(ExprStmt &node) = 0;
     virtual void visit(PrefixExpr &node) = 0;
     // virtual void visit(InfixExpr &node) = 0;
