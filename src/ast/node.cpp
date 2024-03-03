@@ -243,7 +243,8 @@ void ArrUse::print(int level){
     string s(level,'|');
     Lval_name->print(level);
     for(auto&i:this->index_num)
-        i->print(level);
+        if(i!=nullptr)
+            i->print(level);
     level--;
 }
 // void InfixExpr::print(int level){

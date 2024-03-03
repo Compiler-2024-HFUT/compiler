@@ -20,6 +20,7 @@ enum tokenType{
     MINUS,//-
     ASTERISK,// *
     SLASH,// /
+    MOD,
     OR,//|
     ESPERLUTTE,//&
     

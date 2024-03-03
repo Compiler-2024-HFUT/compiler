@@ -1,6 +1,5 @@
 #include "node.hpp"
 #include <memory>
-#include <string_view>
 #include <vector>
 //FuncDef f{"1",Pos{1,1}};
 #ifndef PARSER__AST
@@ -31,7 +30,7 @@ struct Parser{
     unique_ptr<ast::ExprNode> (Parser::*prefixFn)();//=&Parser::parserIdentifier;
     unique_ptr<ast::ExprNode> (Parser::*InfixFn)(unique_ptr<ast::ExprNode>);
     Pos cur_pos;
-    std::string_view file_name;
+    string file_name;
     
     const std::map<tokenType, parserOpPrec>precedences= {
         {tokenType::ASSIGN,parserOpPrec::OP_ASSIGN},
@@ -49,6 +48,7 @@ struct Parser{
         {tokenType::MINUS,parserOpPrec::OP_SUMS},
         {tokenType::SLASH,parserOpPrec::OP_PRODUCTS},
         {tokenType::ASTERISK,parserOpPrec::OP_PRODUCTS},
+        {tokenType::MOD,parserOpPrec::OP_PRODUCTS},
     };
     
     
@@ -65,7 +65,7 @@ struct Parser{
     unique_ptr<ast::ExprNode> parserGroupedExpr();
     unique_ptr<ast::ExprNode> parserPrefixExpr();
     unique_ptr<ast::ExprNode> parserInfixExpr(unique_ptr<ast::ExprNode>);
-    unique_ptr<ast::ExprNode> parserSuffixExpr(unique_ptr<ast::ExprNode>);
+    // unique_ptr<ast::ExprNode> parserSuffixExpr(unique_ptr<ast::ExprNode>);
     parserOpPrec curPrecedence();
     unique_ptr<ast::WhileStmt> parserWhileStmt();
     unique_ptr<ast::Statement> parserStmts();

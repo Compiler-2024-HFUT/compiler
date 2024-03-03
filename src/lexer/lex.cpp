@@ -22,9 +22,10 @@ enum::tokenType Token::lookupIdent(){
     // if(this->literal=="let"){
     //     ret=tokenType::LET;
     // }else 
-    if(literal=="fn"){
-        ret=tokenType::FUNCTION;
-    }else if(literal=="if"){
+    // if(literal=="fn"){
+        // ret=tokenType::FUNCTION;
+    // }else 
+    if(literal=="if"){
         ret=tokenType::IF;
     }else if(literal=="else"){
         ret=tokenType::ELSE;
@@ -128,6 +129,9 @@ std::unique_ptr<Token>   Lexer::nextToken(/*std::unique_ptr<Lexer> l*/){
         break;
     case '/':
         tok=std::make_unique<Token>("/",tokenType::SLASH);
+        break;
+    case '%':
+        tok=std::make_unique<Token>("%",tokenType::MOD);
         break;
     case ',':
         tok=std::make_unique<Token>(",",tokenType::COMMA);
@@ -291,7 +295,7 @@ string Lexer::readNumber(int &type){
         //     type=tokenType::FLOAT;
         // }
     }
-    while(tmpIsDigit(this->input[position])||this->input[position]=='.'){
+    while(tmpIsDigit(this->input[position])||this->input[position]=='.'||this->input[position]=='e'||this->input[position]=='E'){
         if(ch=='.'&&(type==INT||type==FLOAT)){
             type=tokenType::FLOAT;
             if(dot_num){
@@ -300,6 +304,9 @@ string Lexer::readNumber(int &type){
             ++dot_num;
         }else if(ch=='.'&&(type==INT_BIN||type==INT_HEX||type==INT_OCTAL)){
             exit(123);
+        }else if(ch=='e'||ch=='E'){
+            readChar();
+            sublen++;
         }
         readChar();
         sublen++;

@@ -1,9 +1,14 @@
 #include "node.hpp"
 #include "parser.hpp"
+#include <iostream>
 #include <memory>
 using namespace std;
 int main(int argc , char**argv){
-    Parser *p=new Parser("../../../../test/1.sy");
+    if(argc<2){
+        std::cerr<<("expect argv")<<endl;
+        exit('a');
+    }
+    Parser *p=new Parser(argv[1]);
     p->parserComp();
     for(auto&i:p->comp->global_defs){
         // cout<<i->name<<endl;

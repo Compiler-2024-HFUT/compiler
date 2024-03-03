@@ -3,9 +3,10 @@
 #include "node.hpp"
 #include <cstdio>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <fstream>
-#include <string_view>
+#include <vector>
 #include "type.hpp"
 #include "../arch/riscv.hpp"
 // Parser::Parser(string s):lex(std::make_unique<Lexer>(s)),comp(make_unique<ast::CompunitNode>()),cur_pos(0,0){
@@ -77,13 +78,14 @@ type::ValType Parser::parserDefType(){
             val_type.t=val_type.t|TYPE_VOID;
         }
         else {
-            std::cerr<<"expect val type\n";
+            std::cerr<<"expect  type\n"<<curTok->literal<<endl;
             skipIfCurIs(tokenType::INT);
         }
         nextToken();
     }
-    if(hasdef==false)
+    if(hasdef==false){
         skipIfCurIs(tokenType::INT);
+        }
     return val_type;
 }
 std::unique_ptr<ast::Statement> Parser::parserStmts(){
@@ -150,7 +152,7 @@ unique_ptr<ast::CompunitNode> Parser::parserComp(){
             unique_ptr<ast::ValDeclStmt> p=parserValDeclStmt(val);
             for(auto &i:p->var_def_list){
                 if(this->comp->isReDef(i->name)){
-                    std::cerr<<"重名"<<endl;
+                    std::cerr<<"re def"<<endl;
                     exit(45);
                 }else{
                     comp->global_defs.push_back(std::move(i));
@@ -243,11 +245,22 @@ unique_ptr<ast::ArrDefStmt> Parser::parserArrDefStmt(type::ValType val_type){
 vector<unique_ptr<ast::ExprNode>> Parser::parserInitlizer(){
     vector<unique_ptr<ast::ExprNode>> ret;
     skipIfCurIs(tokenType::LBRACE);
-    if(peekTokIs(tokenType::RBRACE)){
+    if(curTokIs(tokenType::RBRACE)){
+        skipIfCurIs(tokenType::RBRACE);
         return ret;
     }
     while(!curTokIs(tokenType::RBRACE)){
-        ret.push_back(parserExpr());
+        if(curTokIs(tokenType::LBRACE)){
+            auto tmp=parserInitlizer();
+                ret.insert(ret.end(), std::make_move_iterator(tmp.begin()), std::make_move_iterator(tmp.end()));
+        }else 
+            ret.push_back(parserExpr());
+        // else if(peekTokIs(tokenType::RBRACE)){
+        //     skipIfCurIs(tokenType::LBRACE);
+        //     skipIfCurIs(tokenType::RBRACE);
+        //     break;
+        // }
+        
         if(curTokIs(tokenType::COMMA)){
             nextToken();
         }else if(curTokIs(tokenType::RBRACE)){
@@ -280,7 +293,8 @@ unique_ptr<ast::RetStmt>  Parser::parserRetStmt( ){
     std::unique_ptr<ast::RetStmt> ret;
     ret=make_unique<ast::RetStmt>(curTok->tok_pos);
     skipIfCurIs(tokenType::RETURN);
-    ret->expr=parserExpr();
+    if(!curTokIs(tokenType::SEMICOLON))
+        ret->expr=parserExpr();
     skipIfCurIs(tokenType::SEMICOLON);
     return ret;
 }
@@ -295,7 +309,7 @@ void Parser::parserArg(std::vector<std::pair<type::ValType, unique_ptr<ast::Expr
         if(curTokIs(tokenType::COMMA)){
             nextToken();
         }else if(curTokIs(tokenType::RPAREM)){
-            continue;
+            break;
         }else skipIfCurIs(tokenType::RPAREM);
             
     }
@@ -363,6 +377,7 @@ unique_ptr<ast::ExprNode> Parser::parserExpr(parserOpPrec prec){
     tokenType l_type=curTok->type;
     selectPreFn(l_type);
     if(prefixFn==nullptr){
+        //cout<<"cur tok"<<curTok->literal<<curTok->tok_pos.line<<"  "<<curTok->tok_pos.column;
         exit(35);
         // return nullptr;
     }
@@ -387,7 +402,10 @@ unique_ptr<ast::ExprNode> Parser::parserArrUse(unique_ptr<ast::ExprNode> name){
     ret->Lval_name=std::move(name);
     while(curTokIs(tokenType::LSQ_BRACE)){
         skipIfCurIs(tokenType::LSQ_BRACE);
-        ret->index_num.push_back(std::move(parserExpr()));
+        if(!curTokIs(tokenType::RSQ_BRACE))
+            ret->index_num.push_back(std::move(parserExpr()));
+        else
+            ret->index_num.push_back(nullptr);
         skipIfCurIs(tokenType::RSQ_BRACE);
     }
     return ret;
@@ -442,19 +460,19 @@ unique_ptr<ast::ExprNode> Parser::parserLval(){
     // }
     return ret;
 }
-unique_ptr<ast::ExprNode> Parser::parserSuffixExpr(unique_ptr<ast::ExprNode> left){
-    unique_ptr<ast::SuffixExpr> ret=make_unique<ast::SuffixExpr>(curTok->tok_pos);
-    if(curTokIs(tokenType::LSQ_BRACE)){
-        nextToken();
-        ret->lhs=std::move(left);
-        ret->Operat="[]";
-        ret->rhs=parserExpr();
-        skipIfCurIs(tokenType::RSQ_BRACE);
-    }else{
-        exit(123);
-    }
-    return ret;
-}
+// unique_ptr<ast::ExprNode> Parser::parserSuffixExpr(unique_ptr<ast::ExprNode> left){
+//     unique_ptr<ast::SuffixExpr> ret=make_unique<ast::SuffixExpr>(curTok->tok_pos);
+//     if(curTokIs(tokenType::LSQ_BRACE)){
+//         nextToken();
+//         ret->lhs=std::move(left);
+//         ret->Operat="[]";
+//         ret->rhs=parserExpr();
+//         skipIfCurIs(tokenType::RSQ_BRACE);
+//     }else{
+//         exit(123);
+//     }
+//     return ret;
+// }
 unique_ptr<ast::ExprNode> Parser::parserGroupedExpr(){
     skipIfCurIs(tokenType::LPAREM);
     auto exp=parserExpr(parserOpPrec::LOWEST);
@@ -559,7 +577,7 @@ void Parser::skipIfCurIs(tokenType type){
         if(i!=m.end())
             s=i->second;
         else{
-            std::cerr<<"没写完"<<endl;
+            std::cerr<<"no enough"<<endl;
             exit(228);
         }
         std::cerr<<file_name<<':'<<cur_pos.line<<':'<<cur_pos.column<<':'<<"expect "<<s<<endl;
@@ -577,6 +595,7 @@ void Parser::selectPreFn(tokenType type){
             else
                 prefixFn=&Parser::parserLval;
             break;
+        case tokenType::BANG:
         case tokenType::PLUS:
         case tokenType::MINUS:
             prefixFn=&Parser::parserPrefixExpr;
@@ -596,6 +615,7 @@ void Parser::selectPreFn(tokenType type){
             break;
 
     }
+    // cout<<curTok->literal<<endl;
 }
 void Parser::selectInFn(tokenType type){
     switch (type) {
@@ -614,6 +634,7 @@ void Parser::selectInFn(tokenType type){
         case tokenType::ESPERLUTTE:
         case tokenType::D_ESPERLUTTE:
         case tokenType::ASSIGN:
+        case tokenType::MOD:
             Parser::InfixFn=&Parser::parserInfixExpr;
             break;
         default:
