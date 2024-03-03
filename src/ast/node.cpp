@@ -26,6 +26,7 @@ BlockStmt::BlockStmt(Pos pos):Statement(pos){}
 IfStmt::IfStmt(Pos Pos):Statement(pos){}
 ExprNode::ExprNode(Pos pos):SyntaxNode(pos){}
 IntLiteral::IntLiteral(Pos pos,valUnion val):Literal(pos,val){};
+InitializerExpr::InitializerExpr(Pos pos):ExprNode(pos){};
 FloatLiteral::FloatLiteral(Pos pos,valUnion val):Literal(pos,val){};
 Literal::Literal(Pos pos,valUnion val):ExprNode(pos),Value(val){};
 PrefixExpr::PrefixExpr(Pos pos):ExprNode(pos){};
@@ -67,6 +68,9 @@ BinopExpr::BinopExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(l
 // }
 int IntLiteral::getType(){
     return (int)ast::ExprType::INT_LITERAL;
+}
+int InitializerExpr::getType(){
+    return (int)ast::ExprType::INITIALIZER;
 }
 int FloatLiteral::getType(){
     return (int)ast::ExprType::FLOAT_LITERAL;
@@ -135,9 +139,13 @@ void ArrDefStmt::print(int level){
     // if(init_expr){
     //     init_expr->print(level);
     // }
-    for(auto&i:this->initializers){
-        i->print(level);
-    }
+    // for(auto&i:this->initializers->initializers){
+    //     i->print(level);
+    // }
+    if(initializers==nullptr){
+
+    }else
+        initializers->print(level);
 
 }
 void ValDeclStmt::print(int level){
@@ -200,6 +208,13 @@ void ExprStmt::print(int level){
 void IntLiteral::print(int level){
     string s(level,'|');
     cout<<s<<this->Value.i<<endl;
+}
+void InitializerExpr::print(int level){
+    string s(level,'|');
+    if(!this->initializers.empty())
+        for(auto&i:this->initializers){
+            i->print(level);
+        }
 }
 void FloatLiteral::print(int level){
     string s(level,'|');
@@ -317,6 +332,9 @@ void ArrDefStmt::accept(Visitor &visitor) {
     visitor.visit(*this);
 }
 void IntLiteral::accept(Visitor &visitor) {
+    visitor.visit(*this);
+}
+void InitializerExpr::accept(Visitor &visitor) {
     visitor.visit(*this);
 }
 void FloatLiteral::accept(Visitor &visitor) {

@@ -242,8 +242,8 @@ unique_ptr<ast::ArrDefStmt> Parser::parserArrDefStmt(type::ValType val_type){
     ret->val_type.t=ret->val_type.t|TYPE_ARR;
     return ret;
 }
-vector<unique_ptr<ast::ExprNode>> Parser::parserInitlizer(){
-    vector<unique_ptr<ast::ExprNode>> ret;
+unique_ptr<ast::InitializerExpr> Parser::parserInitlizer(){
+    unique_ptr<ast::InitializerExpr> ret=make_unique<ast::InitializerExpr>(cur_pos);
     skipIfCurIs(tokenType::LBRACE);
     if(curTokIs(tokenType::RBRACE)){
         skipIfCurIs(tokenType::RBRACE);
@@ -251,10 +251,10 @@ vector<unique_ptr<ast::ExprNode>> Parser::parserInitlizer(){
     }
     while(!curTokIs(tokenType::RBRACE)){
         if(curTokIs(tokenType::LBRACE)){
-            auto tmp=parserInitlizer();
-                ret.insert(ret.end(), std::make_move_iterator(tmp.begin()), std::make_move_iterator(tmp.end()));
+            ret->initializers.push_back(std::move( parserInitlizer()));
+                //ret.insert(ret.end(), std::make_move_iterator(tmp.begin()), std::make_move_iterator(tmp.end()));
         }else 
-            ret.push_back(parserExpr());
+            ret->initializers.push_back(parserExpr());
         // else if(peekTokIs(tokenType::RBRACE)){
         //     skipIfCurIs(tokenType::LBRACE);
         //     skipIfCurIs(tokenType::RBRACE);

@@ -22,6 +22,7 @@ enum ExprType{
     SUFFIX,
     CALL_EXPR,
     LVAL_EXPR,
+    INITIALIZER,
 };
 enum StmtType{
     // NULL_STMT,
@@ -130,6 +131,13 @@ struct Literal:public ExprNode{
 };
 struct IntLiteral:public Literal{
     IntLiteral(Pos pos,valUnion);
+    virtual int getType();
+    virtual void print(int level=0);
+    virtual void accept(Visitor &visitor)  final;
+};
+struct InitializerExpr:public ExprNode{
+    InitializerExpr(Pos pos);
+    vector<unique_ptr<ExprNode>> initializers;
     virtual int getType();
     virtual void print(int level=0);
     virtual void accept(Visitor &visitor)  final;
@@ -256,7 +264,7 @@ struct ArrDefStmt :DefStmt
 {
     //每行长度
     vector<unique_ptr<ExprNode>> array_length; // nullptr for non-array variables
-    vector<unique_ptr<ExprNode>> initializers;//初始化列表
+    unique_ptr<InitializerExpr> initializers;//初始化列表
     //不知道有什么意义
     vector<int> initializers_index;
     ArrDefStmt(string name ,Pos pos,ValType);
@@ -345,6 +353,7 @@ class Visitor
     virtual void visit(SuffixExpr &node) = 0;
     virtual void visit(LvalExpr &node) = 0;
     virtual void visit(IntLiteral &node) = 0;
+    virtual void visit(InitializerExpr &node) = 0;
     virtual void visit(FloatLiteral &node) = 0;
     // virtual void visit(AssignStmt &node) = 0;
     virtual void visit(BlockStmt &node) = 0;
