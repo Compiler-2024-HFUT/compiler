@@ -78,15 +78,6 @@ struct ArrUse:public ExprNode{
     virtual void print(int level=0)override;
     virtual void accept(Visitor &visitor)  final;
 };
-struct SuffixExpr:public ExprNode{
-    string Operat;//type
-    unique_ptr<ExprNode> lhs;
-    unique_ptr<ExprNode> rhs;//数组[i]
-    SuffixExpr(Pos pos);
-    virtual int getType()override;
-    virtual void print(int level=0)override;
-    virtual void accept(Visitor &visitor)  final;
-};
 struct InfixExpr:public ExprNode{
     string Operat;
     unique_ptr<ExprNode> rhs;
@@ -350,7 +341,6 @@ class Visitor
     virtual void visit(AssignExpr &node) = 0;
     virtual void visit(RelopExpr &node) = 0;
     virtual void visit(BinopExpr &node) = 0;
-    virtual void visit(SuffixExpr &node) = 0;
     virtual void visit(LvalExpr &node) = 0;
     virtual void visit(IntLiteral &node) = 0;
     virtual void visit(InitializerExpr &node) = 0;
