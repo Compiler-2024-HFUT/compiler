@@ -333,9 +333,12 @@ string Lexer::readNumber(int &type){
             }else if(isxdigit(ch)){
                 readChar();
                 sublen++;
-            }else{
-                std::cerr<<"err"<<endl;
-                exit(191);
+            }else if (ch=='-'||ch=='+') {
+                break;
+            }
+            else{
+                    std::cerr<<"err"<<endl;
+                    exit(191);
             }
         }
     }else if(front0){
@@ -371,9 +374,12 @@ string Lexer::readNumber(int &type){
                     std::cerr<<"err"<<endl;
                     exit(191);
                 }
-            }else{
-                std::cerr<<"err"<<endl;
-                exit(191);
+            }else if (ch=='-'||ch=='+') {
+                break;
+            }
+            else{
+                    std::cerr<<"err"<<endl;
+                    exit(191);
             }
 
         }
@@ -412,6 +418,12 @@ string Lexer::readNumber(int &type){
                     std::cerr<<"err"<<endl;
                     exit(117);
                 }
+            }else if (ch=='-'||ch=='+') {
+                break;
+            }
+            else{
+                    std::cerr<<"err"<<endl;
+                    exit(191);
             }
         }
     }

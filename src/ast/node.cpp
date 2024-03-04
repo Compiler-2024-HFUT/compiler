@@ -117,25 +117,31 @@ int ArrUse::getType(){
 // int BreakStmt::getType(){
 //     return (int)ast::StmtType::BREAK_STMT;
 // }
+void LevelPrint(int cur_level,string name,bool is_terminal){
+    for(int i = 0 ; i < cur_level; ++i) cout << "|  ";
+    cout << ">--" << (is_terminal ? "*" : "+") << name;
+    cout << std::endl;
+}
 void CompunitNode::print(int level){
     for(auto&i:global_defs){
         i->print(level);
     }
 }
 void ValDefStmt::print(int level){
-    //cout<<"def a vlaue"<<val_type<<" name is "<<name;
-    string s(level,'|');
-    cout<<s<<"def "<<this->name<<endl;
-    //cout<<s<<<<endl;
+
+    LevelPrint(level, "def", false);
+    LevelPrint(level, name, true);
+    level++;
     if(init_expr){
+        LevelPrint(level-1, "=", true);
         init_expr->print(level);
     }
+    level--;
 }
 void ArrDefStmt::print(int level){
     //cout<<"def a vlaue"<<val_type<<" name is "<<name;
-    string s(level,'|');
-    cout<<s<<"arr\n";
-    cout<<s<<this->name<<endl;
+    LevelPrint(level, "ArrDef", false);
+    LevelPrint(level, name, true);
     // if(init_expr){
     //     init_expr->print(level);
     // }
@@ -144,9 +150,10 @@ void ArrDefStmt::print(int level){
     // }
     if(initializers==nullptr){
 
-    }else
+    }else{
+        LevelPrint(level, "=", true);
         initializers->print(level);
-
+    }
 }
 void ValDeclStmt::print(int level){
     for(auto&i:var_def_list){
@@ -157,45 +164,47 @@ void ValDeclStmt::print(int level){
 
 // }
 void FuncDef::print(int level){
-    string s(level,'|');
-    cout<<s<<"def func "<<""<<name<<endl;
+    LevelPrint(level, "FuncDef", false);
+        LevelPrint(level, this->name, true);
+    level++;
     for(auto &i :argv){
-        cout<<s<<"def"<<i.first.t<<'\n'<<s<<"name ";
-        i.second->print();
+        LevelPrint(level, "FuncParam", false);
+        i.second->print(level);
     }
     if(body){
-        body->print(level+1);
-    
+        LevelPrint(level, "FuncBody", false);
+        body->print(level);
+        level--;
     }else{
         exit(199);
     }
 }
 void RetStmt::print(int level){
-    string s(level,'|');
-    cout<<s<<"return"<<endl;
+    LevelPrint(level, "return", false);
     if(expr){
         expr->print(level);
     }
 }
 void IfStmt::print(int level){
-    string s(level,'|');
-    cout<<s<<"if"<<'\n';
+    LevelPrint(level, "if", true);
     pred->print(level);
     level++;
     if_stmt->print(level);
+    level--;
     if(else_stmt!=nullptr){
-        cout<<s<<"else"<<'\n';
+        LevelPrint(level, "else", false);
+        level++;
         else_stmt->print(level);
         level--;
     }
 }
 void WhileStmt::print(int level){
-    string s(level,'|');
-    cout<<s<<"while"<<'\n';
+    LevelPrint(level, "While", false);
     this->pred->print(level);
-    level++;
+    LevelPrint(level, "WhileBody", false);
+    ++level;
     this->loop_stmt->print(level);
-    level--;
+    --level;
 }
 void BlockStmt::print(int level){
     for(auto &i:this->block_items){
@@ -206,19 +215,19 @@ void ExprStmt::print(int level){
     expr->print(level);
 }
 void IntLiteral::print(int level){
-    string s(level,'|');
-    cout<<s<<this->Value.i<<endl;
+    LevelPrint(level, std::to_string(this->Value.i), true);
 }
 void InitializerExpr::print(int level){
-    string s(level,'|');
+    LevelPrint(level, "initializer size is"+std::to_string(initializers.size()), false);
+    level++;
     if(!this->initializers.empty())
         for(auto&i:this->initializers){
             i->print(level);
         }
+    level--;
 }
 void FloatLiteral::print(int level){
-    string s(level,'|');
-    cout<<s<<this->Value.f<<endl;
+LevelPrint(level, std::to_string(this->Value.f), true);
 }
 void CallExpr::print(int level){
     string s(level,'|');
@@ -234,15 +243,11 @@ void CallExpr::print(int level){
     level--;
 }
 void LvalExpr::print(int level){
-    string s(level,'|');
-    cout<<s<<name<<endl;
+    LevelPrint(level, name, true);
 }
 void PrefixExpr::print(int level){
-    level++;
-    string s(level,'|');
-    cout<<s<<Operat<<endl;
-    rhs->print(level);
-    level--;
+    LevelPrint(level, Operat, true);
+    rhs->print();
 }
 void SuffixExpr::print(int level){
     level++;
@@ -271,26 +276,23 @@ void ArrUse::print(int level){
 //     level--;
 // }
 void AssignExpr::print(int level){
+    LevelPrint(level, Operat, true);
     level++;
-    string s(level,'|');
     lhs->print(level);
-    cout<<s<<Operat<<endl;
     rhs->print(level);
     level--;
 }
 void RelopExpr::print(int level){
+    LevelPrint(level, Operat, true);
     level++;
-    string s(level,'|');
     lhs->print(level);
-    cout<<s<<Operat<<endl;
     rhs->print(level);
     level--;
 }
 void BinopExpr::print(int level){
+    LevelPrint(level, Operat, true);
     level++;
-    string s(level,'|');
     lhs->print(level);
-    cout<<s<<Operat<<endl;
     rhs->print(level);
     level--;
 }
