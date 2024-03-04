@@ -1,6 +1,7 @@
 #include "lex.hpp"
 #include <cctype>
 #include <cstdio>
+#include <iostream>
 #include <memory>
 #include <string>
 Pos::Pos(int _x,int _y):line(_x),column(_y){
@@ -268,24 +269,25 @@ int isbdigit(int c){
 string Lexer::readNumber(int &type){
     int beginpos=this->position;
     int sublen=0;
-    int (*tmpIsDigit)(int)=isdigit;
+    // int (*tmpIsDigit)(int)=isdigit;
     type=tokenType::INT;
     int dot_num=0;
+    bool front0=false;
     if(this->input[position]=='0'){
         if(this->input[readPosition]=='x'||this->input[readPosition]=='X'){
             readChar();
             readChar();
             sublen+=2;
-            tmpIsDigit=isxdigit;
+            // tmpIsDigit=isxdigit;
             type=tokenType::INT_HEX;
         }else if(this->input[readPosition]=='b'||this->input[readPosition]=='B'){
             readChar();
             readChar();
             sublen+=2;
-            tmpIsDigit=isbdigit;
+            // tmpIsDigit=isbdigit;
             type=tokenType::INT_BIN;
         }else if(isodigit(this->input[readPosition])){
-            tmpIsDigit=isodigit;
+            // tmpIsDigit=isodigit;
             readChar();
             ++sublen;
             type=tokenType::INT_OCTAL;
@@ -295,21 +297,123 @@ string Lexer::readNumber(int &type){
         //     type=tokenType::FLOAT;
         // }
     }
-    while(tmpIsDigit(this->input[position])||this->input[position]=='.'||this->input[position]=='e'||this->input[position]=='E'){
-        if(ch=='.'&&(type==INT||type==FLOAT)){
-            type=tokenType::FLOAT;
-            if(dot_num){
-                exit(111);
-            }
-            ++dot_num;
-        }else if(ch=='.'&&(type==INT_BIN||type==INT_HEX||type==INT_OCTAL)){
-            exit(123);
-        }else if(ch=='e'||ch=='E'){
+    if(type==tokenType::INT_BIN){
+        while (isbdigit(ch)) {
             readChar();
             sublen++;
         }
-        readChar();
-        sublen++;
+    }else if(type==tokenType::INT_HEX){
+        bool hasp=false;
+        while (isxdigit(ch)||ch=='p'||ch=='P'||ch=='.'||ch=='-'||ch=='+') {
+            if(ch=='p'||ch=='P'){
+                type=tokenType::FLOAT;
+                if(hasp){
+                    exit(199);
+                }
+                hasp=true;
+                readChar();
+                sublen++;
+                if(ch=='-'||ch=='+'||isdigit(ch)){
+                    do{
+                        readChar();
+                        sublen++;
+                    }while(isdigit(ch));
+                    break;
+                }else{
+                    std::cerr<<"err"<<endl;
+                    exit(191);
+                }
+            }else if (ch=='.') {
+                if(dot_num){
+                    exit(111);
+                }
+                ++dot_num;
+                readChar();
+                sublen++;
+            }else if(isxdigit(ch)){
+                readChar();
+                sublen++;
+            }else{
+                std::cerr<<"err"<<endl;
+                exit(191);
+            }
+        }
+    }else if(front0){
+        bool has9=false,hase=false;
+        while (isdigit(ch)||ch=='.'||ch=='e'||ch=='E'||ch=='-'||ch=='+') {
+            if(isdigit(ch)){
+                if(ch=='9')
+                    has9=true;
+                readChar();
+                sublen++;
+            }else if(ch=='.'){
+                //只有1个点
+                if(dot_num){
+                    exit(111);
+                }
+                ++dot_num;
+                readChar();
+                sublen++;
+            }else if(ch=='e'||ch=='E'){
+                if(hase){
+                    exit(111);
+                }
+                hase=true;
+                readChar();
+                sublen++;
+                if(ch=='-'||ch=='+'||isdigit(ch)){
+                    do{
+                        readChar();
+                        sublen++;
+                    }while(isdigit(ch));
+                    break;
+                }else{
+                    std::cerr<<"err"<<endl;
+                    exit(191);
+                }
+            }else{
+                std::cerr<<"err"<<endl;
+                exit(191);
+            }
+
+        }
+        if(has9&&dot_num==0&&!hase){
+            std::cerr<<"is not octal"<<endl;
+            exit(119);
+        }else if(dot_num){
+            type=tokenType::FLOAT;
+        }else if (hase) {
+            type=tokenType::FLOAT;
+        }
+        else if(!hase&&!has9&&dot_num==0){
+            type=INT_OCTAL;
+        }
+
+    }else{
+        while (isdigit(ch)||ch=='.'||ch=='e'||ch=='E'||ch=='-'||ch=='+') {
+            if(isdigit(ch)){
+                readChar();
+                sublen++;
+            }else if(ch=='.'){
+                type=tokenType::FLOAT;
+                readChar();
+                sublen++;
+            }else if(ch=='e'||ch=='E'){
+                type=tokenType::FLOAT;
+                readChar();
+                sublen++;
+                if(isdigit(ch)||ch=='-'||ch=='+'){
+                    do {
+                        readChar();
+                        sublen++;
+                    }while (isdigit(ch));
+                    break;
+                }else{
+                    std::cerr<<"err"<<endl;
+                    exit(117);
+                }
+            }
+        }
     }
     if(ch=='f'||ch=='F'){
         if(type!=tokenType::FLOAT)exit(51);
