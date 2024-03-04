@@ -290,7 +290,7 @@ struct IfStmt :public  Statement
 {   
     unique_ptr<ExprNode>pred;
     //可能是一个语句，也可能是一个block
-    unique_ptr<Statement> if_stmt;
+    unique_ptr<Statement> then_stmt;
     unique_ptr<Statement> else_stmt;
     IfStmt(Pos Pos);
     ~IfStmt();

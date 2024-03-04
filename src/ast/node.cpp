@@ -128,7 +128,6 @@ void CompunitNode::print(int level){
     }
 }
 void ValDefStmt::print(int level){
-
     LevelPrint(level, "def", false);
     LevelPrint(level, name, true);
     level++;
@@ -167,10 +166,12 @@ void FuncDef::print(int level){
     LevelPrint(level, "FuncDef", false);
         LevelPrint(level, this->name, true);
     level++;
+    LevelPrint(level, "(", true);
     for(auto &i :argv){
         LevelPrint(level, "FuncParam", false);
         i.second->print(level);
     }
+    LevelPrint(level, ")", true);
     if(body){
         LevelPrint(level, "FuncBody", false);
         body->print(level);
@@ -187,20 +188,26 @@ void RetStmt::print(int level){
 }
 void IfStmt::print(int level){
     LevelPrint(level, "if", true);
+    LevelPrint(level, "(", true);
     pred->print(level);
+    LevelPrint(level, ")", true);
     level++;
-    if_stmt->print(level);
+    LevelPrint(level, "ThenBody", true);
+    then_stmt->print(level);
     level--;
     if(else_stmt!=nullptr){
         LevelPrint(level, "else", false);
         level++;
+        LevelPrint(level, "ElseBody", true);
         else_stmt->print(level);
         level--;
     }
 }
 void WhileStmt::print(int level){
     LevelPrint(level, "While", false);
+    LevelPrint(level, "(", true);
     this->pred->print(level);
+    LevelPrint(level, ")", true);
     LevelPrint(level, "WhileBody", false);
     ++level;
     this->loop_stmt->print(level);
@@ -230,17 +237,15 @@ void FloatLiteral::print(int level){
 LevelPrint(level, std::to_string(this->Value.f), true);
 }
 void CallExpr::print(int level){
-    string s(level,'|');
-    cout<<s<<"call func"<<endl;
-    //cout<<s<<this->name<<endl;
     this->call_name->print(level);
-    // cout<<s<<"arg"<<endl;
+    LevelPrint(level, "(", true);
     level++;
     if(!arg.empty())
         for(auto&i:this->arg){
             i->print(level);
         }
     level--;
+    LevelPrint(level, ")", true);
 }
 void LvalExpr::print(int level){
     LevelPrint(level, name, true);
@@ -260,11 +265,16 @@ void SuffixExpr::print(int level){
 }
 void ArrUse::print(int level){
     level++;
-    string s(level,'|');
+    // LevelPrint(level, "use arr", true);
     Lval_name->print(level);
-    for(auto&i:this->index_num)
+    for(auto&i:this->index_num){
+        LevelPrint(level, "[", true);
         if(i!=nullptr)
             i->print(level);
+        else
+            LevelPrint(level, "null", true);
+        LevelPrint(level, "]", true);
+    }
     level--;
 }
 // void InfixExpr::print(int level){
@@ -416,7 +426,7 @@ ValDefStmt::~ValDefStmt(){
 }
 IfStmt::~IfStmt(){
     pred.reset();
-    if_stmt.reset();
+    then_stmt.reset();
     // if(else_stmt!=nullptr)
         else_stmt.reset();
     // name.shrink_to_fit();

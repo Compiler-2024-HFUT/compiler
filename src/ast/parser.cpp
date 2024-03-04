@@ -322,7 +322,7 @@ unique_ptr<ast::IfStmt> Parser::parserIfStmt(){
     ret->pred=parserExpr();
     skipIfCurIs(tokenType::RPAREM);
     //parserBlockItems(if_state->if_body);
-    ret->if_stmt=parserStmts();
+    ret->then_stmt=parserStmts();
     if(curTokIs(tokenType::ELSE)){
         nextToken();
         //parserBlockItems(if_state->else_body);
