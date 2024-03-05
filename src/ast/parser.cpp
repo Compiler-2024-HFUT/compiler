@@ -442,6 +442,12 @@ unique_ptr<ast::ExprNode> Parser::parserInfixExpr(unique_ptr<ast::ExprNode>left)
         express=make_unique<ast::AssignExpr>(curTok->tok_pos,std::move(left));
     }else if(curTok->type<=tokenType::ESPERLUTTE&&curTok->type>=tokenType::PLUS){
         express=make_unique<ast::BinopExpr>(curTok->tok_pos,std::move(left));
+    }else if (curTokIs(tokenType::EQUAL)) {
+        express=make_unique<ast::EqExpr>(curTok->tok_pos,std::move(left));
+    }else if (curTokIs(tokenType::D_OR)) {
+        express=make_unique<ast::ORExp>(curTok->tok_pos,std::move(left));
+    }else if (curTokIs(tokenType::D_ESPERLUTTE)) {
+        express=make_unique<ast::AndExp>(curTok->tok_pos,std::move(left));
     }else{
         express=make_unique<ast::RelopExpr>(curTok->tok_pos,std::move(left));
     }

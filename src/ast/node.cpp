@@ -34,6 +34,9 @@ ArrUse::ArrUse(Pos pos):ExprNode(pos){}
 InfixExpr::InfixExpr(Pos pos,unique_ptr<ExprNode> lhs):ExprNode(pos),lhs(std::move(lhs)){}
 AssignExpr::AssignExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
 RelopExpr::RelopExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
+EqExpr::EqExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
+ORExp::ORExp(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
+AndExp::AndExp(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
 BinopExpr::BinopExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
 // int CompunitNode::getType(){
 //     return (int)ast::StmtType::ROOT;
@@ -89,16 +92,25 @@ int PrefixExpr::getType(){
 //     return (int)ast::ExprType::INFIX;
 // }
 int RelopExpr::getType(){
-    return (int)ast::ExprType::INFIX;
+    return (int)ast::ExprType::REL_OP_EXPR;
+}
+int ORExp::getType(){
+    return (int)ast::ExprType::OR_EXPR;
+}
+int AndExp::getType(){
+    return (int)ast::ExprType::AND_EXPR;
+}
+int EqExpr::getType(){
+    return (int)ast::ExprType::Eq_EXPR;
 }
 int AssignExpr::getType(){
-    return (int)ast::ExprType::INFIX;
+    return (int)ast::ExprType::ASSIGN_EXPR;
 }
 int BinopExpr::getType(){
-    return (int)ast::ExprType::INFIX;
+    return (int)ast::ExprType::BIN_OP_EXPR;
 }
 int ArrUse::getType(){
-    return (int)ast::ExprType::SUFFIX;
+    return (int)ast::ExprType::ARR_USE_EXPR;
 }
 // int ExprStmt::getType(){
 //     exit(114);
@@ -286,6 +298,27 @@ void RelopExpr::print(int level){
     rhs->print(level);
     level--;
 }
+void AndExp::print(int level){
+    LevelPrint(level, Operat, true);
+    level++;
+    lhs->print(level);
+    rhs->print(level);
+    level--;
+}
+void ORExp::print(int level){
+    LevelPrint(level, Operat, true);
+    level++;
+    lhs->print(level);
+    rhs->print(level);
+    level--;
+}
+void EqExpr::print(int level){
+    LevelPrint(level, Operat, true);
+    level++;
+    lhs->print(level);
+    rhs->print(level);
+    level--;
+}
 void BinopExpr::print(int level){
     LevelPrint(level, Operat, true);
     level++;
@@ -349,6 +382,15 @@ void AssignExpr::accept(Visitor &visitor) {
     visitor.visit(*this);
 }
 void RelopExpr::accept(Visitor &visitor) {
+    visitor.visit(*this);
+}
+void EqExpr::accept(Visitor &visitor) {
+    visitor.visit(*this);
+}
+void ORExp::accept(Visitor &visitor) {
+    visitor.visit(*this);
+}
+void AndExp::accept(Visitor &visitor) {
     visitor.visit(*this);
 }
 void BinopExpr::accept(Visitor &visitor) {

@@ -17,9 +17,14 @@ class Visitor;
 enum ExprType{
     FLOAT_LITERAL,
     INT_LITERAL,
-    INFIX,
+    ASSIGN_EXPR,
+    BIN_OP_EXPR,
+    REL_OP_EXPR,
+    Eq_EXPR,
+    OR_EXPR,
+    AND_EXPR,
+    ARR_USE_EXPR,
     PREFIX,
-    SUFFIX,
     CALL_EXPR,
     LVAL_EXPR,
     INITIALIZER,
@@ -98,6 +103,24 @@ struct AssignExpr:public InfixExpr{
 };
 struct RelopExpr:public InfixExpr{
     RelopExpr(Pos pos ,unique_ptr<ExprNode> lhs);
+    virtual int getType();
+    virtual void print(int level=0);
+    virtual void accept(Visitor &visitor)  final;
+};
+struct EqExpr:public InfixExpr{
+    EqExpr(Pos pos ,unique_ptr<ExprNode> lhs);
+    virtual int getType();
+    virtual void print(int level=0);
+    virtual void accept(Visitor &visitor)  final;
+};
+struct AndExp:public InfixExpr{
+    AndExp(Pos pos ,unique_ptr<ExprNode> lhs);
+    virtual int getType();
+    virtual void print(int level=0);
+    virtual void accept(Visitor &visitor)  final;
+};
+struct ORExp:public InfixExpr{
+    ORExp(Pos pos ,unique_ptr<ExprNode> lhs);
     virtual int getType();
     virtual void print(int level=0);
     virtual void accept(Visitor &visitor)  final;
@@ -340,6 +363,9 @@ class Visitor
     // virtual void visit(InfixExpr &node) = 0;
     virtual void visit(AssignExpr &node) = 0;
     virtual void visit(RelopExpr &node) = 0;
+    virtual void visit(EqExpr &node) = 0;
+    virtual void visit(AndExp &node) = 0;
+    virtual void visit(ORExp &node) = 0;
     virtual void visit(BinopExpr &node) = 0;
     virtual void visit(LvalExpr &node) = 0;
     virtual void visit(IntLiteral &node) = 0;
