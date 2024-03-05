@@ -65,6 +65,7 @@ struct Parser{
     unique_ptr<ast::ExprNode> parserGroupedExpr();
     unique_ptr<ast::ExprNode> parserPrefixExpr();
     unique_ptr<ast::ExprNode> parserInfixExpr(unique_ptr<ast::ExprNode>);
+    unique_ptr<ast::ExprNode> parserAssignExpr(unique_ptr<ast::ExprNode>);
     // unique_ptr<ast::ExprNode> parserSuffixExpr(unique_ptr<ast::ExprNode>);
     parserOpPrec curPrecedence();
     unique_ptr<ast::WhileStmt> parserWhileStmt();
@@ -75,7 +76,7 @@ struct Parser{
     unique_ptr<ast::ExprNode>  parserLval( );
     unique_ptr<ast::ExprNode>  parserArrUse(unique_ptr<ast::ExprNode> );
     unique_ptr<ast::CallExpr>  parserCall(unique_ptr<ast::ExprNode> );
-    unique_ptr<ast::ExprStmt> parserExprStmt();
+    unique_ptr<ast::Statement> parserExprStmt();
     void parserArg(std::vector<std::pair<type::ValType, unique_ptr<ast::ExprNode>>> &);
     unique_ptr<ast::CompunitNode> getComp();
     type::ValType parserDefType();

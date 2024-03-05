@@ -1,5 +1,6 @@
 #include "node.hpp"
 #include "type.hpp"
+#include <memory>
 #include <string>
 using namespace ast;
 SyntaxNode::SyntaxNode(Pos pos):pos(pos){}
@@ -8,6 +9,7 @@ Statement::Statement(Pos pos):SyntaxNode(pos){}
 ContinueStmt::ContinueStmt(Pos pos):Statement(pos){}
 BreakStmt::BreakStmt(Pos pos):Statement(pos){}
 ExprStmt::ExprStmt(Pos pos):Statement(pos){}
+ExprStmt::ExprStmt(Pos pos,unique_ptr<ExprNode> expr):Statement(pos),expr(std::move(expr)){}
 EmptyStmt::EmptyStmt(Pos pos):Statement(pos){}
 ValDeclStmt::ValDeclStmt(Pos pos):Statement(pos){}
 ValDeclStmt::ValDeclStmt(Pos pos,ValType type):Statement(pos),all_type(type){}
@@ -24,17 +26,20 @@ RetStmt::RetStmt(Pos pos):Statement(pos){}
 WhileStmt::WhileStmt(Pos pos):Statement(pos){}
 BlockStmt::BlockStmt(Pos pos):Statement(pos){}
 IfStmt::IfStmt(Pos Pos):Statement(pos){}
+AssignStmt::AssignStmt(Pos pos,unique_ptr<ast::ExprNode> lval,unique_ptr<ast::ExprNode> expr):Statement(pos),l_val(std::move(lval)),expr(std::move(expr)){}
 ExprNode::ExprNode(Pos pos):SyntaxNode(pos){}
 IntLiteral::IntLiteral(Pos pos,valUnion val):Literal(pos,val){};
 InitializerExpr::InitializerExpr(Pos pos):ExprNode(pos){};
 FloatLiteral::FloatLiteral(Pos pos,valUnion val):Literal(pos,val){};
 Literal::Literal(Pos pos,valUnion val):ExprNode(pos),Value(val){};
 PrefixExpr::PrefixExpr(Pos pos):ExprNode(pos){};
-SuffixExpr::SuffixExpr(Pos pos):ExprNode(pos){};
 ArrUse::ArrUse(Pos pos):ExprNode(pos){}
 InfixExpr::InfixExpr(Pos pos,unique_ptr<ExprNode> lhs):ExprNode(pos),lhs(std::move(lhs)){}
 AssignExpr::AssignExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
 RelopExpr::RelopExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
+EqExpr::EqExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
+ORExp::ORExp(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
+AndExp::AndExp(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
 BinopExpr::BinopExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
 // int CompunitNode::getType(){
 //     return (int)ast::StmtType::ROOT;
@@ -90,19 +95,25 @@ int PrefixExpr::getType(){
 //     return (int)ast::ExprType::INFIX;
 // }
 int RelopExpr::getType(){
-    return (int)ast::ExprType::INFIX;
+    return (int)ast::ExprType::REL_OP_EXPR;
+}
+int ORExp::getType(){
+    return (int)ast::ExprType::OR_EXPR;
+}
+int AndExp::getType(){
+    return (int)ast::ExprType::AND_EXPR;
+}
+int EqExpr::getType(){
+    return (int)ast::ExprType::Eq_EXPR;
 }
 int AssignExpr::getType(){
-    return (int)ast::ExprType::INFIX;
+    return (int)ast::ExprType::ASSIGN_EXPR;
 }
 int BinopExpr::getType(){
-    return (int)ast::ExprType::INFIX;
-}
-int SuffixExpr::getType(){
-    return (int)ast::ExprType::SUFFIX;
+    return (int)ast::ExprType::BIN_OP_EXPR;
 }
 int ArrUse::getType(){
-    return (int)ast::ExprType::SUFFIX;
+    return (int)ast::ExprType::ARR_USE_EXPR;
 }
 // int ExprStmt::getType(){
 //     exit(114);
@@ -128,7 +139,6 @@ void CompunitNode::print(int level){
     }
 }
 void ValDefStmt::print(int level){
-
     LevelPrint(level, "def", false);
     LevelPrint(level, name, true);
     level++;
@@ -167,10 +177,12 @@ void FuncDef::print(int level){
     LevelPrint(level, "FuncDef", false);
         LevelPrint(level, this->name, true);
     level++;
+    LevelPrint(level, "(", true);
     for(auto &i :argv){
         LevelPrint(level, "FuncParam", false);
         i.second->print(level);
     }
+    LevelPrint(level, ")", true);
     if(body){
         LevelPrint(level, "FuncBody", false);
         body->print(level);
@@ -187,20 +199,26 @@ void RetStmt::print(int level){
 }
 void IfStmt::print(int level){
     LevelPrint(level, "if", true);
+    LevelPrint(level, "(", true);
     pred->print(level);
+    LevelPrint(level, ")", true);
     level++;
-    if_stmt->print(level);
+    LevelPrint(level, "ThenBody", true);
+    then_stmt->print(level);
     level--;
     if(else_stmt!=nullptr){
         LevelPrint(level, "else", false);
         level++;
+        LevelPrint(level, "ElseBody", true);
         else_stmt->print(level);
         level--;
     }
 }
 void WhileStmt::print(int level){
     LevelPrint(level, "While", false);
+    LevelPrint(level, "(", true);
     this->pred->print(level);
+    LevelPrint(level, ")", true);
     LevelPrint(level, "WhileBody", false);
     ++level;
     this->loop_stmt->print(level);
@@ -212,6 +230,11 @@ void BlockStmt::print(int level){
     }
 }
 void ExprStmt::print(int level){
+    expr->print(level);
+}
+void AssignStmt::print(int level){
+    l_val->print(level);
+    LevelPrint(level, "=", true);
     expr->print(level);
 }
 void IntLiteral::print(int level){
@@ -230,17 +253,15 @@ void FloatLiteral::print(int level){
 LevelPrint(level, std::to_string(this->Value.f), true);
 }
 void CallExpr::print(int level){
-    string s(level,'|');
-    cout<<s<<"call func"<<endl;
-    //cout<<s<<this->name<<endl;
     this->call_name->print(level);
-    // cout<<s<<"arg"<<endl;
+    LevelPrint(level, "(", true);
     level++;
     if(!arg.empty())
         for(auto&i:this->arg){
             i->print(level);
         }
     level--;
+    LevelPrint(level, ")", true);
 }
 void LvalExpr::print(int level){
     LevelPrint(level, name, true);
@@ -249,22 +270,18 @@ void PrefixExpr::print(int level){
     LevelPrint(level, Operat, true);
     rhs->print();
 }
-void SuffixExpr::print(int level){
-    level++;
-    string s(level,'|');
-    lhs->print(level);
-    cout<<s<<Operat<<endl;
-    if(rhs)
-        rhs->print(level);
-    level--;
-}
 void ArrUse::print(int level){
     level++;
-    string s(level,'|');
+    // LevelPrint(level, "use arr", true);
     Lval_name->print(level);
-    for(auto&i:this->index_num)
+    for(auto&i:this->index_num){
+        LevelPrint(level, "[", true);
         if(i!=nullptr)
             i->print(level);
+        else
+            LevelPrint(level, "null", true);
+        LevelPrint(level, "]", true);
+    }
     level--;
 }
 // void InfixExpr::print(int level){
@@ -276,6 +293,7 @@ void ArrUse::print(int level){
 //     level--;
 // }
 void AssignExpr::print(int level){
+    exit(127);
     LevelPrint(level, Operat, true);
     level++;
     lhs->print(level);
@@ -283,6 +301,27 @@ void AssignExpr::print(int level){
     level--;
 }
 void RelopExpr::print(int level){
+    LevelPrint(level, Operat, true);
+    level++;
+    lhs->print(level);
+    rhs->print(level);
+    level--;
+}
+void AndExp::print(int level){
+    LevelPrint(level, Operat, true);
+    level++;
+    lhs->print(level);
+    rhs->print(level);
+    level--;
+}
+void ORExp::print(int level){
+    LevelPrint(level, Operat, true);
+    level++;
+    lhs->print(level);
+    rhs->print(level);
+    level--;
+}
+void EqExpr::print(int level){
     LevelPrint(level, Operat, true);
     level++;
     lhs->print(level);
@@ -298,7 +337,7 @@ void BinopExpr::print(int level){
 }
 
 void EmptyStmt::print(int level){
-    cout<<"NULL"<<endl;
+    LevelPrint(level, "emptyStmt", true);
 }
 void ContinueStmt::print(int level){
     string s(level,'|');
@@ -318,79 +357,89 @@ bool CompunitNode::isReDef(string tok_name){
     }
     return re_def;
 }
-void CompunitNode::accept(Visitor &visitor) {
+void CompunitNode::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void FuncDef::accept(Visitor &visitor) {
+void FuncDef::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void ValDeclStmt::accept(Visitor &visitor) {
+void ValDeclStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void ValDefStmt::accept(Visitor &visitor) {
+void ValDefStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void ArrDefStmt::accept(Visitor &visitor) {
+void ArrDefStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void IntLiteral::accept(Visitor &visitor) {
+void IntLiteral::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void InitializerExpr::accept(Visitor &visitor) {
+void InitializerExpr::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void FloatLiteral::accept(Visitor &visitor) {
+void FloatLiteral::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void PrefixExpr::accept(Visitor &visitor) {
+void PrefixExpr::accept(ASTVisitor &visitor) {
 
 }
-// void InfixExpr::accept(Visitor &visitor) {
+// void InfixExpr::accept(ASTVisitor &visitor) {
 //     visitor.visit(*this);
 // }
-void AssignExpr::accept(Visitor &visitor) {
+void AssignExpr::accept(ASTVisitor &visitor) {
+    exit(127);
+    // visitor.visit(*this);
+}
+void RelopExpr::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void RelopExpr::accept(Visitor &visitor) {
+void EqExpr::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void BinopExpr::accept(Visitor &visitor) {
+void ORExp::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void SuffixExpr::accept(Visitor &visitor) {
+void AndExp::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void ArrUse::accept(Visitor &visitor) {
+void BinopExpr::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void LvalExpr::accept(Visitor &visitor) {
+void ArrUse::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void CallExpr::accept(Visitor &visitor) {
+void LvalExpr::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void ExprStmt::accept(Visitor &visitor) {
+void CallExpr::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void BlockStmt::accept(Visitor &visitor) {
+void ExprStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void RetStmt::accept(Visitor &visitor) {
+void AssignStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void IfStmt::accept(Visitor &visitor) {
+void BlockStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void WhileStmt::accept(Visitor &visitor) {
+void RetStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void ContinueStmt::accept(Visitor &visitor) {
+void IfStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void BreakStmt::accept(Visitor &visitor) {
+void WhileStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void EmptyStmt::accept(Visitor &visitor) {
+void ContinueStmt::accept(ASTVisitor &visitor) {
+    visitor.visit(*this);
+}
+void BreakStmt::accept(ASTVisitor &visitor) {
+    visitor.visit(*this);
+}
+void EmptyStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
 CompunitNode::~CompunitNode(){
@@ -416,7 +465,7 @@ ValDefStmt::~ValDefStmt(){
 }
 IfStmt::~IfStmt(){
     pred.reset();
-    if_stmt.reset();
+    then_stmt.reset();
     // if(else_stmt!=nullptr)
         else_stmt.reset();
     // name.shrink_to_fit();

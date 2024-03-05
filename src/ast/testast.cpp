@@ -10,16 +10,7 @@ int main(int argc , char**argv){
     }
     Parser *p=new Parser(argv[1]);
     p->parserComp();
-    for(auto&i:p->comp->global_defs){
-        // cout<<i->name<<endl;
-        // if(i->getType()==ast::StmtType::FUNSTMT){
-        //     auto * fun=(ast::FuncDef*)(i.get());
-        //     for(auto & [ i, b]:fun->argv){
-        //         cout<<i<<"\t"<<b<<endl;
-        //     }
-        // }
-        i->print();
-    }
+    p->comp->print();
     delete (p);
 
 }

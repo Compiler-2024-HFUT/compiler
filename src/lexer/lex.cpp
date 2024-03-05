@@ -306,7 +306,7 @@ string Lexer::readNumber(int &type){
         bool hasp=false;
         while (isxdigit(ch)||ch=='p'||ch=='P'||ch=='.'||ch=='-'||ch=='+') {
             if(ch=='p'||ch=='P'){
-                type=tokenType::FLOAT;
+                type=tokenType::FLOAT;                
                 if(hasp){
                     exit(199);
                 }
@@ -325,7 +325,7 @@ string Lexer::readNumber(int &type){
                 }
             }else if (ch=='.') {
                 if(dot_num){
-                    exit(111);
+                    break;
                 }
                 ++dot_num;
                 readChar();
@@ -337,8 +337,8 @@ string Lexer::readNumber(int &type){
                 break;
             }
             else{
-                    std::cerr<<"err"<<endl;
-                    exit(191);
+                std::cerr<<"err"<<endl;
+                exit(191);
             }
         }
     }else if(front0){
@@ -352,15 +352,12 @@ string Lexer::readNumber(int &type){
             }else if(ch=='.'){
                 //只有1个点
                 if(dot_num){
-                    exit(111);
+                    break;
                 }
                 ++dot_num;
                 readChar();
                 sublen++;
             }else if(ch=='e'||ch=='E'){
-                if(hase){
-                    exit(111);
-                }
                 hase=true;
                 readChar();
                 sublen++;
@@ -401,6 +398,10 @@ string Lexer::readNumber(int &type){
                 readChar();
                 sublen++;
             }else if(ch=='.'){
+                if(dot_num){
+                    break;
+                }
+                ++dot_num;
                 type=tokenType::FLOAT;
                 readChar();
                 sublen++;
