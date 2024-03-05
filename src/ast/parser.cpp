@@ -2,6 +2,7 @@
 #include "parser.hpp"
 #include "node.hpp"
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <iterator>
 #include <memory>
@@ -95,10 +96,6 @@ std::unique_ptr<ast::Statement> Parser::parserStmts(){
     }else if(curTokIs(tokenType::DEFFLOAT)||curTokIs(tokenType::DEFINT)||curTokIs(tokenType::CONST)){
         type::ValType type=parserDefType();
         ret=parserValDeclStmt(type);
-        // for(auto &i:p->var_def_list){
-        //         stmts.push_back(std::move(i));
-        // }
-        //nextToken();
     }else if(curTokIs(tokenType::IF)){
         ret=parserIfStmt();
     }else if(curTokIs(tokenType::WHILE)){
@@ -162,10 +159,18 @@ unique_ptr<ast::ValDeclStmt> Parser::parserValDeclStmt(type::ValType val_type){
     nextToken();
     return val_decl;
 }
-unique_ptr<ast::ExprStmt> Parser::parserExprStmt(){
-    auto ret=make_unique<ast::ExprStmt>(curTok->tok_pos);
-    ret->expr=parserExpr();
+unique_ptr<ast::Statement> Parser::parserExprStmt(){
+    auto estmt=make_unique<ast::ExprStmt>(curTok->tok_pos,parserExpr());
     skipIfCurIs(tokenType::SEMICOLON);
+    unique_ptr<ast::Statement> ret;
+    if(estmt->expr->getType()==ast::ASSIGN_EXPR){
+        auto expr=std::move(estmt->expr);
+        ast::AssignExpr* aexp=(ast::AssignExpr*)expr.get();
+        ret=make_unique<ast::AssignStmt>(estmt->pos,std::move(aexp->lhs),std::move(aexp->rhs));
+        estmt.reset();
+    }else{
+        ret=std::move(estmt);
+    }
     return ret;
 }
 unique_ptr<ast::DefStmt> Parser::parserValDefStmt(type::ValType val_type){
@@ -470,6 +475,8 @@ unique_ptr<ast::BlockStmt>  Parser::parserBlockItems( ){
         tmp=parserStmts();
         if(tmp!=nullptr){
             ret->block_items.push_back(std::move(tmp));
+        }else{
+            exit(128);
         }
     }
     return ret;

@@ -76,7 +76,7 @@ struct Parser{
     unique_ptr<ast::ExprNode>  parserLval( );
     unique_ptr<ast::ExprNode>  parserArrUse(unique_ptr<ast::ExprNode> );
     unique_ptr<ast::CallExpr>  parserCall(unique_ptr<ast::ExprNode> );
-    unique_ptr<ast::ExprStmt> parserExprStmt();
+    unique_ptr<ast::Statement> parserExprStmt();
     void parserArg(std::vector<std::pair<type::ValType, unique_ptr<ast::ExprNode>>> &);
     unique_ptr<ast::CompunitNode> getComp();
     type::ValType parserDefType();

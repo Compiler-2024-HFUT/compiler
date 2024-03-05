@@ -1,5 +1,6 @@
 #include "node.hpp"
 #include "type.hpp"
+#include <memory>
 #include <string>
 using namespace ast;
 SyntaxNode::SyntaxNode(Pos pos):pos(pos){}
@@ -8,6 +9,7 @@ Statement::Statement(Pos pos):SyntaxNode(pos){}
 ContinueStmt::ContinueStmt(Pos pos):Statement(pos){}
 BreakStmt::BreakStmt(Pos pos):Statement(pos){}
 ExprStmt::ExprStmt(Pos pos):Statement(pos){}
+ExprStmt::ExprStmt(Pos pos,unique_ptr<ExprNode> expr):Statement(pos),expr(std::move(expr)){}
 EmptyStmt::EmptyStmt(Pos pos):Statement(pos){}
 ValDeclStmt::ValDeclStmt(Pos pos):Statement(pos){}
 ValDeclStmt::ValDeclStmt(Pos pos,ValType type):Statement(pos),all_type(type){}
@@ -24,6 +26,7 @@ RetStmt::RetStmt(Pos pos):Statement(pos){}
 WhileStmt::WhileStmt(Pos pos):Statement(pos){}
 BlockStmt::BlockStmt(Pos pos):Statement(pos){}
 IfStmt::IfStmt(Pos Pos):Statement(pos){}
+AssignStmt::AssignStmt(Pos pos,unique_ptr<ast::ExprNode> lval,unique_ptr<ast::ExprNode> expr):Statement(pos),l_val(std::move(lval)),expr(std::move(expr)){}
 ExprNode::ExprNode(Pos pos):SyntaxNode(pos){}
 IntLiteral::IntLiteral(Pos pos,valUnion val):Literal(pos,val){};
 InitializerExpr::InitializerExpr(Pos pos):ExprNode(pos){};
@@ -229,6 +232,11 @@ void BlockStmt::print(int level){
 void ExprStmt::print(int level){
     expr->print(level);
 }
+void AssignStmt::print(int level){
+    l_val->print(level);
+    LevelPrint(level, "=", true);
+    expr->print(level);
+}
 void IntLiteral::print(int level){
     LevelPrint(level, std::to_string(this->Value.i), true);
 }
@@ -285,6 +293,7 @@ void ArrUse::print(int level){
 //     level--;
 // }
 void AssignExpr::print(int level){
+    exit(127);
     LevelPrint(level, Operat, true);
     level++;
     lhs->print(level);
@@ -328,7 +337,7 @@ void BinopExpr::print(int level){
 }
 
 void EmptyStmt::print(int level){
-    cout<<"NULL"<<endl;
+    LevelPrint(level, "emptyStmt", true);
 }
 void ContinueStmt::print(int level){
     string s(level,'|');
@@ -348,85 +357,89 @@ bool CompunitNode::isReDef(string tok_name){
     }
     return re_def;
 }
-void CompunitNode::accept(Visitor &visitor) {
+void CompunitNode::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void FuncDef::accept(Visitor &visitor) {
+void FuncDef::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void ValDeclStmt::accept(Visitor &visitor) {
+void ValDeclStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void ValDefStmt::accept(Visitor &visitor) {
+void ValDefStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void ArrDefStmt::accept(Visitor &visitor) {
+void ArrDefStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void IntLiteral::accept(Visitor &visitor) {
+void IntLiteral::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void InitializerExpr::accept(Visitor &visitor) {
+void InitializerExpr::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void FloatLiteral::accept(Visitor &visitor) {
+void FloatLiteral::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void PrefixExpr::accept(Visitor &visitor) {
+void PrefixExpr::accept(ASTVisitor &visitor) {
 
 }
-// void InfixExpr::accept(Visitor &visitor) {
+// void InfixExpr::accept(ASTVisitor &visitor) {
 //     visitor.visit(*this);
 // }
-void AssignExpr::accept(Visitor &visitor) {
+void AssignExpr::accept(ASTVisitor &visitor) {
+    exit(127);
+    // visitor.visit(*this);
+}
+void RelopExpr::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void RelopExpr::accept(Visitor &visitor) {
+void EqExpr::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void EqExpr::accept(Visitor &visitor) {
+void ORExp::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void ORExp::accept(Visitor &visitor) {
+void AndExp::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void AndExp::accept(Visitor &visitor) {
+void BinopExpr::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void BinopExpr::accept(Visitor &visitor) {
+void ArrUse::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void ArrUse::accept(Visitor &visitor) {
+void LvalExpr::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void LvalExpr::accept(Visitor &visitor) {
+void CallExpr::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void CallExpr::accept(Visitor &visitor) {
+void ExprStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void ExprStmt::accept(Visitor &visitor) {
+void AssignStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void BlockStmt::accept(Visitor &visitor) {
+void BlockStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void RetStmt::accept(Visitor &visitor) {
+void RetStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void IfStmt::accept(Visitor &visitor) {
+void IfStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void WhileStmt::accept(Visitor &visitor) {
+void WhileStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void ContinueStmt::accept(Visitor &visitor) {
+void ContinueStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void BreakStmt::accept(Visitor &visitor) {
+void BreakStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void EmptyStmt::accept(Visitor &visitor) {
+void EmptyStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
 CompunitNode::~CompunitNode(){
