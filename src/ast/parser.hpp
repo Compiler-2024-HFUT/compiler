@@ -65,6 +65,7 @@ struct Parser{
     unique_ptr<ast::ExprNode> parserGroupedExpr();
     unique_ptr<ast::ExprNode> parserPrefixExpr();
     unique_ptr<ast::ExprNode> parserInfixExpr(unique_ptr<ast::ExprNode>);
+    unique_ptr<ast::ExprNode> parserAssignExpr(unique_ptr<ast::ExprNode>);
     // unique_ptr<ast::ExprNode> parserSuffixExpr(unique_ptr<ast::ExprNode>);
     parserOpPrec curPrecedence();
     unique_ptr<ast::WhileStmt> parserWhileStmt();

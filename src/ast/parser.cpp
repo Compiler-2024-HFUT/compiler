@@ -438,9 +438,7 @@ unique_ptr<ast::ExprNode> Parser::parserPrefixExpr(){
 unique_ptr<ast::ExprNode> Parser::parserInfixExpr(unique_ptr<ast::ExprNode>left){
     parserOpPrec curPrec=this->curPrecedence();
     unique_ptr<ast::InfixExpr> express;
-    if(curTokIs(tokenType::ASSIGN)){
-        express=make_unique<ast::AssignExpr>(curTok->tok_pos,std::move(left));
-    }else if(curTok->type<=tokenType::ESPERLUTTE&&curTok->type>=tokenType::PLUS){
+    if(curTok->type<=tokenType::ESPERLUTTE&&curTok->type>=tokenType::PLUS){
         express=make_unique<ast::BinopExpr>(curTok->tok_pos,std::move(left));
     }else if (curTokIs(tokenType::EQUAL)) {
         express=make_unique<ast::EqExpr>(curTok->tok_pos,std::move(left));
@@ -456,6 +454,15 @@ unique_ptr<ast::ExprNode> Parser::parserInfixExpr(unique_ptr<ast::ExprNode>left)
     express->rhs=parserExpr(curPrec);
     return express;    
 }
+unique_ptr<ast::ExprNode> Parser::parserAssignExpr(unique_ptr<ast::ExprNode> left){
+    // parserOpPrec curPrec=this->curPrecedence();
+    unique_ptr<ast::AssignExpr> express=make_unique<ast::AssignExpr>(curTok->tok_pos,std::move(left));
+    express->Operat=curTok->literal;
+    this->nextToken();
+    //是否可以以最低优先级表示右结合
+    express->rhs=parserExpr(parserOpPrec::LOWEST);
+    return express;    
+};
 unique_ptr<ast::BlockStmt>  Parser::parserBlockItems( ){
     unique_ptr<ast::BlockStmt>  ret=make_unique<ast::BlockStmt>(curTok->tok_pos);
     unique_ptr<ast::Statement> tmp;
@@ -566,9 +573,11 @@ void Parser::selectInFn(tokenType type){
         case tokenType::D_OR:
         case tokenType::ESPERLUTTE:
         case tokenType::D_ESPERLUTTE:
-        case tokenType::ASSIGN:
         case tokenType::MOD:
             Parser::InfixFn=&Parser::parserInfixExpr;
+            break;
+        case tokenType::ASSIGN:
+            Parser::InfixFn=&Parser::parserAssignExpr;
             break;
         default:
             this->InfixFn=nullptr;
