@@ -33,7 +33,6 @@ InitializerExpr::InitializerExpr(Pos pos):ExprNode(pos){};
 FloatLiteral::FloatLiteral(Pos pos,valUnion val):Literal(pos,val){};
 Literal::Literal(Pos pos,valUnion val):ExprNode(pos),Value(val){};
 PrefixExpr::PrefixExpr(Pos pos):ExprNode(pos){};
-ArrUse::ArrUse(Pos pos):ExprNode(pos){}
 InfixExpr::InfixExpr(Pos pos,unique_ptr<ExprNode> lhs):ExprNode(pos),lhs(std::move(lhs)){}
 AssignExpr::AssignExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
 RelopExpr::RelopExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
@@ -111,9 +110,6 @@ int AssignExpr::getType(){
 }
 int BinopExpr::getType(){
     return (int)ast::ExprType::BIN_OP_EXPR;
-}
-int ArrUse::getType(){
-    return (int)ast::ExprType::ARR_USE_EXPR;
 }
 // int ExprStmt::getType(){
 //     exit(114);
@@ -265,15 +261,6 @@ void CallExpr::print(int level){
 }
 void LvalExpr::print(int level){
     LevelPrint(level, name, true);
-}
-void PrefixExpr::print(int level){
-    LevelPrint(level, Operat, true);
-    rhs->print();
-}
-void ArrUse::print(int level){
-    level++;
-    // LevelPrint(level, "use arr", true);
-    Lval_name->print(level);
     for(auto&i:this->index_num){
         LevelPrint(level, "[", true);
         if(i!=nullptr)
@@ -282,7 +269,10 @@ void ArrUse::print(int level){
             LevelPrint(level, "null", true);
         LevelPrint(level, "]", true);
     }
-    level--;
+}
+void PrefixExpr::print(int level){
+    LevelPrint(level, Operat, true);
+    rhs->print();
 }
 // void InfixExpr::print(int level){
 //     level++;
@@ -404,9 +394,6 @@ void AndExp::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
 void BinopExpr::accept(ASTVisitor &visitor) {
-    visitor.visit(*this);
-}
-void ArrUse::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
 void LvalExpr::accept(ASTVisitor &visitor) {
