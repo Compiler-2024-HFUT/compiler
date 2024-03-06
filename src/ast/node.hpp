@@ -75,14 +75,14 @@ struct PrefixExpr:public ExprNode{
     virtual void print(int level=0)override;
     virtual void accept(ASTVisitor &visitor) override final;
 };
-struct ArrUse:public ExprNode{
-    unique_ptr<ExprNode> Lval_name;
-    vector<unique_ptr<ExprNode>> index_num;
-    ArrUse(Pos pos);
-    virtual int getType()override;
-    virtual void print(int level=0)override;
-    virtual void accept(ASTVisitor &visitor)  final;
-};
+// struct ArrUse:public ExprNode{
+//     unique_ptr<ExprNode> Lval_name;
+//     vector<unique_ptr<ExprNode>> index_num;
+//     ArrUse(Pos pos);
+//     virtual int getType()override;
+//     virtual void print(int level=0)override;
+//     virtual void accept(ASTVisitor &visitor)  final;
+// };
 struct InfixExpr:public ExprNode{
     string Operat;
     unique_ptr<ExprNode> rhs;
@@ -177,6 +177,7 @@ struct LvalExpr:public ExprNode{
     string name;
     // unique_ptr<ExprNode> expr;
     LvalExpr(Pos pos,string name);
+    vector<unique_ptr<ExprNode>> index_num;
     // LvalExpr(string name ,Pos pos,ValType,unique_ptr<ExprNode>);
     // virtual void print();
     virtual int getType();
@@ -366,7 +367,6 @@ class ASTVisitor
     virtual void visit(ValDeclStmt &node) = 0;
     virtual void visit(ValDefStmt &node) = 0;
     virtual void visit(ArrDefStmt &node) = 0;
-    virtual void visit(ArrUse &node) = 0;
     virtual void visit(ExprStmt &node) = 0;
     virtual void visit(AssignStmt &node) = 0;
     virtual void visit(PrefixExpr &node) = 0;
