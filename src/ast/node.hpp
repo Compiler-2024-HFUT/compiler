@@ -67,10 +67,10 @@ struct ExprNode: SyntaxNode {
     virtual void print(int level=0)=0;
     virtual void accept(ASTVisitor &visitor) =0;
 };
-struct PrefixExpr:public ExprNode{
+struct UnaryExpr:public ExprNode{
     string Operat;//type
     unique_ptr<ExprNode> rhs;
-    PrefixExpr(Pos pos);
+    UnaryExpr(Pos pos);
     virtual int getType()override;
     virtual void print(int level=0)override;
     virtual void accept(ASTVisitor &visitor) override final;
@@ -143,8 +143,8 @@ struct Literal:public ExprNode{
     virtual void print(int level=0)=0;
     virtual void accept(ASTVisitor &visitor)  =0;
 };
-struct IntLiteral:public Literal{
-    IntLiteral(Pos pos,valUnion);
+struct IntConst:public Literal{
+    IntConst(Pos pos,valUnion);
     virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
@@ -156,8 +156,8 @@ struct InitializerExpr:public ExprNode{
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
 };
-struct FloatLiteral:public Literal{
-    FloatLiteral(Pos pos,valUnion);
+struct FloatConst:public Literal{
+    FloatConst(Pos pos,valUnion);
     virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
@@ -165,7 +165,7 @@ struct FloatLiteral:public Literal{
 struct CallExpr:public ExprNode{
     // string name;//type
     unique_ptr<ExprNode> call_name;
-    vector<unique_ptr<ast::ExprNode>> arg;
+    vector<unique_ptr<ast::ExprNode>> func_r_params;
     CallExpr(Pos pos);
     CallExpr(Pos pos,string name);
     virtual int getType();
@@ -263,7 +263,7 @@ struct FuncStmt :public  DefStmt
 struct FuncDef :public  FuncStmt
 {   
     unique_ptr<BlockStmt> body;
-    std::vector<std::pair<ValType, unique_ptr<ExprNode>>>  argv;
+    std::vector<std::pair<ValType, unique_ptr<ExprNode>>>  func_f_params;
     // FuncDef(string name ,Pos pos);
     FuncDef(string name ,Pos pos,ValType );
     ~FuncDef();
@@ -272,29 +272,6 @@ struct FuncDef :public  FuncStmt
     virtual void accept(ASTVisitor &visitor)  final;
 
     // bool isReDef(string tok_name);
-};
-struct ValDefStmt :public  DefStmt
-{   
-    unique_ptr<ExprNode> init_expr;
-    ValDefStmt(string name ,Pos pos,ValType);
-    ValDefStmt(string name ,Pos pos,ValType,unique_ptr<ExprNode>);
-    ~ValDefStmt();
-    //vector<unique_ptr<int>> body;
-    // virtual int getType();
-    virtual void print(int level=0);
-    virtual void accept(ASTVisitor &visitor)  final;
-};
-struct ArrDefStmt :DefStmt
-{
-    //每行长度
-    vector<unique_ptr<ExprNode>> array_length; // nullptr for non-array variables
-    unique_ptr<InitializerExpr> initializers;//初始化列表
-    //不知道有什么意义
-    vector<int> initializers_index;
-    ArrDefStmt(string name ,Pos pos,ValType);
-    // virtual int getType();
-    virtual void print(int level=0);
-    virtual void accept(ASTVisitor &visitor)  final;
 };
 struct ValDeclStmt :public  Statement
 {   
@@ -307,8 +284,55 @@ struct ValDeclStmt :public  Statement
     ~ValDeclStmt();
     // virtual int getType();
     virtual void print(int level=0);
+    virtual void accept(ASTVisitor &visitor)  ;
+
+};
+struct ValDefStmt :public  DefStmt
+{   
+    unique_ptr<ExprNode> init_expr;
+    ValDefStmt(string name ,Pos pos,ValType);
+    ValDefStmt(string name ,Pos pos,ValType,unique_ptr<ExprNode>);
+    ~ValDefStmt();
+    //vector<unique_ptr<int>> body;
+    // virtual int getType();
+    virtual void print(int level=0);
+    virtual void accept(ASTVisitor &visitor)  ;
+};
+struct ArrDefStmt :DefStmt
+{
+    //每行长度
+    vector<unique_ptr<ExprNode>> array_length; // nullptr for non-array variables
+    unique_ptr<InitializerExpr> initializers;//初始化列表
+    //不知道有什么意义
+    vector<int> initializers_index;
+    ArrDefStmt(string name ,Pos pos,ValType);
+    // virtual int getType();
+    virtual void print(int level=0);
+    virtual void accept(ASTVisitor &visitor)  ;
+};
+struct ConstDeclStmt :public  ValDeclStmt
+{   //数据在父类里
+    ConstDeclStmt(Pos pos);
+    ConstDeclStmt(Pos pos,ValType type);
+    virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
 
+};
+struct ConstDefStmt :public  ValDefStmt
+{   //数据在父类里
+    ConstDefStmt(string name ,Pos pos,ValType);
+    ConstDefStmt(string name ,Pos pos,ValType,unique_ptr<ExprNode>);
+    //vector<unique_ptr<int>> body;
+    // virtual int getType();
+    virtual void print(int level=0);
+    virtual void accept(ASTVisitor &visitor)  final;
+};
+struct ConstArrDefStmt :ArrDefStmt
+{   //数据在父类里
+    ConstArrDefStmt(string name ,Pos pos,ValType);
+    // virtual int getType();
+    virtual void print(int level=0);
+    virtual void accept(ASTVisitor &visitor)  final;
 };
 struct IfStmt :public  Statement
 {   
@@ -367,9 +391,12 @@ class ASTVisitor
     virtual void visit(ValDeclStmt &node) = 0;
     virtual void visit(ValDefStmt &node) = 0;
     virtual void visit(ArrDefStmt &node) = 0;
+    virtual void visit(ConstDeclStmt &node) = 0;
+    virtual void visit(ConstDefStmt &node) = 0;
+    virtual void visit(ConstArrDefStmt &node) = 0;
     virtual void visit(ExprStmt &node) = 0;
     virtual void visit(AssignStmt &node) = 0;
-    virtual void visit(PrefixExpr &node) = 0;
+    virtual void visit(UnaryExpr &node) = 0;
     // virtual void visit(InfixExpr &node) = 0;
     virtual void visit(AssignExpr &node) = 0;
     virtual void visit(RelopExpr &node) = 0;
@@ -378,9 +405,9 @@ class ASTVisitor
     virtual void visit(ORExp &node) = 0;
     virtual void visit(BinopExpr &node) = 0;
     virtual void visit(LvalExpr &node) = 0;
-    virtual void visit(IntLiteral &node) = 0;
+    virtual void visit(IntConst &node) = 0;
     virtual void visit(InitializerExpr &node) = 0;
-    virtual void visit(FloatLiteral &node) = 0;
+    virtual void visit(FloatConst &node) = 0;
     // virtual void visit(AssignStmt &node) = 0;
     virtual void visit(BlockStmt &node) = 0;
     virtual void visit(IfStmt &node) = 0;

@@ -143,7 +143,11 @@ unique_ptr<ast::CompunitNode> Parser::parserComp(){
     return nullptr;
 }
 unique_ptr<ast::ValDeclStmt> Parser::parserValDeclStmt(type::ValType val_type){
-    unique_ptr<ast::ValDeclStmt>val_decl=make_unique<ast::ValDeclStmt>(curTok->tok_pos,val_type);
+    unique_ptr<ast::ValDeclStmt>val_decl;
+    if(IS_CONST(val_type.t))
+        val_decl=make_unique<ast::ConstDeclStmt>(curTok->tok_pos,val_type);
+    else
+        val_decl=make_unique<ast::ValDeclStmt>(curTok->tok_pos,val_type);
     while(!curTokIs(tokenType::SEMICOLON)){
         val_decl->var_def_list.push_back(parserValDefStmt(val_type));
         if(curTokIs(tokenType::SEMICOLON)){
@@ -177,7 +181,11 @@ unique_ptr<ast::DefStmt> Parser::parserValDefStmt(type::ValType val_type){
     if(peekTokIs(tokenType::LSQ_BRACE)){
         ret=parserArrDefStmt(val_type);
     }else{
-        unique_ptr<ast::ValDefStmt> tmp=make_unique<ast::ValDefStmt>(curTok->literal,curTok->tok_pos,val_type);
+        unique_ptr<ast::ValDefStmt> tmp;
+        if(IS_CONST(val_type.t))
+            tmp=make_unique<ast::ConstDefStmt>(curTok->literal,curTok->tok_pos,val_type);
+        else
+            tmp=make_unique<ast::ValDefStmt>(curTok->literal,curTok->tok_pos,val_type);;
         nextToken();
         if(curTokIs(tokenType::ASSIGN)){
             nextToken();
@@ -189,7 +197,11 @@ unique_ptr<ast::DefStmt> Parser::parserValDefStmt(type::ValType val_type){
     return ret;
 }
 unique_ptr<ast::ArrDefStmt> Parser::parserArrDefStmt(type::ValType val_type){
-    unique_ptr<ast::ArrDefStmt> ret=make_unique<ast::ArrDefStmt>(curTok->literal,curTok->tok_pos,val_type);;
+    unique_ptr<ast::ArrDefStmt> ret;
+    if(IS_CONST(val_type.t))
+        ret=make_unique<ast::ConstArrDefStmt>(curTok->literal,curTok->tok_pos,val_type);
+    else
+        ret=make_unique<ast::ArrDefStmt>(curTok->literal,curTok->tok_pos,val_type);
     skipIfCurIs(tokenType::IDENT);
     while(!curTokIs(tokenType::COMMA)&&!curTokIs(tokenType::SEMICOLON)&&!curTokIs(tokenType::ASSIGN)){
         skipIfCurIs(tokenType::LSQ_BRACE);
@@ -200,7 +212,7 @@ unique_ptr<ast::ArrDefStmt> Parser::parserArrDefStmt(type::ValType val_type){
         nextToken();
         ret->initializers=parserInitlizer();
     }
-    ret->val_type.t=ret->val_type.t|TYPE_ARR;
+    ret->val_type.t=ret->val_type.t;
     return ret;
 }
 unique_ptr<ast::InitializerExpr> Parser::parserInitlizer(){
@@ -233,7 +245,7 @@ unique_ptr<ast::FuncDef> Parser::parserFuncStmt(type::ValType val_type){
     skipIfCurIs(tokenType::IDENT);
     skipIfCurIs(tokenType::LPAREM);
     //skip(
-    parserArg(fun->argv);
+    parserArg(fun->func_f_params);
     
     skipIfCurIs(tokenType::RPAREM);
     if(curTokIs(tokenType::SEMICOLON)){
@@ -295,7 +307,7 @@ unique_ptr<ast::WhileStmt> Parser::parserWhileStmt(){
     ret->loop_stmt=std::move(parserStmts());
     return ret;
 }
-unique_ptr<ast::ExprNode> Parser::parserIntLiteral(){
+unique_ptr<ast::ExprNode> Parser::parserConst(){
     ast::valUnion Value;
     string s;
     // if(curTokIs(tokenType::MINUS)||curTokIs(tokenType::PLUS)){
@@ -323,9 +335,9 @@ unique_ptr<ast::ExprNode> Parser::parserIntLiteral(){
     } 
     unique_ptr<ast::Literal> Ilt;
     if(curTokIs(tokenType::FLOAT))
-        Ilt=make_unique<ast::FloatLiteral>(curTok->tok_pos,Value);
+        Ilt=make_unique<ast::FloatConst>(curTok->tok_pos,Value);
     else
-        Ilt=make_unique<ast::IntLiteral>(curTok->tok_pos,Value);
+        Ilt=make_unique<ast::IntConst>(curTok->tok_pos,Value);
     nextToken();
     return Ilt;
 }
@@ -373,7 +385,7 @@ unique_ptr<ast::CallExpr> Parser::parserCall(unique_ptr<ast::ExprNode> name){
     ret->call_name=std::move(name);
     skipIfCurIs(tokenType::LPAREM);
     while(!curTokIs(tokenType::RPAREM)){
-        ret->arg.push_back(std::move(parserExpr()));
+        ret->func_r_params.push_back(std::move(parserExpr()));
         if(curTokIs(tokenType::RPAREM)){
             continue;
         }else if(curTokIs(tokenType::COMMA))
@@ -431,7 +443,7 @@ parserOpPrec Parser::curPrecedence(){
     return prefix;
 }
 unique_ptr<ast::ExprNode> Parser::parserPrefixExpr(){
-    unique_ptr<ast::PrefixExpr> express=make_unique<ast::PrefixExpr>(curTok->tok_pos);
+    unique_ptr<ast::UnaryExpr> express=make_unique<ast::UnaryExpr>(curTok->tok_pos);
     express->Operat=curTok->literal;
     nextToken();
     express->rhs=this->parserExpr(OP_PREFIX);
@@ -549,7 +561,7 @@ void Parser::selectPreFn(tokenType type){
         case tokenType::INT_HEX:
         case tokenType::INT_OCTAL:
         case tokenType::FLOAT:
-            prefixFn=&Parser::parserIntLiteral;
+            prefixFn=&Parser::parserConst;
             break;
         case tokenType::LPAREM:
             prefixFn=&Parser::parserGroupedExpr;

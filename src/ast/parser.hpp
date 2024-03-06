@@ -60,7 +60,7 @@ struct Parser{
     unique_ptr<ast::ValDeclStmt> parserValDeclStmt(type::ValType);
     unique_ptr<ast::FuncDef> parserFuncStmt(type::ValType type);
     unique_ptr<ast::IfStmt> parserIfStmt();
-    unique_ptr<ast::ExprNode> parserIntLiteral();
+    unique_ptr<ast::ExprNode> parserConst();
     unique_ptr<ast::ExprNode> parserExpr(parserOpPrec prec=parserOpPrec::LOWEST);
     unique_ptr<ast::ExprNode> parserGroupedExpr();
     unique_ptr<ast::ExprNode> parserPrefixExpr();

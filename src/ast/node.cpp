@@ -13,12 +13,17 @@ ExprStmt::ExprStmt(Pos pos,unique_ptr<ExprNode> expr):Statement(pos),expr(std::m
 EmptyStmt::EmptyStmt(Pos pos):Statement(pos){}
 ValDeclStmt::ValDeclStmt(Pos pos):Statement(pos){}
 ValDeclStmt::ValDeclStmt(Pos pos,ValType type):Statement(pos),all_type(type){}
+ConstDeclStmt::ConstDeclStmt(Pos pos):ValDeclStmt(pos){}
+ConstDeclStmt::ConstDeclStmt(Pos pos,ValType type):ValDeclStmt(pos,type){}
 FuncDef::FuncDef(string name ,Pos pos,ValType type):FuncStmt(name,pos,type){}
 FuncStmt::FuncStmt(string name ,Pos pos,ValType type):DefStmt(name,pos,type){}
 DefStmt::DefStmt(string name ,Pos pos,ValType type):Statement(pos),name(name),val_type(type){}
 ValDefStmt::ValDefStmt(string name ,Pos pos,ValType type):DefStmt(name,pos,type){}
 ValDefStmt::ValDefStmt(string name ,Pos pos,ValType type,unique_ptr<ExprNode> expr):DefStmt(name,pos,type),init_expr(std::move(expr)){}
+ConstDefStmt::ConstDefStmt(string name ,Pos pos,ValType type):ValDefStmt(name,pos,type){}
+ConstDefStmt::ConstDefStmt(string name ,Pos pos,ValType type,unique_ptr<ExprNode> expr):ValDefStmt(name,pos,type,std::move(expr)){}
 ArrDefStmt::ArrDefStmt(string name ,Pos pos,ValType type):DefStmt(name,pos,type){}
+ConstArrDefStmt::ConstArrDefStmt(string name ,Pos pos,ValType type):ArrDefStmt(name,pos,type){}
 LvalExpr::LvalExpr(Pos pos,string name ):ExprNode(pos),name(name){}
 CallExpr::CallExpr(Pos pos):ExprNode(pos){}
 //LvalStmt::LvalStmt(string name ,Pos pos,ValType type,unique_ptr<ExprNode> expr):DefStmt(name,pos,type),expr(std::move(expr)){}
@@ -28,11 +33,11 @@ BlockStmt::BlockStmt(Pos pos):Statement(pos){}
 IfStmt::IfStmt(Pos Pos):Statement(pos){}
 AssignStmt::AssignStmt(Pos pos,unique_ptr<ast::ExprNode> lval,unique_ptr<ast::ExprNode> expr):Statement(pos),l_val(std::move(lval)),expr(std::move(expr)){}
 ExprNode::ExprNode(Pos pos):SyntaxNode(pos){}
-IntLiteral::IntLiteral(Pos pos,valUnion val):Literal(pos,val){};
+IntConst::IntConst(Pos pos,valUnion val):Literal(pos,val){};
 InitializerExpr::InitializerExpr(Pos pos):ExprNode(pos){};
-FloatLiteral::FloatLiteral(Pos pos,valUnion val):Literal(pos,val){};
+FloatConst::FloatConst(Pos pos,valUnion val):Literal(pos,val){};
 Literal::Literal(Pos pos,valUnion val):ExprNode(pos),Value(val){};
-PrefixExpr::PrefixExpr(Pos pos):ExprNode(pos){};
+UnaryExpr::UnaryExpr(Pos pos):ExprNode(pos){};
 InfixExpr::InfixExpr(Pos pos,unique_ptr<ExprNode> lhs):ExprNode(pos),lhs(std::move(lhs)){}
 AssignExpr::AssignExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
 RelopExpr::RelopExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(lhs)){}
@@ -70,13 +75,13 @@ BinopExpr::BinopExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(l
 // int BlockStmt::getType(){
 //     return (int)ast::StmtType::BLOCK_STMT;
 // }
-int IntLiteral::getType(){
+int IntConst::getType(){
     return (int)ast::ExprType::INT_LITERAL;
 }
 int InitializerExpr::getType(){
     return (int)ast::ExprType::INITIALIZER;
 }
-int FloatLiteral::getType(){
+int FloatConst::getType(){
     return (int)ast::ExprType::FLOAT_LITERAL;
 }
 int CallExpr::getType(){
@@ -87,7 +92,7 @@ int LvalExpr::getType(){
     // exit(114);
     return (int)ast::ExprType::LVAL_EXPR;
 }
-int PrefixExpr::getType(){
+int UnaryExpr::getType(){
     return (int)ast::ExprType::PREFIX;
 }
 // int InfixExpr::getType(){
@@ -134,8 +139,28 @@ void CompunitNode::print(int level){
         i->print(level);
     }
 }
+void ConstDefStmt::print(int level){
+    string type{"const "};
+    if(IS_INT(this->val_type.t)){
+        type+="int";
+    }else{
+        type+="float";
+    }
+    LevelPrint(level, type, true);
+    LevelPrint(level, name, true);
+    if(init_expr){
+        LevelPrint(level, "=", true);
+        init_expr->print(level);
+    }
+}
 void ValDefStmt::print(int level){
-    LevelPrint(level, "def", false);
+    string type{""};
+    if(IS_INT(this->val_type.t)){
+        type+="int";
+    }else{
+        type+="float";
+    }
+    LevelPrint(level, type, true);
     LevelPrint(level, name, true);
     level++;
     if(init_expr){
@@ -145,15 +170,31 @@ void ValDefStmt::print(int level){
     level--;
 }
 void ArrDefStmt::print(int level){
-    //cout<<"def a vlaue"<<val_type<<" name is "<<name;
+    string type{"arr "};
+    if(IS_INT(this->val_type.t)){
+        type+="int";
+    }else{
+        type+="float";
+    }
     LevelPrint(level, "ArrDef", false);
     LevelPrint(level, name, true);
-    // if(init_expr){
-    //     init_expr->print(level);
-    // }
-    // for(auto&i:this->initializers->initializers){
-    //     i->print(level);
-    // }
+    if(initializers==nullptr){
+
+    }else{
+        LevelPrint(level, "=", true);
+        initializers->print(level);
+    }
+}
+void ConstArrDefStmt::print(int level){
+    string type{"const arr "};
+    if(IS_INT(this->val_type.t)){
+        type+="int";
+    }else{
+        type+="float";
+    }
+    //cout<<"def a vlaue"<<val_type<<" name is "<<name;
+    LevelPrint(level, type, false);
+    LevelPrint(level, name, true);
     if(initializers==nullptr){
 
     }else{
@@ -166,6 +207,11 @@ void ValDeclStmt::print(int level){
         i->print(level);
     }
 }
+void ConstDeclStmt::print(int level){
+    for(auto&i:var_def_list){
+        i->print(level);
+    }
+}
 // void FuncStmt::print(int level){
 
 // }
@@ -174,7 +220,7 @@ void FuncDef::print(int level){
         LevelPrint(level, this->name, true);
     level++;
     LevelPrint(level, "(", true);
-    for(auto &i :argv){
+    for(auto &i :func_f_params){
         LevelPrint(level, "FuncParam", false);
         i.second->print(level);
     }
@@ -233,7 +279,7 @@ void AssignStmt::print(int level){
     LevelPrint(level, "=", true);
     expr->print(level);
 }
-void IntLiteral::print(int level){
+void IntConst::print(int level){
     LevelPrint(level, std::to_string(this->Value.i), true);
 }
 void InitializerExpr::print(int level){
@@ -245,15 +291,15 @@ void InitializerExpr::print(int level){
         }
     level--;
 }
-void FloatLiteral::print(int level){
+void FloatConst::print(int level){
 LevelPrint(level, std::to_string(this->Value.f), true);
 }
 void CallExpr::print(int level){
     this->call_name->print(level);
     LevelPrint(level, "(", true);
     level++;
-    if(!arg.empty())
-        for(auto&i:this->arg){
+    if(!func_r_params.empty())
+        for(auto&i:this->func_r_params){
             i->print(level);
         }
     level--;
@@ -270,7 +316,7 @@ void LvalExpr::print(int level){
         LevelPrint(level, "]", true);
     }
 }
-void PrefixExpr::print(int level){
+void UnaryExpr::print(int level){
     LevelPrint(level, Operat, true);
     rhs->print();
 }
@@ -362,17 +408,26 @@ void ValDefStmt::accept(ASTVisitor &visitor) {
 void ArrDefStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void IntLiteral::accept(ASTVisitor &visitor) {
+void ConstDeclStmt::accept(ASTVisitor &visitor) {
+    visitor.visit(*this);
+}
+void ConstDefStmt::accept(ASTVisitor &visitor) {
+    visitor.visit(*this);
+}
+void ConstArrDefStmt::accept(ASTVisitor &visitor) {
+    visitor.visit(*this);
+}
+void IntConst::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
 void InitializerExpr::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void FloatLiteral::accept(ASTVisitor &visitor) {
+void FloatConst::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-void PrefixExpr::accept(ASTVisitor &visitor) {
-
+void UnaryExpr::accept(ASTVisitor &visitor) {
+    visitor.visit(*this);
 }
 // void InfixExpr::accept(ASTVisitor &visitor) {
 //     visitor.visit(*this);
@@ -436,7 +491,7 @@ CompunitNode::~CompunitNode(){
 }
 FuncDef::~FuncDef(){
     body.reset();
-    argv.clear();
+    func_f_params.clear();
     // name.shrink_to_fit();
 }
 ValDeclStmt::~ValDeclStmt(){

@@ -14,8 +14,7 @@ namespace type {
 #define TYPE_U_INT (1<<3)
 #define TYPE_INT (1<<2)
 #define TYPE_FLOAT (1<<4)
-#define TYPE_STRUCT (1<<5)
-#define TYPE_ARR (1<<6)
+// #define TYPE_STRUCT (1<<5)
 //void only in func
 #define TYPE_VOID (1<<7)
 
@@ -24,9 +23,8 @@ namespace type {
 #define IS_U_INT(i) (TYPE_U_INT&i)
 #define IS_INT(i) (TYPE_INT&i)
 #define IS_FLOAT(i) (TYPE_FLOAT&i)
-#define IS_STRUCT(i) (TYPE_STRUCT&i)
+// #define IS_STRUCT(i) (TYPE_STRUCT&i)
 #define IS_VOID(i) (TYPE_VOID&i)
-#define IS_ARR(i) (TYPE_ARR&i)
 
 
 #define ADD_CONST(i)  (i=(TYPE_CONST|i))
@@ -34,9 +32,8 @@ namespace type {
 #define ADD_U_INT(i) (i=(TYPE_U_INT|i))
 #define ADD_INT(i) (i=(TYPE_INT|i))
 #define ADD_FLOAT(i) (i=(TYPE_FLOAT|i))
-#define ADD_STRUCT(i) (i=(TYPE_STRUCT|i))
+// #define ADD_STRUCT(i) (i=(TYPE_STRUCT|i))
 #define ADD_VOID(i) (i=(TYPE_VOID|i))
-#define ADD_ARR(i) (i=(TYPE_ARR|i))
 
 
 #define IS_NUM(i)  ((TYPE_FLOAT|TYPE_INT)&i)
