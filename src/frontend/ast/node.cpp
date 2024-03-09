@@ -1,5 +1,5 @@
-#include "node.hpp"
-#include "type.hpp"
+#include "frontend/ast/node.hpp"
+#include "frontend/ast/type.hpp"
 #include <memory>
 #include <string>
 using namespace ast;

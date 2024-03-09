@@ -1,5 +1,4 @@
-#include "node.hpp"
-#include "parser.hpp"
+#include "frontend/ast/parser.hpp"
 #include <iostream>
 #include <memory>
 using namespace std;

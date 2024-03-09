@@ -1,6 +1,6 @@
-#include "../lexer/lex.hpp"
-#include "parser.hpp"
-#include "node.hpp"
+#include "frontend/lexer/lex.hpp"
+#include "frontend/ast/parser.hpp"
+#include "frontend/ast/node.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
@@ -8,8 +8,8 @@
 #include <memory>
 #include <fstream>
 #include <vector>
-#include "type.hpp"
-#include "../arch/riscv.hpp"
+#include "frontend/ast/type.hpp"
+#include "frontend/ast/riscv.hpp"
 // Parser::Parser(string s):lex(std::make_unique<Lexer>(s)),comp(make_unique<ast::CompunitNode>()),cur_pos(0,0){
 //     curTok=lex->nextToken();
 //     peekTok=lex->nextToken();

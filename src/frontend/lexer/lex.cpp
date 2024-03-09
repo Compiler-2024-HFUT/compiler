@@ -1,4 +1,4 @@
-#include "lex.hpp"
+#include "frontend/lexer/lex.hpp"
 #include <cctype>
 #include <cstdio>
 #include <iostream>

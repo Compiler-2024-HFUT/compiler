@@ -7,8 +7,8 @@
 #include <utility>
 #include <vector>
 #include <memory>
-#include "../lexer/lex.hpp"
-#include "type.hpp"
+#include "frontend/lexer/lex.hpp"
+#include "frontend/ast/type.hpp"
 using std::cout,std::string,std::vector;
 using type::ValType;
 namespace ast {
