@@ -1,4 +1,4 @@
-#include "frontend/lexer/lex.hpp"
+#include "frontend/lex.hpp"
 #include <cctype>
 #include <cstdio>
 #include <iostream>
@@ -168,7 +168,7 @@ std::unique_ptr<Token>   Lexer::nextToken(/*std::unique_ptr<Lexer> l*/){
             // flagRead=false;
             return std::move(tok);
         }else if(isdigit(this->ch)||ch=='.'){
-            int type;
+            tokenType type;
             string s{readNumber(type)};
             tok=std::make_unique<Token>(s,(tokenType)type,line,column);
             // if(tok->literal[1]=='x'||tok->literal[1]=='X'){
@@ -266,7 +266,7 @@ int isbdigit(int c){
         return 1;
     return 0;
 }
-string Lexer::readNumber(int &type){
+string Lexer::readNumber(tokenType &type){
     int beginpos=this->position;
     int sublen=0;
     // int (*tmpIsDigit)(int)=isdigit;
@@ -389,7 +389,7 @@ string Lexer::readNumber(int &type){
             type=tokenType::FLOAT;
         }
         else if(!hase&&!has9&&dot_num==0){
-            type=INT_OCTAL;
+            type=tokenType::INT_OCTAL;
         }
 
     }else{

@@ -7,8 +7,8 @@
 #include <utility>
 #include <vector>
 #include <memory>
-#include "frontend/lexer/lex.hpp"
-#include "frontend/ast/type.hpp"
+#include "frontend/lex.hpp"
+#include "frontend/type.hpp"
 using std::cout,std::string,std::vector;
 using type::ValType;
 namespace ast {
@@ -228,7 +228,7 @@ struct BlockStmt :public  Statement{
 //抽象类
 struct DefStmt:public Statement{
     string name;
-    ValType val_type;//变量类型
+    ValType type;//变量类型
     DefStmt (string name ,Pos pos,ValType );
     // virtual int getType()=0;
     virtual void print(int level=0)=0;
@@ -253,17 +253,33 @@ struct stynaxTree{
 
 /*函数声明*/
 struct FuncStmt :public  DefStmt
-{
+{   
+    //在父类里
+    // string name;
+    // ValType val_type;//变量类型    
     FuncStmt(string name ,Pos pos,ValType );
     // virtual int getType()=0;
     virtual void print(int level=0)=0;
     virtual void accept(ASTVisitor &visitor) =0;
 };
+struct FuncFParam:public DefStmt{
+    //在父类里
+    // string name;
+    // ValType val_type;//变量类型
+    //nullptr if empty in [ ] 如果[]中为空则为nullptr
+    vector<unique_ptr<ExprNode>> index_num;
+    FuncFParam(string,Pos,ValType);
+    virtual void print(int level=0);
+    virtual void accept(ASTVisitor &visitor)  final;
+};
 /*函数定义*/
 struct FuncDef :public  FuncStmt
 {   
+    //在父类里
+    // string name;
+    // ValType val_type;//变量类型
     unique_ptr<BlockStmt> body;
-    std::vector<std::pair<ValType, unique_ptr<ExprNode>>>  func_f_params;
+    std::vector<unique_ptr<FuncFParam>>  func_f_params;
     // FuncDef(string name ,Pos pos);
     FuncDef(string name ,Pos pos,ValType );
     ~FuncDef();
@@ -387,6 +403,7 @@ class ASTVisitor
 {
   public:
     virtual void visit(CompunitNode &node) = 0;
+    virtual void visit(FuncFParam &node) = 0;
     virtual void visit(FuncDef &node) = 0;
     virtual void visit(ValDeclStmt &node) = 0;
     virtual void visit(ValDefStmt &node) = 0;

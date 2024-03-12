@@ -1,4 +1,5 @@
-#include "frontend/lexer/lex.hpp"
+#include "frontend/lex.hpp"
+#include <cstdint>
 #include <iomanip>
 #include <memory>
 #include <fstream>
@@ -32,6 +33,6 @@ int main(int argc , char**argv){
     cout<<"line"<<std::setw(8)<<"column"<<std::setw(8)<<"type"<<std::setw(8)<<"literal"<<endl;
     do{
         tok=lexTest.nextToken();
-        cout<<tok->tok_pos.line<<std::setw(8)<<tok->tok_pos.column<<std::setw(8)<<tok->type<<std::setw(8)<<tok->literal<<'\n';
-    }while(tok->type!=LEXEOF);
+        cout<<tok->tok_pos.line<<std::setw(8)<<tok->tok_pos.column<<std::setw(8)<<(uint64_t)tok->type<<std::setw(8)<<tok->literal<<'\n';
+    }while(tok->type!=tokenType::LEXEOF);
 }

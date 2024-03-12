@@ -1,4 +1,4 @@
-#include "frontend/ast/parser.hpp"
+#include "frontend/parser.hpp"
 #include <iostream>
 #include <memory>
 using namespace std;

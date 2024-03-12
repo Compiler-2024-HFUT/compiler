@@ -1,4 +1,4 @@
-#include "frontend/ast/node.hpp"
+#include "frontend/node.hpp"
 #include <memory>
 #include <vector>
 //FuncDef f{"1",Pos{1,1}};
@@ -77,7 +77,7 @@ struct Parser{
     void  AddLvalIndex(ast::LvalExpr *lval );
     unique_ptr<ast::CallExpr>  parserCall(unique_ptr<ast::ExprNode> );
     unique_ptr<ast::Statement> parserExprStmt();
-    void parserArg(std::vector<std::pair<type::ValType, unique_ptr<ast::ExprNode>>> &);
+    void parserArg(std::vector< unique_ptr<ast::FuncFParam>> &);
     unique_ptr<ast::CompunitNode> getComp();
     type::ValType parserDefType();
     void nextToken();

@@ -5,7 +5,7 @@
 #ifndef __LEXER__
 #define __LEXER__
 using std::string,std::cout,std::cin,std::endl,std::unique_ptr,std::make_unique,std::move;
-enum tokenType{
+enum class tokenType{
     LEXEOF=-1,
     ILLEGAL=1,//illegal
     IDENT, //标识符
@@ -93,7 +93,7 @@ struct Lexer{
     int peekChar();
     unique_ptr<Token>  nextToken();
     string readIdentifier();
-    string readNumber(int &type);
+    string readNumber(tokenType &type);
     
     
 };

@@ -1,6 +1,6 @@
-#include "frontend/lexer/lex.hpp"
-#include "frontend/ast/parser.hpp"
-#include "frontend/ast/node.hpp"
+#include "frontend/lex.hpp"
+#include "frontend/parser.hpp"
+#include "frontend/node.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
@@ -8,8 +8,8 @@
 #include <memory>
 #include <fstream>
 #include <vector>
-#include "frontend/ast/type.hpp"
-#include "frontend/ast/riscv.hpp"
+#include "frontend/type.hpp"
+#include "frontend/riscv.hpp"
 // Parser::Parser(string s):lex(std::make_unique<Lexer>(s)),comp(make_unique<ast::CompunitNode>()),cur_pos(0,0){
 //     curTok=lex->nextToken();
 //     peekTok=lex->nextToken();
@@ -212,7 +212,6 @@ unique_ptr<ast::ArrDefStmt> Parser::parserArrDefStmt(type::ValType val_type){
         nextToken();
         ret->initializers=parserInitlizer();
     }
-    ret->val_type.t=ret->val_type.t;
     return ret;
 }
 unique_ptr<ast::InitializerExpr> Parser::parserInitlizer(){
@@ -266,16 +265,30 @@ unique_ptr<ast::RetStmt>  Parser::parserRetStmt( ){
     skipIfCurIs(tokenType::SEMICOLON);
     return ret;
 }
-void Parser::parserArg(std::vector<std::pair<type::ValType, unique_ptr<ast::ExprNode>>> &argv){
+void Parser::parserArg(std::vector<unique_ptr<ast::FuncFParam>> &argv){
     while(!curTokIs(tokenType::RPAREM)){
         type::ValType type=parserDefType();
         // if(!curTokIs(tokenType::IDENT)){
         //     std::cerr<<"无形参"<<endl;
         //     exit(2);
         // }
-        argv.push_back(std::make_pair(type, std::move(parserExpr())));
+        string id=curTok->literal;
+        auto param=make_unique<ast::FuncFParam>(std::move(id),curTok->tok_pos,type);
+        skipIfCurIs(tokenType::IDENT);
+        while(curTokIs(tokenType::LSQ_BRACE)){
+            skipIfCurIs(tokenType::LSQ_BRACE);
+            if(curTokIs(tokenType::RSQ_BRACE)){
+                param->index_num.push_back(nullptr);
+            }else
+                param->index_num.push_back(parserExpr());
+            nextToken();
+        }
+        argv.push_back(std::move(param));
         if(curTokIs(tokenType::COMMA)){
             nextToken();
+            if(curTokIs(tokenType::RPAREM)){
+                skipIfCurIs(tokenType::DEFINT);
+            }
         }else if(curTokIs(tokenType::RPAREM)){
             break;
         }else skipIfCurIs(tokenType::RPAREM);
@@ -420,7 +433,8 @@ unique_ptr<ast::ExprNode> Parser::parserLval(){
             if(!curTokIs(tokenType::RSQ_BRACE))
                 ret->index_num.push_back(std::move(parserExpr()));
             else
-                ret->index_num.push_back(nullptr);
+                exit(114);
+                // ret->index_num.push_back(nullptr);
             skipIfCurIs(tokenType::RSQ_BRACE);
         }
     return ret;
@@ -513,20 +527,20 @@ bool inline Parser::peekTokIs(tokenType type){
 void Parser::skipIfCurIs(tokenType type){
     if(!curTokIs(type)){
         static std::map<tokenType,const char*> m{
-            {FLOAT,"float"},
-            {INT,"int"},
-            {IDENT,"ident"},
-            {ASSIGN,"assign"},
-            {SEMICOLON,";"},
-            {COMMA,","},
-            {DEFINT,"int"},
-            {DEFFLOAT,"float"},
-            {LBRACE,"{"},
-            {RBRACE,"}"},
-            {LPAREM,"("},
-            {RPAREM,")"},
-            {LSQ_BRACE,"["},
-            {RSQ_BRACE,"]"},
+            {tokenType::FLOAT,"float"},
+            {tokenType::INT,"int"},
+            {tokenType::IDENT,"ident"},
+            {tokenType::ASSIGN,"assign"},
+            {tokenType::SEMICOLON,";"},
+            {tokenType::COMMA,","},
+            {tokenType::DEFINT,"int"},
+            {tokenType::DEFFLOAT,"float"},
+            {tokenType::LBRACE,"{"},
+            {tokenType::RBRACE,"}"},
+            {tokenType::LPAREM,"("},
+            {tokenType::RPAREM,")"},
+            {tokenType::LSQ_BRACE,"["},
+            {tokenType::RSQ_BRACE,"]"},
         };
         auto i=m.find(type);
         const char*s;

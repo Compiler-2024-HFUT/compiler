@@ -1,5 +1,5 @@
-#include "frontend/ast/node.hpp"
-#include "frontend/ast/type.hpp"
+#include "frontend/node.hpp"
+#include "frontend/type.hpp"
 #include <memory>
 #include <string>
 using namespace ast;
@@ -15,9 +15,10 @@ ValDeclStmt::ValDeclStmt(Pos pos):Statement(pos){}
 ValDeclStmt::ValDeclStmt(Pos pos,ValType type):Statement(pos),all_type(type){}
 ConstDeclStmt::ConstDeclStmt(Pos pos):ValDeclStmt(pos){}
 ConstDeclStmt::ConstDeclStmt(Pos pos,ValType type):ValDeclStmt(pos,type){}
+FuncFParam::FuncFParam(string name ,Pos pos,ValType type):DefStmt(name,pos,type){}
 FuncDef::FuncDef(string name ,Pos pos,ValType type):FuncStmt(name,pos,type){}
 FuncStmt::FuncStmt(string name ,Pos pos,ValType type):DefStmt(name,pos,type){}
-DefStmt::DefStmt(string name ,Pos pos,ValType type):Statement(pos),name(name),val_type(type){}
+DefStmt::DefStmt(string name ,Pos pos,ValType type):Statement(pos),name(name),type(type){}
 ValDefStmt::ValDefStmt(string name ,Pos pos,ValType type):DefStmt(name,pos,type){}
 ValDefStmt::ValDefStmt(string name ,Pos pos,ValType type,unique_ptr<ExprNode> expr):DefStmt(name,pos,type),init_expr(std::move(expr)){}
 ConstDefStmt::ConstDefStmt(string name ,Pos pos,ValType type):ValDefStmt(name,pos,type){}
@@ -129,6 +130,20 @@ int BinopExpr::getType(){
 // int BreakStmt::getType(){
 //     return (int)ast::StmtType::BREAK_STMT;
 // }
+string typeToStr(ValType type){
+    string ret{};
+    if(IS_CONST(type.t)){
+        ret+="const ";
+    }
+    if(IS_INT(type.t)){
+        ret+="int ";
+    }else if(IS_FLOAT(type.t)){
+        ret+="float ";
+    }else{
+        ret+="void ";
+    }
+    return ret;
+}
 void LevelPrint(int cur_level,string name,bool is_terminal){
     for(int i = 0 ; i < cur_level; ++i) cout << "|  ";
     cout << ">--" << (is_terminal ? "*" : "+") << name;
@@ -140,12 +155,12 @@ void CompunitNode::print(int level){
     }
 }
 void ConstDefStmt::print(int level){
-    string type{"const "};
-    if(IS_INT(this->val_type.t)){
-        type+="int";
-    }else{
-        type+="float";
-    }
+    string type{ typeToStr(this->type)};
+    // if(IS_INT(this->val_type.t)){
+    //     type+="int";
+    // }else{
+    //     type+="float";
+    // }
     LevelPrint(level, type, true);
     LevelPrint(level, name, true);
     if(init_expr){
@@ -154,12 +169,7 @@ void ConstDefStmt::print(int level){
     }
 }
 void ValDefStmt::print(int level){
-    string type{""};
-    if(IS_INT(this->val_type.t)){
-        type+="int";
-    }else{
-        type+="float";
-    }
+    string type{ typeToStr(this->type)};
     LevelPrint(level, type, true);
     LevelPrint(level, name, true);
     level++;
@@ -170,12 +180,7 @@ void ValDefStmt::print(int level){
     level--;
 }
 void ArrDefStmt::print(int level){
-    string type{"arr "};
-    if(IS_INT(this->val_type.t)){
-        type+="int";
-    }else{
-        type+="float";
-    }
+    string type{ typeToStr(this->type)};
     LevelPrint(level, "ArrDef", false);
     LevelPrint(level, name, true);
     if(initializers==nullptr){
@@ -186,12 +191,7 @@ void ArrDefStmt::print(int level){
     }
 }
 void ConstArrDefStmt::print(int level){
-    string type{"const arr "};
-    if(IS_INT(this->val_type.t)){
-        type+="int";
-    }else{
-        type+="float";
-    }
+    string type{ typeToStr(this->type)};
     //cout<<"def a vlaue"<<val_type<<" name is "<<name;
     LevelPrint(level, type, false);
     LevelPrint(level, name, true);
@@ -215,14 +215,26 @@ void ConstDeclStmt::print(int level){
 // void FuncStmt::print(int level){
 
 // }
+void FuncFParam::print(int level){
+    LevelPrint(level, typeToStr(this->type)+name, false);
+    for(auto&i:index_num){
+        if(i!=nullptr){
+            i->print(level);
+        }else{
+            LevelPrint(level, "empty index", false);
+        }
+    }
+    LevelPrint(level, ",", false);
+}
 void FuncDef::print(int level){
     LevelPrint(level, "FuncDef", false);
-        LevelPrint(level, this->name, true);
+    LevelPrint(level, "return type "+typeToStr(type), false);
+    LevelPrint(level, this->name, true);
     level++;
     LevelPrint(level, "(", true);
     for(auto &i :func_f_params){
         LevelPrint(level, "FuncParam", false);
-        i.second->print(level);
+        i->print(level);
     }
     LevelPrint(level, ")", true);
     if(body){
@@ -312,7 +324,8 @@ void LvalExpr::print(int level){
         if(i!=nullptr)
             i->print(level);
         else
-            LevelPrint(level, "null", true);
+            exit(114);
+            //LevelPrint(level, "null", true);
         LevelPrint(level, "]", true);
     }
 }
@@ -389,11 +402,14 @@ bool CompunitNode::isReDef(string tok_name){
     for(auto &i:global_defs){
         if(i->name==tok_name){
             re_def=true;
-        }   
+        }
     }
     return re_def;
 }
 void CompunitNode::accept(ASTVisitor &visitor) {
+    visitor.visit(*this);
+}
+void FuncFParam::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
 void FuncDef::accept(ASTVisitor &visitor) {
