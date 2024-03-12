@@ -2,10 +2,10 @@
 
 #ifndef CONSTANT_HPP
 #define CONSTANT_HPP
-#include "Type.hpp"
 #include "User.hpp"
 #include "Value.hpp"
-
+class Module;
+class ArrayType;
 // class User;
 class Constant : public User {
   private:

@@ -7,6 +7,7 @@
 
 class Type;
 class User;
+class Value;
 
 class Use{
   public:

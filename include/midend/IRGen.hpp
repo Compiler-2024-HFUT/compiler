@@ -9,7 +9,7 @@
 #include "Module.hpp"
 #include "IRPut.hpp"
 #include "Constant.hpp"
-#include "include/frontend/ast/node.hpp"
+#include "frontend/node.hpp"
 
 class IRBuilder;
 

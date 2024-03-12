@@ -8,19 +8,16 @@
 #include <memory>
 
 #include "Function.hpp"
-#include "GlobalVariable.hpp"
-#include "Type.hpp"
 #include "Value.hpp"
-
-
-
+#include "Instruction.hpp"
+class GlobalVariable;
 
 class Pairsearch {
   public:
       template <typename T>
       std::size_t operator()(const std::pair<T, Module *> val) const {
           auto lhs = std::hash<T>()(val.first);
-          auto rhs = std::hash<uintptrt>()(reinterpretcast<uintptrt>(val.second));
+          auto rhs = std::hash<uintptr_t>()(reinterpretcast<uintptr_t>(val.second));
           return lhs ^ rhs;
       }
 };

@@ -10,14 +10,13 @@
 
 #include "BasicBlock.hpp"
 #include "User.hpp"
-#include "Module.hpp"
 #include "Type.hpp"
 
 #include "User.hpp"
 #include <unordered_map>
 
-
-
+class Argument;
+class Module;
 //函数类
 class Function : public Value {
   public:

@@ -1,12 +1,19 @@
 #ifndef TYPE_HPP
 #define TYPE_HPP
 
+#include "midend/BasicBlock.hpp"
 #include <string>
 #include <vector>
 #include <iterator>
 
-#include "Module.hpp"
 
+class IntType;
+class PtrType;
+class FloatType;
+class PtrType;
+class PtrType;
+class ArrayType;
+class Module;
 class Type{  
   public:
     enum TypeId{
