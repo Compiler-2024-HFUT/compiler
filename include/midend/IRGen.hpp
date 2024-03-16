@@ -13,9 +13,9 @@
 
 class Function;
 
+extern std::unique_ptr<Module> module_sole;
 
 
-std::unique_ptr<Module> module= std::unique_ptr<Module>(new Module("sysY code"));
 
 class Scope {
     public:
@@ -109,33 +109,33 @@ class IRGen : public ast::ASTVisitor {
 
          //  builder = std::make_unique<IRBuilder>(nullptr, module.get());
 
-            auto VOID_T = Type::getVoidType(module.get());
-            auto INT1_T = Type::getInt1Type(module.get());
-            auto INT32_T = Type::getInt32Type(module.get());
-            auto INT32PTR_T = Type::getInt32PtrType(module.get());
-            auto FLOAT_T = Type::getFloatType(module.get());
-            auto FLOATPTR_T = Type::getFloatPtrType(module.get());
+            auto VOID_T = Type::getVoidType(module_sole.get());
+            auto INT1_T = Type::getInt1Type(module_sole.get());
+            auto INT32_T = Type::getInt32Type(module_sole.get());
+            auto INT32PTR_T = Type::getInt32PtrType(module_sole.get());
+            auto FLOAT_T = Type::getFloatType(module_sole.get());
+            auto FLOATPTR_T = Type::getFloatPtrType(module_sole.get());
 
             auto input_type = FunctionType::get(INT32_T, {});
             auto get_int =
                 Function::create(
                         input_type,
                         "getint",
-                        module.get());
+                        module_sole.get());
 
             input_type = FunctionType::get(FLOAT_T, {});
             auto get_float =
                 Function::create(
                         input_type,
                         "getfloat",
-                        module.get());
+                        module_sole.get());
 
             input_type = FunctionType::get(INT32_T, {});
             auto get_char =
                 Function::create(
                         input_type,
                         "getch",
-                        module.get());
+                        module_sole.get());
 
             std::vector<Type *> input_params;
             std::vector<Type *>().swap(input_params);
@@ -145,7 +145,7 @@ class IRGen : public ast::ASTVisitor {
                 Function::create(
                         input_type,
                         "getarray",
-                        module.get());
+                        module_sole.get());
 
             std::vector<Type *>().swap(input_params);
             input_params.push_back(FLOATPTR_T);
@@ -154,7 +154,7 @@ class IRGen : public ast::ASTVisitor {
                 Function::create(
                         input_type,
                         "getfarray",
-                        module.get());
+                        module_sole.get());
 
             std::vector<Type *> output_params;
             std::vector<Type *>().swap(output_params);
@@ -164,7 +164,7 @@ class IRGen : public ast::ASTVisitor {
                 Function::create(
                         output_type,
                         "putint",
-                        module.get());
+                        module_sole.get());
 
             std::vector<Type *>().swap(output_params);
             output_params.push_back(FLOAT_T);
@@ -173,7 +173,7 @@ class IRGen : public ast::ASTVisitor {
                 Function::create(
                         output_type,
                         "putfloat",
-                        module.get());
+                        module_sole.get());
 
             std::vector<Type *>().swap(output_params);
             output_params.push_back(INT32_T);
@@ -182,7 +182,7 @@ class IRGen : public ast::ASTVisitor {
                 Function::create(
                         output_type,
                         "putch",
-                        module.get());
+                        module_sole.get());
 
             std::vector<Type *>().swap(output_params);
             output_params.push_back(INT32_T);
@@ -192,7 +192,7 @@ class IRGen : public ast::ASTVisitor {
                 Function::create(
                         output_type,
                         "putarray",
-                        module.get());
+                        module_sole.get());
 
             std::vector<Type *>().swap(output_params);
             output_params.push_back(INT32_T);
@@ -202,7 +202,7 @@ class IRGen : public ast::ASTVisitor {
                 Function::create(
                         output_type,
                         "putfarray",
-                        module.get());
+                        module_sole.get());
 
             std::vector<Type *>().swap(input_params);
             input_params.push_back(INT32_T);
@@ -211,7 +211,7 @@ class IRGen : public ast::ASTVisitor {
                 Function::create(
                         time_type,
                         "_sysy_starttime",
-                        module.get());
+                        module_sole.get());
 
             std::vector<Type *>().swap(input_params);
             input_params.push_back(INT32_T);
@@ -220,7 +220,7 @@ class IRGen : public ast::ASTVisitor {
                 Function::create(
                         time_type,
                         "_sysy_stoptime",
-                        module.get());
+                        module_sole.get());
 
             scope.enter();
             scope.pushFunc("getint", get_int);
@@ -238,7 +238,7 @@ class IRGen : public ast::ASTVisitor {
            
         }
 
-        std::unique_ptr<Module> getModule() { return std::move(module); }
+        std::unique_ptr<Module> getModule() { return std::move(module_sole); }
   
 
     private:

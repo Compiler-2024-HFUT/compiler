@@ -1,6 +1,6 @@
 #include "../../include/midend/IRprint.hpp"
 
-std::string print_as_op(Value *v, bool print_ty) {
+std::string printAsOp(Value *v, bool print_ty) {
     std::string op_ir;
     if (print_ty) {
         op_ir += v->getType()->print();
@@ -33,7 +33,7 @@ std::string printCmpType(CmpOp op) {
     return "wrong cmp op";
 }
 
-std::string printFcmpType(CmpOp op) {
+std::string printFCmpType(CmpOp op) {
     switch (op) {
     case GE: return "uge"; break;
     case GT: return "ugt"; break;

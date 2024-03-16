@@ -10,7 +10,7 @@
 #include "Constant.hpp"
 #include "BasicBlock.hpp"
 
-extern std::unique_ptr<Module> module;
+extern std::unique_ptr<Module> module_sole;
 
 class BasicBlock;
 class Function;
@@ -225,27 +225,27 @@ private:
 
 class BinaryInst : public Instruction {
 public:
-    static BinaryInst *createAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createSub(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createMul(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createMul64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createSDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createSRem(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createFAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createFSub(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createFMul(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createFDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createSub(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createMul(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createMul64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createSDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createSRem(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createFAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createFSub(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createFMul(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createFDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
 
-    static BinaryInst *createAnd(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createOr(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createXor(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createAnd(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createOr(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createXor(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
 
-    static BinaryInst *createAsr(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createLsl(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createLsr(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createAsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createLsl64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
-    static BinaryInst *createLsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createAsr(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createLsl(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createLsr(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createAsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createLsl64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createLsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
 
     virtual std::string print() override;
 
