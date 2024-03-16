@@ -1,4 +1,4 @@
-#include "frontend/type.hpp"
+#include "../../include/frontend/type.hpp"
 namespace type {
     Info::Info(long l):size(l){
     }

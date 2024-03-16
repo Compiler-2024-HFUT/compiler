@@ -1,4 +1,4 @@
-#ifndef IRPRINT_HPP
+#ifndef IPPRINT_HPP
 #define IRPRINT_HPP
 
 #include "Value.hpp"
@@ -11,8 +11,8 @@
 #include "User.hpp"
 #include "Type.hpp"
 
-std::string printAsOp(Value *v, bool printty);
+std::string printAsOp(Value *v, bool print_ty);
 std::string printCmpType(CmpOp op);
-std::string printFcmpType(CmpOp op);
+std::string printFCmpType(CmpOp op);
 
 #endif

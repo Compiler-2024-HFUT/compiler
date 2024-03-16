@@ -9,17 +9,27 @@ target("lexTest")
     set_languages( "c++17")
     add_includedirs("include")
     add_files("src/frontend/*.cpp")
-add_files("src/test/testlex.cpp")
+    add_files("src/test/testlex.cpp")
     set_optimize("fast")
 
 target("astTest")
     set_kind("binary")
     set_languages( "c++17")
     add_includedirs("include")
-    add_files("src/frontend/lex.cpp")
     add_files("src/frontend/*.cpp")
     add_files("src/test/testast.cpp")
     set_optimize("fast")
+
+
+target("irTest")
+    set_kind("binary")
+    set_languages( "c++17")
+    add_includedirs("include")
+    add_files("src/frontend/*.cpp")
+    add_files("src/midend/*.cpp")
+    add_files("src/test/testir.cpp")
+    set_optimize("fast")
+
 --
 -- If you want to known more usage about xmake, please see https://xmake.io
 --

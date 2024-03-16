@@ -1,170 +1,140 @@
 #ifndef TYPE_HPP
 #define TYPE_HPP
 
-#include "midend/BasicBlock.hpp"
 #include <string>
 #include <vector>
 #include <iterator>
 
-
-class IntType;
-class PtrType;
-class FloatType;
-class PtrType;
-class PtrType;
-class ArrayType;
 class Module;
-class Type{  
-  public:
-    enum TypeId{
-        //基本类型
-        VOIDTYPEID,   //void
-        LABELTYPEID,  //标号
-        INTTYPEID,    //整型，包括1bit和32bit
-        FLOATTYPEID,
-        
-        //组合类型
-        FUNCTYPEID,   //函数
-        ARRAYTYPEID,  //数组
-        PTRTYPEID,    //指针
+class IntegerType;
+class FloatType;
+class FunctionType;
+class ArrayType;
+class PointerType;
+
+class Type {
+public:
+    enum TypeID {
+      VoidTyID,         //// Void
+      LabelTyID,        //// Labels, e.g., BasicBlock
+      IntegerTyID,      //// Integers, include 32 bits and 1 bit
+      FloatTyID,        //// Float
+      FunctionTyID,     //// Functions
+      ArrayTyID,        //// Arrays
+      PointerTyID,      //// Pointer
     };
 
-    Type(TypeId id);
+public:
+    explicit Type(TypeID tid, Module *m): tid_(tid), m_(m) {};
+    ~Type() = default;
 
-    //返回类型是哪种
-    TypeId getTypeID() const { return typeId; }
+    TypeID getTypeId() const { return tid_; }
 
-    //判断类型是否是特定类型
-    bool isVoidType() const { return getTypeID() == VOIDTYPEID; }
-    bool isLabelType() const { return getTypeID() == LABELTYPEID; }
-    bool isIntegerType() const { return getTypeID() == INTTYPEID; }
-    bool isFloatType() const { return getTypeID() == FLOATTYPEID; }
-    bool isFunctionType() const { return getTypeID() == FUNCTYPEID; }
-    bool isArrayType() const { return getTypeID() == ARRAYTYPEID; }
-    bool isPointerType() const { return getTypeID() == PTRTYPEID; }
+    bool isVoidType() const { return getTypeId() == VoidTyID; }
+    bool isLabelType() const { return getTypeId() == LabelTyID; }
+    bool isIntegerType() const { return getTypeId() == IntegerTyID; }
+    bool isFloatType() const { return getTypeId() == FloatTyID; }
+    bool isFunction_type() const { return getTypeId() == FunctionTyID; }
+    bool isArrayType() const { return getTypeId() == ArrayTyID; }
+    bool isPointerType() const { return getTypeId() == PointerTyID; }
 
-    //对于整型，额外判定是1位还是32位
-    bool isInt1();
-    bool isInt32();
+    static bool isEqType(Type *ty1, Type *ty2) { return ty1 == ty2; };
 
-    bool isEqType(Type *type1, Type *type2) { return type1 == type2; };
-    
-    //下面函数返回Module中若干种类型的内存表示，详情见Module类
     static Type *getVoidType(Module *m);
     static Type *getLabelType(Module *m);
-    static IntType *getInt1Type(Module *m);
-    static IntType *getInt32Type(Module *m);
-    static PtrType *getInt32PtrType(Module *m);
+    static IntegerType *getInt1Type(Module *m);
+    static IntegerType *getInt32Type(Module *m);
+    static PointerType *getInt32PtrType(Module *m);
     static FloatType *getFloatType(Module *m);
-    static PtrType *getFloatPtrType(Module *m);
-    static PtrType *getPtrType(Type *Ty);
-    static ArrayType *getArrayType(Type *Ty, unsigned numelements);
- 
-    //返回指针或数组元素的类型
-    static Type *getPtrElementType();
-    static Type *getArrayElementType();
+    static PointerType *getFloatPtrType(Module *m);
+    static PointerType *getPointerType(Type *contained);
+    static ArrayType *getArrayType(Type *contained, unsigned num_elements);
+    
+    Type *getPointerElementType();
+    Type *getArrayElementType();
 
-    //获得整型、数组类型或指针类型的值大小
-    //整型：1位或32位
-    //数组类型：数组元素数量*元素大小
-    //指针类型：4或指针元素类型大小
     int getSize();
+
+    Module *getModule() { return m_; }
 
     std::string print();
 
-  private:
-    TypeId typeId;
+private:
+    TypeID tid_;
+    Module *m_;
 };
 
-//整型
-class IntType : public Type {
-  public:
-    IntType(unsigned numBits);
 
-    IntType *makeIntType(unsigned numBits);
+class IntegerType : public Type {
+public:
+    explicit IntegerType(unsigned num_bits, Module *m): Type(Type::IntegerTyID, m), num_bits_(num_bits) {}
+    
+    static IntegerType *get(unsigned num_bits, Module *m);
 
-    //返回该整型值的位数：1位或32位
-    unsigned getBits();
+    unsigned getNumBits();
 
-  private:
-    unsigned bits;
+private:
+    unsigned num_bits_;  
 };
 
-//浮点型
 class FloatType : public Type {
-  public:
-    FloatType();
-    FloatType *makeFloatType();
+public:
+    FloatType(Module *m) : Type(Type::FloatTyID, m) {}
+    static FloatType *get(Module *m);
 
+private:
+};
+
+class PointerType : public Type {
+public:
+    PointerType(Type *contained): Type(Type::PointerTyID, contained->getModule()), contained_(contained) {}
+
+    static PointerType *get(Type *contained); 
+    
+    Type *getElementType() const { return contained_; }
+
+private:
+    Type *contained_; //& The element type of the pointer
 };
 
 
-//指针类型
-class PtrType : public Type {
-  public:
-    PtrType(Type *ptrTy);
-
-    //返回指针指向元素的类型
-    Type *getElementType() const { return ptrType; }
-
-    //创建指针类型的内存表示
-    PtrType *makePtrType(Type *ptrTy);
-
-  private:
-    Type *ptrType; //指针指向内容的类型
-};
-
-//数组类型
 class ArrayType : public Type {
-  public:
-    ArrayType(Type *elementTy, unsigned numelements);
-    //检查数组元素类型是否合法：整型或数组类型（即多维数组）
-    bool isValidElementType(Type *ty);
-    //创建数组类型的内存表示
-    ArrayType *makeArrayType(Type *elementTy, unsigned numelements);
-    //返回数组的元素类型
-    Type *getElementType() const { return elementType; }
-    
-    //返回数组的元素数量
-    unsigned getNumElements() const { return numElements; }
-    
-    //返回数组的内情信息。返回一个向量，其元素是每一维度的大小
-    //比如：a[2][3][4]，则返回<2,3,4>
-    std::vector<unsigned> getDims() const;
+public:
+    ArrayType(Type *contained, unsigned num_elements);
 
-  private:
-    Type *elementType;       //数组元素的类型
-    unsigned numElements; //数组的元素数量
+    static ArrayType *get(Type *contained, unsigned num_elements);
+
+    static bool isValidElementType(Type *ty);
+
+    Type *getElementType() const { return contained_; }
+    unsigned getNumOfElements() const { return num_elements_; }
+
+private:
+    Type *contained_;             //& The element type of the array.
+    unsigned num_elements_;       //& Number of elements in the array.
 };
 
-//函数类型
-class FuncType : public Type {
-  public:
-    FuncType(Type *resultTy, std::vector<Type *> paramsTy);
 
-    //检查函数的返回值类型是否合法：void或整型
-    bool isValidReturnType(Type *ty);
+class FunctionType : public Type {
+public:    
+    FunctionType(Type *result, std::vector<Type *> params);
 
-    //检查函数的参数类型是否合法：整型或指针类型
-    bool isValidArgumentType(Type *ty);
+    static FunctionType *get(Type *result, std::vector<Type *> params);
 
-    //创建一个函数类型的内存表示
-    static FuncType *makeFuncType(Type *resultTy, std::vector<Type *> paramsTy);
+    static bool isValidReturnType(Type *ty);
+    static bool isValidArgumentType(Type *params);
 
-    //返回参数列表中元素的数量
-    unsigned getNumArgs() const { return argsType.size(); };
+    unsigned getNumOfArgs() const { return args_.size(); };
+    std::vector<Type *>::iterator paramBegin() { return args_.begin(); }
+    std::vector<Type *>::iterator paramEnd() { return args_.end(); }
 
-    //返回参数列表中指定位置处参数的类型（整型或指针类型）
-    Type *getArgType(unsigned i) const { return argsType[i]; };
+    Type *getParamType(unsigned i) const { return args_[i]; };
+    Type *getReturnType() const { return result_; };
 
-    //返回返回值类型（void或整型）
-    Type *getResultType() const { return resultType; };
-
-    std::vector<Type *>::iterator parambegin() { return argsType.begin(); }
-    std::vector<Type *>::iterator paramend() { return argsType.end(); }
-
-  private:
-    Type *resultType;              //返回值类型
-    std::vector<Type *> argsType;  //参数列表
+private:
+    Type *result_;
+    std::vector<Type *> args_;
 };
+
+
 #endif

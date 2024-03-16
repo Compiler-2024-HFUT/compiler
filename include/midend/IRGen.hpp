@@ -1,42 +1,46 @@
-#ifndef IRGen_HPP
-#define IRGen_HPP
+#ifndef IRGEN_HPP
+#define IRGEN_HPP
 
 #include <map>
 #include <memory>
 #include <vector>
 
+#include "BasicBlock.hpp"
 #include "Value.hpp"
-#include "Module.hpp"
-#include "IRPut.hpp"
 #include "Constant.hpp"
-#include "frontend/node.hpp"
 
-class IRBuilder;
+#include "../frontend/node.hpp"
+
+class Function;
+
+
+
+std::unique_ptr<Module> module= std::unique_ptr<Module>(new Module("sysY code"));
 
 class Scope {
     public:
         void enter() { 
-            varTable.push_back({});
-            funcTable.push_back({});
-            arraySizeTable.push_back({});
-            arrayConstTable.push_back({});    
+            lookup_var_table.push_back({});
+            lookup_func_table.push_back({});
+            lookup_array_size_table.push_back({});
+            lookup_array_const_table.push_back({});    
         }
         void exit() { 
-            varTable.pop_back(); 
-            funcTable.pop_back();
-            arraySizeTable.pop_back();
-            arrayConstTable.pop_back();    
+            lookup_var_table.pop_back(); 
+            lookup_func_table.pop_back();
+            lookup_array_size_table.pop_back();
+            lookup_array_const_table.pop_back();    
         }
 
-        bool inGlobal() { return varTable.size() == 1; }
+        bool inGlobal() { return lookup_var_table.size() == 1; }
 
         bool push(std::string name, Value *val) {
-            auto result = varTable[varTable.size() - 1].insert({name, val});
+            auto result = lookup_var_table[lookup_var_table.size() - 1].insert({name, val});
             return result.second; 
         }
 
         Value* find(std::string name) {
-            for(auto v = varTable.rbegin(); v != varTable.rend(); v++) {
+            for(auto v = lookup_var_table.rbegin(); v != lookup_var_table.rend(); v++) {
                 auto iter = v->find(name);
                 if(iter != v->end()) return iter->second;
             }
@@ -45,12 +49,12 @@ class Scope {
         }
 
         bool pushFunc(std::string name, Value *val) {
-            auto result = funcTable[funcTable.size()-1].insert({name, val});
+            auto result = lookup_func_table[lookup_func_table.size()-1].insert({name, val});
             return result.second;
         }
 
         Value* findFunc(std::string name) {
-            for(auto v = funcTable.rbegin(); v != funcTable.rend(); v++) {
+            for(auto v = lookup_func_table.rbegin(); v != lookup_func_table.rend(); v++) {
                 auto iter = v->find(name);
                 if(iter != v->end()) return iter->second;
             }
@@ -59,12 +63,12 @@ class Scope {
         }
 
         bool pushSize(std::string name, std::vector<int> size) {
-            auto result = arraySizeTable[arraySizeTable.size()-1].insert({name, size});
+            auto result = lookup_array_size_table[lookup_array_size_table.size()-1].insert({name, size});
             return result.second;
         }
 
-        std::vector<int> find_size(std::string name) {
-            for(auto v = arraySizeTable.rbegin(); v != arraySizeTable.rend(); v++) {
+        std::vector<int> findSize(std::string name) {
+            for(auto v = lookup_array_size_table.rbegin(); v != lookup_array_size_table.rend(); v++) {
                 auto iter = v->find(name);
                 if(iter != v->end()) return iter->second;
             }
@@ -73,12 +77,12 @@ class Scope {
         }
 
         bool pushConst(std::string name, ConstantArray* array) {
-            auto result = arrayConstTable[arrayConstTable.size()-1].insert({name, array});
+            auto result = lookup_array_const_table[lookup_array_const_table.size()-1].insert({name, array});
             return result.second;
         }
 
         ConstantArray* findConst(std::string name) {
-            for(auto v = arrayConstTable.rbegin(); v != arrayConstTable.rend(); v++) {
+            for(auto v = lookup_array_const_table.rbegin(); v != lookup_array_const_table.rend(); v++) {
                 auto iter = v->find(name);
                 if(iter != v->end()) return iter->second;
             }
@@ -88,189 +92,196 @@ class Scope {
 
 
     private:
-        std::vector<std::map<std::string, Value*>> varTable;
-        std::vector<std::map<std::string, Value*>> funcTable;
-        std::vector<std::map<std::string, std::vector<int>>> arraySizeTable;
-        std::vector<std::map<std::string, ConstantArray*>> arrayConstTable;
+        std::vector<std::map<std::string, Value*>> lookup_var_table;
+        std::vector<std::map<std::string, Value*>> lookup_func_table;
+        std::vector<std::map<std::string, std::vector<int>>> lookup_array_size_table;
+        std::vector<std::map<std::string, ConstantArray*>> lookup_array_const_table;
 };
 
 
 class IRGen : public ast::ASTVisitor {
-  public:
-    IRGen() {
-        module = std::unique_ptr<Module>(new Module("sysY code"));
-        builder = std::make_unique<IRBuilder>(nullptr, module.get());
+   // public:
+   //     static std::unique_ptr<Module> module;
 
-        auto voidType = Type::getVoidType(module.get());
-        auto int1Type = Type::getInt1Type(module.get());
-        auto int32Type = Type::getInt32Type(module.get());
-        auto int32PtrType = Type::getInt32PtrType(module.get());
-        auto floatType = Type::getFloatType(module.get());
-        auto floatPtrType = Type::getFloatPtrType(module.get());
+    public:
+        IRGen() {
+           
 
-        auto inputType = FuncType::makeFuncType(int32Type, {});
-        auto getInt =
-            Function::makeFunc(
-                    inputType,
-                    "getint",
-                    module.get());
+         //  builder = std::make_unique<IRBuilder>(nullptr, module.get());
 
-        inputType = FuncType::makeFuncType(floatType, {});
-        auto getFloat =
-            Function::makeFunc(
-                    inputType,
-                    "getfloat",
-                    module.get());
+            auto VOID_T = Type::getVoidType(module.get());
+            auto INT1_T = Type::getInt1Type(module.get());
+            auto INT32_T = Type::getInt32Type(module.get());
+            auto INT32PTR_T = Type::getInt32PtrType(module.get());
+            auto FLOAT_T = Type::getFloatType(module.get());
+            auto FLOATPTR_T = Type::getFloatPtrType(module.get());
 
-        inputType = FuncType::makeFuncType(int32Type, {});
-        auto getChar =
-            Function::makeFunc(
-                    inputType,
-                    "getch",
-                    module.get());
+            auto input_type = FunctionType::get(INT32_T, {});
+            auto get_int =
+                Function::create(
+                        input_type,
+                        "getint",
+                        module.get());
 
-        std::vector<Type *> inputParams;
-        std::vector<Type *>().swap(inputParams);
-        inputParams.push_back(int32PtrType);
-        inputType = FuncType::makeFuncType(int32Type, inputParams);
-        auto getArray =
-            Function::makeFunc(
-                    inputType,
-                    "getarray",
-                    module.get());
+            input_type = FunctionType::get(FLOAT_T, {});
+            auto get_float =
+                Function::create(
+                        input_type,
+                        "getfloat",
+                        module.get());
 
-        std::vector<Type *>().swap(inputParams);
-        inputParams.push_back(floatPtrType);
-        inputType = FuncType::makeFuncType(int32Type, inputParams);
-        auto getFArray =
-            Function::makeFunc(
-                    inputType,
-                    "getfarray",
-                    module.get());
+            input_type = FunctionType::get(INT32_T, {});
+            auto get_char =
+                Function::create(
+                        input_type,
+                        "getch",
+                        module.get());
 
-        std::vector<Type *> outputParams;
-        std::vector<Type *>().swap(outputParams);
-        outputParams.push_back(int32Type);
-        auto output_type = FuncType::makeFuncType(voidType, outputParams);
-        auto putInt =
-            Function::makeFunc(
-                    output_type,
-                    "putint",
-                    module.get());
+            std::vector<Type *> input_params;
+            std::vector<Type *>().swap(input_params);
+            input_params.push_back(INT32PTR_T);
+            input_type = FunctionType::get(INT32_T, input_params);
+            auto get_array =
+                Function::create(
+                        input_type,
+                        "getarray",
+                        module.get());
 
-        std::vector<Type *>().swap(outputParams);
-        outputParams.push_back(floatType);
-        output_type = FuncType::makeFuncType(voidType, outputParams);
-        auto putFloat =
-            Function::makeFunc(
-                    output_type,
-                    "putfloat",
-                    module.get());
+            std::vector<Type *>().swap(input_params);
+            input_params.push_back(FLOATPTR_T);
+            input_type = FunctionType::get(INT32_T, input_params);
+            auto get_farray =
+                Function::create(
+                        input_type,
+                        "getfarray",
+                        module.get());
 
-        std::vector<Type *>().swap(outputParams);
-        outputParams.push_back(int32Type);
-        output_type = FuncType::makeFuncType(voidType, outputParams);
-        auto putChar =
-            Function::makeFunc(
-                    output_type,
-                    "putch",
-                    module.get());
+            std::vector<Type *> output_params;
+            std::vector<Type *>().swap(output_params);
+            output_params.push_back(INT32_T);
+            auto output_type = FunctionType::get(VOID_T, output_params);
+            auto put_int =
+                Function::create(
+                        output_type,
+                        "putint",
+                        module.get());
 
-        std::vector<Type *>().swap(outputParams);
-        outputParams.push_back(int32Type);
-        outputParams.push_back(int32PtrType);
-        output_type = FuncType::makeFuncType(voidType, outputParams);
-        auto putArray =
-            Function::makeFunc(
-                    output_type,
-                    "putarray",
-                    module.get());
+            std::vector<Type *>().swap(output_params);
+            output_params.push_back(FLOAT_T);
+            output_type = FunctionType::get(VOID_T, output_params);
+            auto put_float =
+                Function::create(
+                        output_type,
+                        "putfloat",
+                        module.get());
 
-        std::vector<Type *>().swap(outputParams);
-        outputParams.push_back(int32Type);
-        outputParams.push_back(floatPtrType);
-        output_type = FuncType::makeFuncType(voidType, outputParams);
-        auto putFArray =
-            Function::makeFunc(
-                    output_type,
-                    "putfarray",
-                    module.get());
+            std::vector<Type *>().swap(output_params);
+            output_params.push_back(INT32_T);
+            output_type = FunctionType::get(VOID_T, output_params);
+            auto put_char =
+                Function::create(
+                        output_type,
+                        "putch",
+                        module.get());
 
-        std::vector<Type *>().swap(inputParams);
-        inputParams.push_back(int32Type);
-        auto timeType = FuncType::makeFuncType(voidType, inputParams);
-        auto startTime =
-            Function::makeFunc(
-                    timeType,
-                    "_sysy_starttime",
-                    module.get());
+            std::vector<Type *>().swap(output_params);
+            output_params.push_back(INT32_T);
+            output_params.push_back(INT32PTR_T);
+            output_type = FunctionType::get(VOID_T, output_params);
+            auto put_array =
+                Function::create(
+                        output_type,
+                        "putarray",
+                        module.get());
 
-        std::vector<Type *>().swap(inputParams);
-        inputParams.push_back(int32Type);
-        timeType = FuncType::makeFuncType(voidType, inputParams);
-        auto stopTime =
-            Function::makeFunc(
-                    timeType,
-                    "_sysy_stoptime",
-                    module.get());
+            std::vector<Type *>().swap(output_params);
+            output_params.push_back(INT32_T);
+            output_params.push_back(FLOATPTR_T);
+            output_type = FunctionType::get(VOID_T, output_params);
+            auto put_farray =
+                Function::create(
+                        output_type,
+                        "putfarray",
+                        module.get());
 
-        scope.enter();
-        scope.pushFunc("getint", getInt);
-        scope.pushFunc("getfloat", getFloat);
-        scope.pushFunc("getch", getChar);
-        scope.pushFunc("getarray", getArray);
-        scope.pushFunc("getfarray", getFArray);
-        scope.pushFunc("putint", putInt);
-        scope.pushFunc("putfloat", putFloat);
-        scope.pushFunc("putch", putChar);
-        scope.pushFunc("putarray", putArray);
-        scope.pushFunc("putfarray", putFArray);
-        scope.pushFunc("starttime", startTime);
-        scope.pushFunc("stoptime", stopTime);
+            std::vector<Type *>().swap(input_params);
+            input_params.push_back(INT32_T);
+            auto time_type = FunctionType::get(VOID_T, input_params);
+            auto start_time =
+                Function::create(
+                        time_type,
+                        "_sysy_starttime",
+                        module.get());
+
+            std::vector<Type *>().swap(input_params);
+            input_params.push_back(INT32_T);
+            time_type = FunctionType::get(VOID_T, input_params);
+            auto stop_time =
+                Function::create(
+                        time_type,
+                        "_sysy_stoptime",
+                        module.get());
+
+            scope.enter();
+            scope.pushFunc("getint", get_int);
+            scope.pushFunc("getfloat", get_float);
+            scope.pushFunc("getch", get_char);
+            scope.pushFunc("getarray", get_array);
+            scope.pushFunc("getfarray", get_farray);
+            scope.pushFunc("putint", put_int);
+            scope.pushFunc("putfloat", put_float);
+            scope.pushFunc("putch", put_char);
+            scope.pushFunc("putarray", put_array);
+            scope.pushFunc("putfarray", put_farray);
+            scope.pushFunc("starttime", start_time);
+            scope.pushFunc("stoptime", stop_time);
+           
+        }
+
+        std::unique_ptr<Module> getModule() { return std::move(module); }
+  
+
+    private:
+        virtual void visit(ast::CompunitNode &node) override;
+        virtual void visit(ast::FuncFParam &node) override;
+        virtual void visit(ast::FuncDef &node) override;
+        virtual void visit(ast::ValDeclStmt &node) override;
+        virtual void visit(ast::ValDefStmt &node) override;
+        virtual void visit(ast::ArrDefStmt &node) override;
+        virtual void visit(ast::ConstDeclStmt &node)override;
+        virtual void visit(ast::ConstDefStmt &node)override;
+        virtual void visit(ast::ConstArrDefStmt &node) override;
+        virtual void visit(ast::ExprStmt &node) override;
+        virtual void visit(ast::AssignStmt &node) override;
+        virtual void visit(ast::UnaryExpr &node) override;
+        virtual void visit(ast::AssignExpr &node) override;
+        virtual void visit(ast::RelopExpr &node) override;
+        virtual void visit(ast::EqExpr &node) override;
+        virtual void visit(ast::AndExp &node) override;
+        virtual void visit(ast::ORExp &node)override;
+        virtual void visit(ast::BinopExpr &node) override;
+        virtual void visit(ast::LvalExpr &node)override;
+        virtual void visit(ast::IntConst &node) override;
+        virtual void visit(ast::InitializerExpr &node) override;
+        virtual void visit(ast::FloatConst &node)override;
+        virtual void visit(ast::BlockStmt &node) override;
+        virtual void visit(ast::IfStmt &node) override;
+        virtual void visit(ast::WhileStmt &node)override;
+        virtual void visit(ast::CallExpr &node) override;
+        virtual void visit(ast::RetStmt &node) override;
+        virtual void visit(ast::ContinueStmt &node)override;
+        virtual void visit(ast::BreakStmt &node) override;
+        virtual void visit(ast::EmptyStmt &node) override;
+
+    private:
+       // InitZeroJudger zero_judger;
+        //std::unique_ptr<IRBuilder> builder;
+        Scope scope;
+       
+
         
-    }
-
-    std::unique_ptr<Module> get_module() { return std::move(module); }
-
-  private:
-    virtual void visit(ast::CompunitNode &node) override;
-    virtual void visit(ast::FuncDef &node) override;
-    virtual void visit(ast::ValDeclStmt &node) override;
-    virtual void visit(ast::ValDefStmt &node) override;
-    virtual void visit(ast::ArrDefStmt &node) override;
-    virtual void visit(ast::ConstDeclStmt &node)override;
-    virtual void visit(ast::ConstDefStmt &node)override;
-    virtual void visit(ast::ConstArrDefStmt &node) override;
-    virtual void visit(ast::ExprStmt &node) override;
-    virtual void visit(ast::AssignStmt &node) override;
-    virtual void visit(ast::UnaryExpr &node) override;
-    // virtual void visast::it(InfixExpr &node) = 0;
-    virtual void visit(ast::AssignExpr &node) override;
-    virtual void visit(ast::RelopExpr &node) override;
-    virtual void visit(ast::EqExpr &node) override;
-    virtual void visit(ast::AndExp &node) override;
-    virtual void visit(ast::ORExp &node)override;
-    virtual void visit(ast::BinopExpr &node) override;
-    virtual void visit(ast::LvalExpr &node)override;
-    virtual void visit(ast::IntConst &node) override;
-    virtual void visit(ast::InitializerExpr &node) override;
-    virtual void visit(ast::FloatConst &node)override;
-    // virtual void visast::it(AssignStmt &node) = 0;
-    virtual void visit(ast::BlockStmt &node) override;
-    virtual void visit(ast::IfStmt &node) override;
-    virtual void visit(ast::WhileStmt &node)override;
-    virtual void visit(ast::CallExpr &node) override;
-    virtual void visit(ast::RetStmt &node) override;
-    virtual void visit(ast::ContinueStmt &node)override;
-    virtual void visit(ast::BreakStmt &node) override;
-    virtual void visit(ast::EmptyStmt &node) override;
-
-    //  bool is_all_zero(ASTInitVal &);
-
-
-    // InitZeroJudger zero_judger;
-    std::unique_ptr<IRBuilder> builder;
-    Scope scope;
-    std::unique_ptr<Module> module;
 };
+
+
+
 #endif

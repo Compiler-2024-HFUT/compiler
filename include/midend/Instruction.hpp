@@ -3,18 +3,21 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "User.hpp"
 #include "Type.hpp"
 #include "Constant.hpp"
 #include "BasicBlock.hpp"
 
+extern std::unique_ptr<Module> module;
+
 class BasicBlock;
 class Function;
 
 class Instruction : public User {
 public:
-    enum OPID {
+    enum OpID {
       //& Terminator Instructions
       ret,
       br,
@@ -65,9 +68,9 @@ public:
     };
 
 public:
-    OPID getInstrType() { return opid; }
+    OpID getInstrType() { return op_id_; }
 
-    static std::string getInstrOpName(OPID id) {
+    static std::string getInstrOpName(OpID id) {
       switch(id) {
         case ret: return "ret"; break;
         case br: return "br"; break;
@@ -121,13 +124,13 @@ public:
     }
 
 public:
-    //& make instruction, auto insert to bb, ty here is result type
-    Instruction(Type *ty, OPID id, unsigned numops, BasicBlock *parent);
-    Instruction(Type *ty, OPID id, unsigned numops);
+    //& create instruction, auto insert to bb, ty here is result type
+    Instruction(Type *ty, OpID id, unsigned num_ops, BasicBlock *parent);
+    Instruction(Type *ty, OpID id, unsigned num_ops);
 
-    inline const BasicBlock *getParent() const { return parent; }
-    inline BasicBlock *getParent() { return parent; }
-    void setParent(BasicBlock *parent) { this->parent = parent; }
+    inline const BasicBlock *getParent() const { return parent_; }
+    inline BasicBlock *getParent() { return parent_; }
+    void setParent(BasicBlock *parent) { this->parent_ = parent; }
 
     //// Return the function this instruction belongs to.
     Function *getFunction();
@@ -135,70 +138,70 @@ public:
     Module *getModule();
 
     bool isVoid() {
-        return ((opid == ret) || (opid == br) || (opid == store) || (opid == cmpbr) || (opid == fcmpbr) || (opid == storeoffset) || (opid == memset) ||
-                (opid == call && this->getType()->isVoidType()));
+        return ((op_id_ == ret) || (op_id_ == br) || (op_id_ == store) || (op_id_ == cmpbr) || (op_id_ == fcmpbr) || (op_id_ == storeoffset) || (op_id_ == memset) ||
+                (op_id_ == call && this->getType()->isVoidType()));
     }
 
-    bool isRet() { return opid == ret; } 
-    bool isBr() { return opid ==  br; } 
+    bool isRet() { return op_id_ == ret; } 
+    bool isBr() { return op_id_ ==  br; } 
 
-    bool isAdd() { return opid ==  add; } 
-    bool isSub() { return opid ==  sub; }
-    bool isMul() { return opid ==  mul; } 
-    bool isMul64() { return opid == mul64; }
-    bool isDiv() { return opid ==  sdiv; }
-    bool isRem() { return opid ==  srem; } 
+    bool isAdd() { return op_id_ ==  add; } 
+    bool isSub() { return op_id_ ==  sub; }
+    bool isMul() { return op_id_ ==  mul; } 
+    bool isMul64() { return op_id_ == mul64; }
+    bool isDiv() { return op_id_ ==  sdiv; }
+    bool isRem() { return op_id_ ==  srem; } 
 
-    bool isFadd() { return opid ==  fadd; } 
-    bool isFsub() { return opid ==  fsub; } 
-    bool isFmul() { return opid ==  fmul; } 
-    bool isFdiv() { return opid ==  fdiv; } 
+    bool isFAdd() { return op_id_ ==  fadd; } 
+    bool isFSub() { return op_id_ ==  fsub; } 
+    bool isFMul() { return op_id_ ==  fmul; } 
+    bool isFDiv() { return op_id_ ==  fdiv; } 
 
-    bool isAlloca() { return opid ==  alloca; } 
-    bool isLoad() { return opid ==  load; } 
-    bool isStore() { return opid ==  store; } 
-    bool isMemset() { return opid == memset; }
+    bool isAlloca() { return op_id_ ==  alloca; } 
+    bool isLoad() { return op_id_ ==  load; } 
+    bool isStore() { return op_id_ ==  store; } 
+    bool isMemset() { return op_id_ == memset; }
 
-    bool isCmp() { return opid ==  cmp; }
-    bool isFcmp() { return opid ==  fcmp; } 
-    bool isPhi() { return opid ==  phi; } 
-    bool isCall() { return opid ==  call; }
-    bool isGep(){ return opid ==  getelementptr; } 
+    bool isCmp() { return op_id_ ==  cmp; }
+    bool isFCmp() { return op_id_ ==  fcmp; } 
+    bool isPhi() { return op_id_ ==  phi; } 
+    bool isCall() { return op_id_ ==  call; }
+    bool isGep(){ return op_id_ ==  getelementptr; } 
 
-    bool isAnd() { return opid ==  land; } 
-    bool isOr() { return opid ==  lor; }
-    bool isXor() { return opid == lxor; } 
+    bool isAnd() { return op_id_ ==  land; } 
+    bool isOr() { return op_id_ ==  lor; }
+    bool isXor() { return op_id_ == lxor; } 
 
-    bool isAsr() { return opid ==  asr; }
-    bool isLsl() { return opid ==  shl; } 
-    bool isLsr() { return opid ==  lsr; } 
-    bool isAsr64() { return opid ==  asr64; }
-    bool isLsl64() { return opid ==  shl64; } 
-    bool isLsr64() { return opid ==  lsr64; }
+    bool isAsr() { return op_id_ ==  asr; }
+    bool isLsl() { return op_id_ ==  shl; } 
+    bool isLsr() { return op_id_ ==  lsr; } 
+    bool isAsr64() { return op_id_ ==  asr64; }
+    bool isLsl64() { return op_id_ ==  shl64; } 
+    bool isLsr64() { return op_id_ ==  lsr64; }
 
-    bool isZext() { return opid ==  zext; } 
+    bool isZext() { return op_id_ ==  zext; } 
     
-    bool isFptosi(){ return opid ==  fptosi; } 
-    bool isSitofp(){ return opid ==  sitofp; } 
+    bool isFptosi(){ return op_id_ ==  fptosi; } 
+    bool isSitofp(){ return op_id_ ==  sitofp; } 
 
-    bool isCmpBr() { return opid == cmpbr; }
-    bool isFCmpBr() { return opid == fcmpbr; }
-    bool isLoadOffset() { return opid == loadoffset; }
-    bool isStoreOffset() { return opid == storeoffset; }
+    bool isCmpBr() { return op_id_ == cmpbr; }
+    bool isFCmpBr() { return op_id_ == fcmpbr; }
+    bool isLoadOffset() { return op_id_ == loadoffset; }
+    bool isStoreOffset() { return op_id_ == storeoffset; }
 
-    bool isExtendBr() { return (opid ==  br || opid == cmpbr || opid == fcmpbr); }
-    bool isExtendCondBr() const { return getNumOpe() == 3 || getNumOpe() == 4; }
+    bool isExtendBr() { return (op_id_ ==  br || op_id_ == cmpbr || op_id_ == fcmpbr); }
+    bool isExtendCondBr() const { return getNumOperands() == 3 || getNumOperands() == 4; }
 
 
     bool isIntBinary() {
         return (isAdd() || isSub() || isMul() || isDiv() || isRem() || isMul64() ||
                 isAnd() || isOr() || isXor() || 
                 isAsr() || isLsl() || isLsr() || isAsr64() || isLsl64() || isLsr64()) &&
-               (getNumOpe() == 2);
+               (getNumOperands() == 2);
     }
 
     bool isFloatBinary() {
-        return (isFadd() || isFsub() || isFmul() || isFdiv()) && (getNumOpe() == 2);
+        return (isFAdd() || isFSub() || isFMul() || isFDiv()) && (getNumOperands() == 2);
     }
 
     bool isBinary() {
@@ -208,52 +211,52 @@ public:
 
     bool isTerminator() { return isBr() || isRet() || isCmpBr() || isFCmpBr(); }
 
-    void setId(int id) { id = id; }
-    int getId() { return id; }
+    void setId(int id) { id_ = id; }
+    int getId() { return id_; }
 
     virtual Instruction *copyInst(BasicBlock *bb) = 0;
 
 private:
-    OPID opid;
-    unsigned numops;
-    BasicBlock* parent;
-    int id;
+    OpID op_id_;
+    unsigned num_ops_;
+    BasicBlock* parent_;
+    int id_;
 };
 
 class BinaryInst : public Instruction {
 public:
-    static BinaryInst *makeAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeSub(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeMul(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeMul64(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeSDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeSRem(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeFAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeFSub(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeFMul(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeFDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m);
+    static BinaryInst *createAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createSub(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createMul(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createMul64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createSDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createSRem(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createFAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createFSub(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createFMul(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createFDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
 
-    static BinaryInst *makeAnd(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeOr(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeXor(Value *v1, Value *v2, BasicBlock *bb, Module *m);
+    static BinaryInst *createAnd(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createOr(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createXor(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
 
-    static BinaryInst *makeAsr(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeLsl(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeLsr(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeAsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeLsl64(Value *v1, Value *v2, BasicBlock *bb, Module *m);
-    static BinaryInst *makeLsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m);
+    static BinaryInst *createAsr(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createLsl(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createLsr(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createAsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createLsl64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
+    static BinaryInst *createLsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module.get());
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final {
-        return new BinaryInst(getType(), getInstrType(), getOpe(0), getOpe(1), bb);
+        return new BinaryInst(getType(), getInstrType(), getOperand(0), getOperand(1), bb);
     }
 
 private:
-    BinaryInst(Type *ty, OPID id, Value *v1, Value *v2, BasicBlock *bb); 
+    BinaryInst(Type *ty, OpID id, Value *v1, Value *v2, BasicBlock *bb); 
 
-    //~ void assertvalid();
+    //~ void assert_valid();
 };
 
 
@@ -267,112 +270,112 @@ enum CmpOp {
 };
 class CmpInst : public Instruction {
 public:
-    static CmpInst *makeCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb, Module *m);
+    static CmpInst *createCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb, Module *m);
 
-    CmpOp getCmpOp() { return cmpop; }
+    CmpOp getCmpOp() { return cmp_op_; }
 
     void negation();
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final {
-        return new CmpInst(getType(), cmpop, getOpe(0), getOpe(1), bb);
+        return new CmpInst(getType(), cmp_op_, getOperand(0), getOperand(1), bb);
     }
 
 private:
     CmpInst(Type *ty, CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb); 
-    //~ void assertvalid();
+    //~ void assert_valid();
     
 private:
-    CmpOp cmpop;
+    CmpOp cmp_op_;
     
 };
 
 class FCmpInst : public Instruction {
   public:
-    static FCmpInst *makeFCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb, Module *m);
+    static FCmpInst *createFCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb, Module *m);
 
-    CmpOp getCmpOp() { return cmpop; }
+    CmpOp getCmpOp() { return cmp_op_; }
 
     void negation();
 
     virtual std::string print() override;
     Instruction *copyInst(BasicBlock *bb) override final {
-        return new FCmpInst(getType(), cmpop, getOpe(0), getOpe(1), bb);
+        return new FCmpInst(getType(), cmp_op_, getOperand(0), getOperand(1), bb);
     }
 
   private:
     FCmpInst(Type *ty, CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb);
 
-    //~ void assertvalid();
+    //~ void assert_valid();
 
   private:
-    CmpOp cmpop;
+    CmpOp cmp_op_;
 };
 
 class CallInst : public Instruction {
 public:
-    static CallInst *makeCall(Function *func, std::vector<Value *>args, BasicBlock *bb);
+    static CallInst *createCall(Function *func, std::vector<Value *>args, BasicBlock *bb);
     
-    FuncType *getFuncType() const { return static_cast<FuncType *>(getOpe(0)->getType()); }
+    FunctionType *getFunctionType() const { return static_cast<FunctionType *>(getOperand(0)->getType()); }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         std::vector<Value *> args;
-        for (auto i = 1; i < getNumOpe(); i++){
-            args.push_back(getOpe(i));
+        for (auto i = 1; i < getNumOperands(); i++){
+            args.push_back(getOperand(i));
         }
-        auto newInst = new CallInst(getFuncType()->getResultType(),args,bb);
-        newInst->setOpe(0, getOpe(0));
-        return newInst;
+        auto new_inst = new CallInst(getFunctionType()->getReturnType(),args,bb);
+        new_inst->setOperand(0, getOperand(0));
+        return new_inst;
     }
 
 protected:
     CallInst(Function *func, std::vector<Value *>args, BasicBlock *bb);
-    CallInst(Type *retty, std::vector<Value *> args, BasicBlock *bb);
+    CallInst(Type *ret_ty, std::vector<Value *> args, BasicBlock *bb);
 };
 
 class BranchInst : public Instruction {
 public:
-    static BranchInst *makeCondBr(Value *cond, BasicBlock *iftrue, BasicBlock *iffalse, BasicBlock *bb);
-    static BranchInst *makeBr(BasicBlock *iftrue, BasicBlock *bb);
+    static BranchInst *createCondBr(Value *cond, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb);
+    static BranchInst *createBr(BasicBlock *if_true, BasicBlock *bb);
 
    
-    bool isCondBr() const { return getNumOpe() == 3; }
-    // bool isextendcondbr() const { return getNumOpe() == 3 || getNumOpe() == 4; }
+    bool isCondBr() const { return getNumOperands() == 3; }
+    // bool is_extend_cond_br() const { return get_num_operands() == 3 || get_num_operands() == 4; }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        if (getNumOpe() == 1){
-            auto newInst = new BranchInst(bb);
-            newInst->setOpe(0, getOpe(0));
-            return newInst;
+        if (getNumOperands() == 1){
+            auto new_inst = new BranchInst(bb);
+            new_inst->setOperand(0, getOperand(0));
+            return new_inst;
         } else {
-            auto newInst = new BranchInst(getOpe(0),bb);
-            newInst->setOpe(1, getOpe(1));
-            newInst->setOpe(2, getOpe(2));
-            return newInst;
+            auto new_inst = new BranchInst(getOperand(0),bb);
+            new_inst->setOperand(1, getOperand(1));
+            new_inst->setOperand(2, getOperand(2));
+            return new_inst;
         }
     }
 
 private:
-    BranchInst(Value *cond, BasicBlock *iftrue, BasicBlock *iffalse,
+    BranchInst(Value *cond, BasicBlock *if_true, BasicBlock *if_false,
                BasicBlock *bb);
-    BranchInst(BasicBlock *iftrue, BasicBlock *bb);
+    BranchInst(BasicBlock *if_true, BasicBlock *bb);
     BranchInst(BasicBlock *bb);
     BranchInst(Value *cond, BasicBlock *bb);
 };
 
 class ReturnInst : public Instruction {
 public:
-    static ReturnInst *makeRet(Value *val, BasicBlock *bb);
-    static ReturnInst *makeVoidRet(BasicBlock *bb);
+    static ReturnInst *createRet(Value *val, BasicBlock *bb);
+    static ReturnInst *createVoidRet(BasicBlock *bb);
 
-    bool isVoidRet() const { return getNumOpe() == 0; }
+    bool isVoidRet() const { return getNumOperands() == 0; }
 
-    Type * getRetType() const { return getOpe(0)->getType(); }
+    Type * getRetType() const { return getOperand(0)->getType(); }
 
     virtual std::string print() override;
 
@@ -380,7 +383,7 @@ public:
         if (isVoidRet()){
             return new ReturnInst(bb);
         } else {
-            return new ReturnInst(getOpe(0),bb);
+            return new ReturnInst(getOperand(0),bb);
         }
     }
 
@@ -392,38 +395,38 @@ private:
 class GetElementPtrInst : public Instruction {
 public:
     static Type *getElementType(Value *ptr, std::vector<Value *> idxs);
-    static GetElementPtrInst *makeGep(Value *ptr, std::vector<Value *> idxs, BasicBlock *bb);
-    Type *getElementType() const { return elementty; }
+    static GetElementPtrInst *createGep(Value *ptr, std::vector<Value *> idxs, BasicBlock *bb);
+    Type *getElementType() const { return element_ty_; }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         std::vector<Value *> idxs;
-        for (auto i = 1; i < getNumOpe(); i++) {
-            idxs.push_back(getOpe(i));
+        for (auto i = 1; i < getNumOperands(); i++) {
+            idxs.push_back(getOperand(i));
         }
-        return new GetElementPtrInst(getOpe(0),idxs,bb);
+        return new GetElementPtrInst(getOperand(0),idxs,bb);
     }
 
 private:
     GetElementPtrInst(Value *ptr, std::vector<Value *> idxs, BasicBlock *bb);
 
 private:
-    Type *elementty;
+    Type *element_ty_;
 };
 
 
 class StoreInst : public Instruction {
 public:
-    static StoreInst *makeStore(Value *val, Value *ptr, BasicBlock *bb);
+    static StoreInst *createStore(Value *val, Value *ptr, BasicBlock *bb);
 
-    Value *getRVal() { return this->getOpe(0); }
-    Value *getLVal() { return this->getOpe(1); }
+    Value *getRval() { return this->getOperand(0); }
+    Value *getLval() { return this->getOperand(1); }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        return new StoreInst(getOpe(0),getOpe(1),bb);
+        return new StoreInst(getOperand(0),getOperand(1),bb);
     }
 
 private:
@@ -433,14 +436,14 @@ private:
 //& 加速使用全0初始化数组的代码优化分析和代码生成
 class MemsetInst : public Instruction {
 public:
-    static MemsetInst *makeMemset(Value *ptr, BasicBlock *bb);
+    static MemsetInst *create_memset(Value *ptr, BasicBlock *bb);
 
-    Value *getLVal() { return this->getOpe(0); }
+    Value *get_lval() { return this->getOperand(0); }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        return new MemsetInst(getOpe(0),bb);
+        return new MemsetInst(getOperand(0),bb);
     }
 
 private:
@@ -449,16 +452,16 @@ private:
 
 class LoadInst : public Instruction {
 public:
-    static LoadInst *makeLoad(Type *ty, Value *ptr, BasicBlock *bb);
+    static LoadInst *create_load(Type *ty, Value *ptr, BasicBlock *bb);
     
-    Value * getLVal() { return this->getOpe(0); }
+    Value * get_lval() { return this->getOperand(0); }
 
-    Type *getLoadType() const { return static_cast<PtrType *>(getOpe(0)->getType())->getPtrElementType(); }
+    Type *get_load_type() const { return static_cast<PointerType *>(getOperand(0)->getType())->getElementType(); }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        return new LoadInst(getType(),getOpe(0),bb);
+        return new LoadInst(getType(),getOperand(0),bb);
     }
 
 private:
@@ -468,175 +471,175 @@ private:
 
 class AllocaInst : public Instruction {
 public:
-    static AllocaInst *makeAlloca(Type *ty, BasicBlock *bb);
+    static AllocaInst *create_alloca(Type *ty, BasicBlock *bb);
 
-    Type *getAllocaType() const { return allocaty; }
+    Type *get_alloca_type() const { return alloca_ty_; }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        return new AllocaInst(allocaty,bb);
+        return new AllocaInst(alloca_ty_,bb);
     }
 
 private:
     AllocaInst(Type *ty, BasicBlock *bb);
 
 private:
-    Type *allocaty;
+    Type *alloca_ty_;
 };
 
 class ZextInst : public Instruction {
 public:
-    static ZextInst *makeZext(Value *val, Type *ty, BasicBlock *bb);
+    static ZextInst *create_zext(Value *val, Type *ty, BasicBlock *bb);
 
-    Type *getDestType() const { return destty; }
+    Type *get_dest_type() const { return dest_ty_; }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        return new ZextInst(getInstrType(),getOpe(0),destty,bb);
+        return new ZextInst(getInstrType(),getOperand(0),dest_ty_,bb);
     }
 
 private:
-    ZextInst(OPID op, Value *val, Type *ty, BasicBlock *bb);
+    ZextInst(OpID op, Value *val, Type *ty, BasicBlock *bb);
 
 private:
-  Type *destty;
+  Type *dest_ty_;
 };
 
 class SiToFpInst : public Instruction {
 public:
-    static SiToFpInst *makeSitofp(Value *val, Type *ty, BasicBlock *bb);
+    static SiToFpInst *create_sitofp(Value *val, Type *ty, BasicBlock *bb);
 
-    Type *getDestType() const { return destty; }
+    Type *get_dest_type() const { return dest_ty_; }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        return new SiToFpInst(getInstrType(), getOpe(0), getDestType(), bb);
+        return new SiToFpInst(getInstrType(), getOperand(0), get_dest_type(), bb);
     }
 
 private:
-    SiToFpInst(OPID op, Value *val, Type *ty, BasicBlock *bb);
+    SiToFpInst(OpID op, Value *val, Type *ty, BasicBlock *bb);
 
 private:
-    Type *destty;
+    Type *dest_ty_;
 };
 
 class FpToSiInst : public Instruction {
 public:
-    static FpToSiInst *makeFptosi(Value *val, Type *ty, BasicBlock *bb);
+    static FpToSiInst *create_fptosi(Value *val, Type *ty, BasicBlock *bb);
 
-    Type *getDestType() const { return destty; }
+    Type *get_dest_type() const { return dest_ty_; }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        return new FpToSiInst(getInstrType(), getOpe(0), getDestType(), bb);
+        return new FpToSiInst(getInstrType(), getOperand(0), get_dest_type(), bb);
     }
 
 private:
-    FpToSiInst(OPID op, Value *val, Type *ty, BasicBlock *bb);
+    FpToSiInst(OpID op, Value *val, Type *ty, BasicBlock *bb);
 
 private:
-    Type *destty;
+    Type *dest_ty_;
 };
 
 class PhiInst : public Instruction {
 public:
-    static PhiInst *makePhi(Type *ty, BasicBlock *bb);
+    static PhiInst *create_phi(Type *ty, BasicBlock *bb);
 
-    Value *getLVal() { return lval; }
-    void setLVal(Value *lval) { lval = lval; }
+    Value *get_lval() { return l_val_; }
+    void set_lval(Value *l_val) { l_val_ = l_val; }
 
-    void addPhiPairPperand(Value *val, Value *prebb) {
-        this->addOpe(val);
-        this->addOpe(prebb);
+    void add_phi_pair_operand(Value *val, Value *pre_bb) {
+        this->addOperand(val);
+        this->addOperand(pre_bb);
     }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        auto newInst = makePhi(getType(), bb);
-        for (auto op : getDefUseList()){
-            newInst->addOpe(op);
+        auto new_inst = create_phi(getType(), bb);
+        for (auto op : getOperands()){
+            new_inst->addOperand(op);
         }
-        return newInst;
+        return new_inst;
     }
 private:
-     PhiInst(OPID op, std::vector<Value *> vals, std::vector<BasicBlock *> valbbs, Type *ty, BasicBlock *bb);
+     PhiInst(OpID op, std::vector<Value *> vals, std::vector<BasicBlock *> val_bbs, Type *ty, BasicBlock *bb);
 
 private:
-    Value *lval;
+    Value *l_val_;
 };
 
 class CmpBrInst: public Instruction {
 
 public:
-    static CmpBrInst *makeCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *iftrue, BasicBlock *iffalse, BasicBlock *bb, Module *m);
+    static CmpBrInst *create_cmpbr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb, Module *m);
 
-    CmpOp getCmpOp() { return cmpop; }
+    CmpOp get_cmp_op() { return cmp_op_; }
 
-    bool isCmpBr() const;
+    bool is_cmp_br() const;
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        auto newInst = new CmpBrInst(cmpop,getOpe(0),getOpe(1),bb);
-        newInst->setOpe(2, getOpe(2));
-        newInst->setOpe(3, getOpe(3));
-        return newInst;
+        auto new_inst = new CmpBrInst(cmp_op_,getOperand(0),getOperand(1),bb);
+        new_inst->setOperand(2, getOperand(2));
+        new_inst->setOperand(3, getOperand(3));
+        return new_inst;
     }
 
 private:
-    CmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *iftrue, BasicBlock *iffalse, BasicBlock *bb);
+    CmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb);
     CmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb);
 private:
-    CmpOp cmpop;
+    CmpOp cmp_op_;
 
 };
 
 
 class FCmpBrInst : public Instruction {
 public:
-    static FCmpBrInst *makeFCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *iftrue, BasicBlock *iffalse, BasicBlock *bb, Module *m);
+    static FCmpBrInst *create_fcmpbr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb, Module *m);
 
-    CmpOp getCmpOp() { return cmpop; }
+    CmpOp get_cmp_op() { return cmp_op_; }
 
-    bool isFCmpBr() const;
+    bool is_fcmp_br() const;
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        auto newInst = new FCmpBrInst(cmpop,getOpe(0),getOpe(1),bb);
-        newInst->setOpe(2, getOpe(2));
-        newInst->setOpe(3, getOpe(3));
-        return newInst;
+        auto new_inst = new FCmpBrInst(cmp_op_,getOperand(0),getOperand(1),bb);
+        new_inst->setOperand(2, getOperand(2));
+        new_inst->setOperand(3, getOperand(3));
+        return new_inst;
     }
 
 
 private:
-    FCmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *iftrue, BasicBlock *iffalse, BasicBlock *bb);
+    FCmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb);
     FCmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb);
 private:
-    CmpOp cmpop;
+    CmpOp cmp_op_;
 };
 
 class LoadOffsetInst: public Instruction {
 public:
-    static LoadOffsetInst *makeLoadOffset(Type *ty, Value *ptr, Value *offset, BasicBlock *bb);
+    static LoadOffsetInst *create_loadoffset(Type *ty, Value *ptr, Value *offset, BasicBlock *bb);
 
-    Value *getLVal() { return this->getOpe(0); }
-    Value *getOffset() { return this->getOpe(1); }
+    Value *get_lval() { return this->getOperand(0); }
+    Value *get_offset() { return this->getOperand(1); }
 
-    Type *getLoadType() const;
+    Type *get_load_type() const;
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        auto newInst = new LoadOffsetInst(getType(), getOpe(0), bb);
-        newInst->setOpe(1, getOpe(1));
-        return newInst;
+        auto new_inst = new LoadOffsetInst(getType(), getOperand(0), bb);
+        new_inst->setOperand(1, getOperand(1));
+        return new_inst;
     }
 
 private:
@@ -648,20 +651,20 @@ private:
 class StoreOffsetInst: public Instruction {
 
 public:
-    static StoreOffsetInst *makeStoreOffset(Value *val, Value *ptr, Value *offset, BasicBlock *bb);
+    static StoreOffsetInst *create_storeoffset(Value *val, Value *ptr, Value *offset, BasicBlock *bb);
 
-    Type *getStoreType() const;
+    Type *get_store_type() const;
 
-    Value *getRVal() { return this->getOpe(0); }
-    Value *getLVal() { return this->getOpe(1); }
-    Value *getOffset() { return this->getOpe(2); }
+    Value *get_rval() { return this->getOperand(0); }
+    Value *get_lval() { return this->getOperand(1); }
+    Value *get_offset() { return this->getOperand(2); }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        auto newInst = new StoreOffsetInst(getOpe(0), getOpe(1), bb);
-        newInst->setOpe(2, getOpe(2));
-        return newInst;
+        auto new_inst = new StoreOffsetInst(getOperand(0), getOperand(1), bb);
+        new_inst->setOperand(2, getOperand(2));
+        return new_inst;
     }
 
 private:
@@ -669,8 +672,8 @@ private:
     StoreOffsetInst(Value *val, Value *ptr, BasicBlock *bb);
 };
 
-#endif
 
+#endif
 
 
 

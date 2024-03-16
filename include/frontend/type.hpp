@@ -3,7 +3,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "frontend/lex.hpp"
+#include "lex.hpp"
 using std::string,std::vector;
 namespace type {
 
