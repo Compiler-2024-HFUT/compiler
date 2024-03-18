@@ -1,6 +1,6 @@
 #include <cassert>
 
-#include "../../include/midend/User.hpp"
+#include "midend/User.hpp"
 
 User::User(Type *ty, const std::string &name, unsigned num_ops) 
   : Value(ty, name), num_ops_(num_ops) {

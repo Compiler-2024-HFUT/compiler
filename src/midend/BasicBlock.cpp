@@ -1,9 +1,9 @@
 #include <cassert>
 #include <algorithm>
 
-#include "../../include/midend/BasicBlock.hpp"
-#include "../../include/midend/Function.hpp"
-#include "../../include/midend/IRprint.hpp"
+#include "midend/BasicBlock.hpp"
+#include "midend/Function.hpp"
+#include "midend/IRprint.hpp"
 
 BasicBlock::BasicBlock(Module *m, const std::string &name = "", Function *parent = nullptr)
     : Value(Type::getLabelType(m), name), parent_(parent) {

@@ -1,5 +1,5 @@
-#include "../../include/midend/GlobalVariable.hpp"
-#include "../../include/midend/IRprint.hpp"
+#include "midend/GlobalVariable.hpp"
+#include "midend/IRprint.hpp"
 
 
 GlobalVariable::GlobalVariable(std::string name, Module *m, Type *ty, bool is_const, Constant *init)

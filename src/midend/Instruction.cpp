@@ -1,8 +1,8 @@
 #include <algorithm>
 
-#include "../../include/midend/IRprint.hpp"
-#include "../../include/midend/Function.hpp"
-#include "../../include/midend/Module.hpp"
+#include "midend/IRprint.hpp"
+#include "midend/Function.hpp"
+#include "midend/Module.hpp"
 
 
 //& Instruction
@@ -466,7 +466,7 @@ MemsetInst::MemsetInst(Value *ptr, BasicBlock *bb)
     setOperand(0, ptr);
 }
 
-MemsetInst *MemsetInst::create_memset(Value *ptr, BasicBlock *bb) {
+MemsetInst *MemsetInst::createMemset(Value *ptr, BasicBlock *bb) {
     return new MemsetInst(ptr, bb);
 }
 
@@ -486,7 +486,7 @@ LoadInst::LoadInst(Type *ty, Value *ptr, BasicBlock *bb)
     setOperand(0, ptr);
 }
 
-LoadInst *LoadInst::create_load(Type *ty, Value *ptr, BasicBlock *bb) {
+LoadInst *LoadInst::createLoad(Type *ty, Value *ptr, BasicBlock *bb) {
     return new LoadInst(ty, ptr, bb);
 }
 
@@ -511,7 +511,7 @@ AllocaInst::AllocaInst(Type *ty, BasicBlock *bb)
 
 }
 
-AllocaInst *AllocaInst::create_alloca(Type *ty, BasicBlock *bb) {
+AllocaInst *AllocaInst::createAlloca(Type *ty, BasicBlock *bb) {
     return new AllocaInst(ty, bb);
 }
 
@@ -522,7 +522,7 @@ std::string AllocaInst::print() {
     instr_ir += " = ";
     instr_ir += this->getModule()->getInstrOpName(this->getInstrType());
     instr_ir += " ";
-    instr_ir += get_alloca_type()->print();
+    instr_ir += getAllocaType()->print();
     return instr_ir;
 }
 
@@ -532,7 +532,7 @@ ZextInst::ZextInst(OpID op, Value *val, Type *ty, BasicBlock *bb)
     setOperand(0, val);
 }
 
-ZextInst *ZextInst::create_zext(Value *val, Type *ty, BasicBlock *bb) {
+ZextInst *ZextInst::createZext(Value *val, Type *ty, BasicBlock *bb) {
     return new ZextInst(Instruction::zext, val, ty, bb);
 }
 
@@ -547,7 +547,7 @@ std::string ZextInst::print() {
     instr_ir += " ";
     instr_ir += printAsOp(this->getOperand(0), false);
     instr_ir += " to ";
-    instr_ir += this->get_dest_type()->print();
+    instr_ir += this->getDestType()->print();
     return instr_ir;
 }
 
@@ -557,7 +557,7 @@ FpToSiInst::FpToSiInst(OpID op, Value *val, Type *ty, BasicBlock *bb)
     setOperand(0, val);
 }
 
-FpToSiInst *FpToSiInst::create_fptosi(Value *val, Type *ty, BasicBlock *bb) {
+FpToSiInst *FpToSiInst::createFpToSi(Value *val, Type *ty, BasicBlock *bb) {
     return new FpToSiInst(Instruction::fptosi, val, ty, bb);
 }
 
@@ -572,7 +572,7 @@ std::string FpToSiInst::print() {
     instr_ir += " ";
     instr_ir += printAsOp(this->getOperand(0), false);
     instr_ir += " to ";
-    instr_ir += this->get_dest_type()->print();
+    instr_ir += this->getDestType()->print();
     return instr_ir;
 }
 
@@ -582,7 +582,7 @@ SiToFpInst::SiToFpInst(OpID op, Value *val, Type *ty, BasicBlock *bb)
     setOperand(0, val);
 }
 
-SiToFpInst *SiToFpInst::create_sitofp(Value *val, Type *ty, BasicBlock *bb) {
+SiToFpInst *SiToFpInst::createSiToFp(Value *val, Type *ty, BasicBlock *bb) {
     return new SiToFpInst(Instruction::sitofp, val, ty, bb);
 }
 
@@ -597,7 +597,7 @@ std::string SiToFpInst::print() {
     instr_ir += " ";
     instr_ir += printAsOp(this->getOperand(0), false);
     instr_ir += " to ";
-    instr_ir += this->get_dest_type()->print();
+    instr_ir += this->getDestType()->print();
     return instr_ir;
 }
 
@@ -611,7 +611,7 @@ PhiInst::PhiInst(OpID op, std::vector<Value *> vals, std::vector<BasicBlock *> v
     this->setParent(bb);
 }
 
-PhiInst *PhiInst::create_phi(Type *ty, BasicBlock *bb) {
+PhiInst *PhiInst::createPhi(Type *ty, BasicBlock *bb) {
     std::vector<Value *> vals;
     std::vector<BasicBlock *> val_bbs;
     return new PhiInst(Instruction::phi, vals, val_bbs, ty, bb);
@@ -663,7 +663,7 @@ CmpBrInst::CmpBrInst(CmpOp op, Value *lhs, Value *rhs,
     setOperand(1, rhs);
 }
 
-CmpBrInst *CmpBrInst::create_cmpbr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb, Module *m) {
+CmpBrInst *CmpBrInst::createCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb, Module *m) {
     if_true->addPreBasicBlock(bb);
     if_false->addPreBasicBlock(bb);
     bb->addSuccBasicBlock(if_false);
@@ -711,7 +711,7 @@ FCmpBrInst::FCmpBrInst(CmpOp op, Value *lhs, Value *rhs,
     setOperand(1, rhs);
 }
 
-FCmpBrInst *FCmpBrInst::create_fcmpbr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb, Module *m) {
+FCmpBrInst *FCmpBrInst::createFCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb, Module *m) {
     if_true->addPreBasicBlock(bb);
     if_false->addPreBasicBlock(bb);
     bb->addSuccBasicBlock(if_false);
@@ -755,11 +755,11 @@ LoadOffsetInst::LoadOffsetInst(Type *ty, Value *ptr, BasicBlock *bb)
     setOperand(0, ptr);
 }
 
-LoadOffsetInst *LoadOffsetInst::create_loadoffset(Type *ty, Value *ptr, Value *offset, BasicBlock *bb) {
+LoadOffsetInst *LoadOffsetInst::createLoadOffset(Type *ty, Value *ptr, Value *offset, BasicBlock *bb) {
     return new LoadOffsetInst(ty, ptr, offset, bb);
 }
 
-Type *LoadOffsetInst::get_load_type() const {
+Type *LoadOffsetInst::getLoadType() const {
     return static_cast<PointerType *>(getOperand(0)->getType())->getElementType();
 }
 
@@ -792,11 +792,11 @@ StoreOffsetInst::StoreOffsetInst(Value *val, Value *ptr, BasicBlock *bb)
     setOperand(1, ptr);
 }
 
-Type *StoreOffsetInst::get_store_type() const {
+Type *StoreOffsetInst::getStoreType() const {
     return static_cast<PointerType *>(getOperand(1)->getType())->getElementType();
 }
 
-StoreOffsetInst *StoreOffsetInst::create_storeoffset(Value *val, Value *ptr, Value *offset, BasicBlock *bb) {
+StoreOffsetInst *StoreOffsetInst::createStoreOffset(Value *val, Value *ptr, Value *offset, BasicBlock *bb) {
     return new StoreOffsetInst(val, ptr, offset, bb);
 }
 

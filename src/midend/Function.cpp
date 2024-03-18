@@ -1,5 +1,5 @@
-#include "../../include/midend/Function.hpp"
-#include "../../include/midend/IRprint.hpp"
+#include "midend/Function.hpp"
+#include "midend/IRprint.hpp"
 
 void Function::buildArgs() {
     auto *func_ty = getFunctionType();

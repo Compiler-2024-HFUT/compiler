@@ -1,9 +1,10 @@
 #ifndef GLOBALVARIABLE_HPP
 #define GLOBALVARIABLE_HPP
 
-#include "Module.hpp"
+
 #include "User.hpp"
 #include "Constant.hpp"
+class Module;
 
 class GlobalVariable : public User {
 public:

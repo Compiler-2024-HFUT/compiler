@@ -1,4 +1,4 @@
-#include "../../include/frontend/lex.hpp"
+#include "frontend/lex.hpp"
 #include <cstdint>
 #include <iomanip>
 #include <memory>

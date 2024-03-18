@@ -1,8 +1,9 @@
-#include "../../include/frontend/parser.hpp"
+#include "frontend/parser.hpp"
 #include <iostream>
 #include <memory>
 #include <string>
-#include "../../include/midend/IRGen.hpp"
+#include "midend/IRGen.hpp"
+#include "midend/Module.hpp"
 using namespace std;
 
 int main(int argc , char**argv){
@@ -13,15 +14,8 @@ int main(int argc , char**argv){
     Parser *p=new Parser(argv[1]);
     p->parserComp();
     p->comp->print();
-    IRGen irgen;
+    IRBuilder::IRGen irgen;
     p->comp->accept(irgen);
-    auto m = irgen.getModule();
-    m->setPrintName();
-    m->setFileName(argv[1]);
-    auto mptr = m.get();
-    mptr->setPrintName();
-    auto IR = mptr->print();
-    cout << IR;
  
     delete (p);
 

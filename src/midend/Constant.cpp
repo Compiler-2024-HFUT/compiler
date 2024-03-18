@@ -2,8 +2,8 @@
 #include <memory>
 #include <sstream>
 
-#include "../../include/midend/Constant.hpp"
-#include "../../include/midend/Module.hpp"
+#include "midend/Constant.hpp"
+#include "midend/Module.hpp"
 
 //& ConstantInt
 ConstantInt *ConstantInt::get(int val, Module *m) {

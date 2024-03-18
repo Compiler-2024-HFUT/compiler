@@ -1,6 +1,6 @@
 #include <memory>
 
-#include "../../include/midend/Module.hpp"
+#include "midend/Module.hpp"
 
 Module::Module(std::string name) : module_name_(name) {
     void_ty_ = new Type(Type::VoidTyID, this);

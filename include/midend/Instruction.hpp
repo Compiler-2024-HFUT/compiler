@@ -8,9 +8,8 @@
 #include "User.hpp"
 #include "Type.hpp"
 #include "Constant.hpp"
-#include "BasicBlock.hpp"
 
-extern std::unique_ptr<Module> module_sole;
+extern Module* global_m_ptr;
 
 class BasicBlock;
 class Function;
@@ -225,27 +224,27 @@ private:
 
 class BinaryInst : public Instruction {
 public:
-    static BinaryInst *createAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createSub(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createMul(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createMul64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createSDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createSRem(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createFAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createFSub(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createFMul(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createFDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createSub(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createMul(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createMul64(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createSDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createSRem(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createFAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createFSub(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createFMul(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createFDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
 
-    static BinaryInst *createAnd(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createOr(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createXor(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createAnd(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createOr(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createXor(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
 
-    static BinaryInst *createAsr(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createLsl(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createLsr(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createAsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createLsl64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
-    static BinaryInst *createLsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m = module_sole.get());
+    static BinaryInst *createAsr(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createLsl(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createLsr(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createAsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createLsl64(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createLsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
 
     virtual std::string print() override;
 
@@ -436,9 +435,9 @@ private:
 //& 加速使用全0初始化数组的代码优化分析和代码生成
 class MemsetInst : public Instruction {
 public:
-    static MemsetInst *create_memset(Value *ptr, BasicBlock *bb);
+    static MemsetInst *createMemset(Value *ptr, BasicBlock *bb);
 
-    Value *get_lval() { return this->getOperand(0); }
+    Value *getLval() { return this->getOperand(0); }
 
     virtual std::string print() override;
 
@@ -452,11 +451,11 @@ private:
 
 class LoadInst : public Instruction {
 public:
-    static LoadInst *create_load(Type *ty, Value *ptr, BasicBlock *bb);
+    static LoadInst *createLoad(Type *ty, Value *ptr, BasicBlock *bb);
     
-    Value * get_lval() { return this->getOperand(0); }
+    Value * getLval() { return this->getOperand(0); }
 
-    Type *get_load_type() const { return static_cast<PointerType *>(getOperand(0)->getType())->getElementType(); }
+    Type *getLoadType() const { return static_cast<PointerType *>(getOperand(0)->getType())->getElementType(); }
 
     virtual std::string print() override;
 
@@ -471,9 +470,9 @@ private:
 
 class AllocaInst : public Instruction {
 public:
-    static AllocaInst *create_alloca(Type *ty, BasicBlock *bb);
+    static AllocaInst *createAlloca(Type *ty, BasicBlock *bb);
 
-    Type *get_alloca_type() const { return alloca_ty_; }
+    Type *getAllocaType() const { return alloca_ty_; }
 
     virtual std::string print() override;
 
@@ -490,9 +489,9 @@ private:
 
 class ZextInst : public Instruction {
 public:
-    static ZextInst *create_zext(Value *val, Type *ty, BasicBlock *bb);
+    static ZextInst *createZext(Value *val, Type *ty, BasicBlock *bb);
 
-    Type *get_dest_type() const { return dest_ty_; }
+    Type *getDestType() const { return dest_ty_; }
 
     virtual std::string print() override;
 
@@ -509,14 +508,14 @@ private:
 
 class SiToFpInst : public Instruction {
 public:
-    static SiToFpInst *create_sitofp(Value *val, Type *ty, BasicBlock *bb);
+    static SiToFpInst *createSiToFp(Value *val, Type *ty, BasicBlock *bb);
 
-    Type *get_dest_type() const { return dest_ty_; }
+    Type *getDestType() const { return dest_ty_; }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        return new SiToFpInst(getInstrType(), getOperand(0), get_dest_type(), bb);
+        return new SiToFpInst(getInstrType(), getOperand(0), getDestType(), bb);
     }
 
 private:
@@ -528,14 +527,14 @@ private:
 
 class FpToSiInst : public Instruction {
 public:
-    static FpToSiInst *create_fptosi(Value *val, Type *ty, BasicBlock *bb);
+    static FpToSiInst *createFpToSi(Value *val, Type *ty, BasicBlock *bb);
 
-    Type *get_dest_type() const { return dest_ty_; }
+    Type *getDestType() const { return dest_ty_; }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        return new FpToSiInst(getInstrType(), getOperand(0), get_dest_type(), bb);
+        return new FpToSiInst(getInstrType(), getOperand(0), getDestType(), bb);
     }
 
 private:
@@ -547,12 +546,12 @@ private:
 
 class PhiInst : public Instruction {
 public:
-    static PhiInst *create_phi(Type *ty, BasicBlock *bb);
+    static PhiInst *createPhi(Type *ty, BasicBlock *bb);
 
-    Value *get_lval() { return l_val_; }
-    void set_lval(Value *l_val) { l_val_ = l_val; }
+    Value *getLval() { return l_val_; }
+    void setLval(Value *l_val) { l_val_ = l_val; }
 
-    void add_phi_pair_operand(Value *val, Value *pre_bb) {
+    void addPhiPairOperand(Value *val, Value *pre_bb) {
         this->addOperand(val);
         this->addOperand(pre_bb);
     }
@@ -560,7 +559,7 @@ public:
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        auto new_inst = create_phi(getType(), bb);
+        auto new_inst = createPhi(getType(), bb);
         for (auto op : getOperands()){
             new_inst->addOperand(op);
         }
@@ -576,11 +575,11 @@ private:
 class CmpBrInst: public Instruction {
 
 public:
-    static CmpBrInst *create_cmpbr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb, Module *m);
+    static CmpBrInst *createCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb, Module *m);
 
-    CmpOp get_cmp_op() { return cmp_op_; }
+    CmpOp getCmpOp() { return cmp_op_; }
 
-    bool is_cmp_br() const;
+    bool isCmpBr() const;
 
     virtual std::string print() override;
 
@@ -602,11 +601,11 @@ private:
 
 class FCmpBrInst : public Instruction {
 public:
-    static FCmpBrInst *create_fcmpbr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb, Module *m);
+    static FCmpBrInst *createFCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb, Module *m);
 
-    CmpOp get_cmp_op() { return cmp_op_; }
+    CmpOp getCmpOp() { return cmp_op_; }
 
-    bool is_fcmp_br() const;
+    bool isFCmpBr() const;
 
     virtual std::string print() override;
 
@@ -627,12 +626,12 @@ private:
 
 class LoadOffsetInst: public Instruction {
 public:
-    static LoadOffsetInst *create_loadoffset(Type *ty, Value *ptr, Value *offset, BasicBlock *bb);
+    static LoadOffsetInst *createLoadOffset(Type *ty, Value *ptr, Value *offset, BasicBlock *bb);
 
-    Value *get_lval() { return this->getOperand(0); }
-    Value *get_offset() { return this->getOperand(1); }
+    Value *getLval() { return this->getOperand(0); }
+    Value *getOffset() { return this->getOperand(1); }
 
-    Type *get_load_type() const;
+    Type *getLoadType() const;
 
     virtual std::string print() override;
 
@@ -651,13 +650,13 @@ private:
 class StoreOffsetInst: public Instruction {
 
 public:
-    static StoreOffsetInst *create_storeoffset(Value *val, Value *ptr, Value *offset, BasicBlock *bb);
+    static StoreOffsetInst *createStoreOffset(Value *val, Value *ptr, Value *offset, BasicBlock *bb);
 
-    Type *get_store_type() const;
+    Type *getStoreType() const;
 
-    Value *get_rval() { return this->getOperand(0); }
-    Value *get_lval() { return this->getOperand(1); }
-    Value *get_offset() { return this->getOperand(2); }
+    Value *getRval() { return this->getOperand(0); }
+    Value *getLval() { return this->getOperand(1); }
+    Value *getOffset() { return this->getOperand(2); }
 
     virtual std::string print() override;
 

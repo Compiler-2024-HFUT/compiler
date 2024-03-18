@@ -1,4 +1,4 @@
-#include "../../include/midend/IRprint.hpp"
+#include "midend/IRprint.hpp"
 
 std::string printAsOp(Value *v, bool print_ty) {
     std::string op_ir;

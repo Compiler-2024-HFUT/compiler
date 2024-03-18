@@ -1,7 +1,7 @@
 #include <cassert>
 
-#include "../../include/midend/Value.hpp"
-#include "../../include/midend/User.hpp"
+#include "midend/Value.hpp"
+#include "midend/User.hpp"
 
 void Value::addUse(Value *val, unsigned arg_no) {
     use_list_.push_back(Use(val, arg_no));

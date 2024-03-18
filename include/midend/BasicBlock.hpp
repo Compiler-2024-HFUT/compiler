@@ -7,7 +7,6 @@
 
 #include "Value.hpp"
 #include "Instruction.hpp"
-#include "Module.hpp"
 
 
 class Function;

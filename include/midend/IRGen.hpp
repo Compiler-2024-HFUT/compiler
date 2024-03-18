@@ -8,12 +8,57 @@
 #include "BasicBlock.hpp"
 #include "Value.hpp"
 #include "Constant.hpp"
+#include "Function.hpp"
+#include "frontend/node.hpp"
 
-#include "../frontend/node.hpp"
+extern Module *global_m_ptr;
 
-class Function;
+namespace IRBuilder {
 
-extern std::unique_ptr<Module> module_sole;
+// #define CONST_INT(num)  ConstantInt::get(num, module.get())
+// #define CONST_FP(num)   ConstantFP::get(num, module.get())
+
+//& global variables
+
+static Value *tmp_val = nullptr;       //& store tmp value
+static Type  *cur_type = nullptr;      //& store current type
+static bool require_lvalue = false;    //& whether require lvalue
+static Function *cur_fun = nullptr;    //& function that is being built
+static bool pre_enter_scope = false;   //& whether pre-enter scope
+
+static Type *VOID_T;
+static Type *INT1_T;
+static Type *INT32_T;
+static Type *FLOAT_T;
+static Type *INT32PTR_T;
+static Type *FLOATPTR_T;               //& types used for IR builder
+
+struct true_false_BB {
+    BasicBlock *trueBB = nullptr;
+    BasicBlock *falseBB = nullptr;
+};                              //& used for backpatching
+
+static std::list<true_false_BB> IF_WHILE_Cond_Stack; //& used for Cond
+static std::list<true_false_BB> While_Stack;         //& used for break and continue
+
+
+
+static std::vector<BasicBlock*> cur_basic_block_list;
+
+static BasicBlock *entry_block_of_cur_fun;
+static BasicBlock *cur_block_of_cur_fun;   //& used for add instruction 
+
+static std::vector<int> array_bounds;
+static std::vector<int> array_sizes;
+static int cur_pos;
+static int cur_depth;     
+static std::map<int, Value*> init_val_map; 
+static std::vector<Constant*> init_val;    //& used for constant initializer
+
+static BasicBlock *ret_BB;
+static Value *ret_addr;   //& ret BB
+
+static bool is_inited_with_all_zero;
 
 
 
@@ -104,141 +149,9 @@ class IRGen : public ast::ASTVisitor {
    //     static std::unique_ptr<Module> module;
 
     public:
-        IRGen() {
-           
+        IRGen();
 
-         //  builder = std::make_unique<IRBuilder>(nullptr, module.get());
-
-            auto VOID_T = Type::getVoidType(module_sole.get());
-            auto INT1_T = Type::getInt1Type(module_sole.get());
-            auto INT32_T = Type::getInt32Type(module_sole.get());
-            auto INT32PTR_T = Type::getInt32PtrType(module_sole.get());
-            auto FLOAT_T = Type::getFloatType(module_sole.get());
-            auto FLOATPTR_T = Type::getFloatPtrType(module_sole.get());
-
-            auto input_type = FunctionType::get(INT32_T, {});
-            auto get_int =
-                Function::create(
-                        input_type,
-                        "getint",
-                        module_sole.get());
-
-            input_type = FunctionType::get(FLOAT_T, {});
-            auto get_float =
-                Function::create(
-                        input_type,
-                        "getfloat",
-                        module_sole.get());
-
-            input_type = FunctionType::get(INT32_T, {});
-            auto get_char =
-                Function::create(
-                        input_type,
-                        "getch",
-                        module_sole.get());
-
-            std::vector<Type *> input_params;
-            std::vector<Type *>().swap(input_params);
-            input_params.push_back(INT32PTR_T);
-            input_type = FunctionType::get(INT32_T, input_params);
-            auto get_array =
-                Function::create(
-                        input_type,
-                        "getarray",
-                        module_sole.get());
-
-            std::vector<Type *>().swap(input_params);
-            input_params.push_back(FLOATPTR_T);
-            input_type = FunctionType::get(INT32_T, input_params);
-            auto get_farray =
-                Function::create(
-                        input_type,
-                        "getfarray",
-                        module_sole.get());
-
-            std::vector<Type *> output_params;
-            std::vector<Type *>().swap(output_params);
-            output_params.push_back(INT32_T);
-            auto output_type = FunctionType::get(VOID_T, output_params);
-            auto put_int =
-                Function::create(
-                        output_type,
-                        "putint",
-                        module_sole.get());
-
-            std::vector<Type *>().swap(output_params);
-            output_params.push_back(FLOAT_T);
-            output_type = FunctionType::get(VOID_T, output_params);
-            auto put_float =
-                Function::create(
-                        output_type,
-                        "putfloat",
-                        module_sole.get());
-
-            std::vector<Type *>().swap(output_params);
-            output_params.push_back(INT32_T);
-            output_type = FunctionType::get(VOID_T, output_params);
-            auto put_char =
-                Function::create(
-                        output_type,
-                        "putch",
-                        module_sole.get());
-
-            std::vector<Type *>().swap(output_params);
-            output_params.push_back(INT32_T);
-            output_params.push_back(INT32PTR_T);
-            output_type = FunctionType::get(VOID_T, output_params);
-            auto put_array =
-                Function::create(
-                        output_type,
-                        "putarray",
-                        module_sole.get());
-
-            std::vector<Type *>().swap(output_params);
-            output_params.push_back(INT32_T);
-            output_params.push_back(FLOATPTR_T);
-            output_type = FunctionType::get(VOID_T, output_params);
-            auto put_farray =
-                Function::create(
-                        output_type,
-                        "putfarray",
-                        module_sole.get());
-
-            std::vector<Type *>().swap(input_params);
-            input_params.push_back(INT32_T);
-            auto time_type = FunctionType::get(VOID_T, input_params);
-            auto start_time =
-                Function::create(
-                        time_type,
-                        "_sysy_starttime",
-                        module_sole.get());
-
-            std::vector<Type *>().swap(input_params);
-            input_params.push_back(INT32_T);
-            time_type = FunctionType::get(VOID_T, input_params);
-            auto stop_time =
-                Function::create(
-                        time_type,
-                        "_sysy_stoptime",
-                        module_sole.get());
-
-            scope.enter();
-            scope.pushFunc("getint", get_int);
-            scope.pushFunc("getfloat", get_float);
-            scope.pushFunc("getch", get_char);
-            scope.pushFunc("getarray", get_array);
-            scope.pushFunc("getfarray", get_farray);
-            scope.pushFunc("putint", put_int);
-            scope.pushFunc("putfloat", put_float);
-            scope.pushFunc("putch", put_char);
-            scope.pushFunc("putarray", put_array);
-            scope.pushFunc("putfarray", put_farray);
-            scope.pushFunc("starttime", start_time);
-            scope.pushFunc("stoptime", stop_time);
-           
-        }
-
-        std::unique_ptr<Module> getModule() { return std::move(module_sole); }
+        std::unique_ptr<Module> getModule() { return (unique_ptr<Module>&&)m_; }
   
 
     private:
@@ -276,6 +189,7 @@ class IRGen : public ast::ASTVisitor {
     private:
        // InitZeroJudger zero_judger;
         //std::unique_ptr<IRBuilder> builder;
+        std::unique_ptr<Module> m_;
         Scope scope;
        
 
@@ -283,5 +197,5 @@ class IRGen : public ast::ASTVisitor {
 };
 
 
-
+}
 #endif

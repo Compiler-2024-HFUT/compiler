@@ -1,7 +1,7 @@
 #include <cassert>
 
-#include "../../include/midend/Type.hpp"
-#include "../../include/midend/Module.hpp"
+#include "midend/Type.hpp"
+#include "midend/Module.hpp"
 
 Type *Type::getVoidType(Module *m) {
     return m->getVoidType();
