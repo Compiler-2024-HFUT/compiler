@@ -27,6 +27,7 @@ ArrDefStmt::ArrDefStmt(string name ,Pos pos,ValType type):DefStmt(name,pos,type)
 ConstArrDefStmt::ConstArrDefStmt(string name ,Pos pos,ValType type):ArrDefStmt(name,pos,type){}
 LvalExpr::LvalExpr(Pos pos,string name ):ExprNode(pos),name(name){}
 CallExpr::CallExpr(Pos pos):ExprNode(pos){}
+CallExpr::CallExpr(Pos pos,string name):ExprNode(pos),call_name(name){}
 //LvalStmt::LvalStmt(string name ,Pos pos,ValType type,unique_ptr<ExprNode> expr):DefStmt(name,pos,type),expr(std::move(expr)){}
 RetStmt::RetStmt(Pos pos):Statement(pos){}
 WhileStmt::WhileStmt(Pos pos):Statement(pos){}
@@ -148,6 +149,36 @@ void LevelPrint(int cur_level,string name,bool is_terminal){
     for(int i = 0 ; i < cur_level; ++i) cout << "|  ";
     cout << ">--" << (is_terminal ? "*" : "+") << name;
     cout << std::endl;
+}
+string binopTOStr(BinOp op){
+    switch (op) {
+    case BinOp::PlUS:
+        return "+";
+    case BinOp::MINUS:
+        return "-";
+    case BinOp::MULTI:
+        return "*";
+    case BinOp::SLASH:
+        return "/";
+    case BinOp::EQ:
+        return "=";
+    case BinOp::NOT_EQ:
+        return "!=";
+    case BinOp::DOR:
+        return "||";
+    case BinOp::DAND:
+        return "&&";
+    case BinOp::LT:
+        return "<";
+    case BinOp::LE:
+        return "<=";
+    case BinOp::GT:
+        return ">";
+    case BinOp::GE:
+        return ">=";
+    default:
+        exit(10);
+    }
 }
 void CompunitNode::print(int level){
     for(auto&i:global_defs){
@@ -307,7 +338,7 @@ void FloatConst::print(int level){
 LevelPrint(level, std::to_string(this->Value.f), true);
 }
 void CallExpr::print(int level){
-    this->call_name->print(level);
+    LevelPrint(level, call_name, true);
     LevelPrint(level, "(", true);
     level++;
     if(!func_r_params.empty())
@@ -330,7 +361,7 @@ void LvalExpr::print(int level){
     }
 }
 void UnaryExpr::print(int level){
-    LevelPrint(level, Operat, true);
+    LevelPrint(level, std::to_string((char)operat), true);
     rhs->print();
 }
 // void InfixExpr::print(int level){
@@ -343,42 +374,42 @@ void UnaryExpr::print(int level){
 // }
 void AssignExpr::print(int level){
     exit(127);
-    LevelPrint(level, Operat, true);
+    LevelPrint(level, binopTOStr(operat), true);
     level++;
     lhs->print(level);
     rhs->print(level);
     level--;
 }
 void RelopExpr::print(int level){
-    LevelPrint(level, Operat, true);
+    LevelPrint(level, binopTOStr(operat), true);
     level++;
     lhs->print(level);
     rhs->print(level);
     level--;
 }
 void AndExp::print(int level){
-    LevelPrint(level, Operat, true);
+    LevelPrint(level, binopTOStr(operat), true);
     level++;
     lhs->print(level);
     rhs->print(level);
     level--;
 }
 void ORExp::print(int level){
-    LevelPrint(level, Operat, true);
+    LevelPrint(level, binopTOStr(operat), true);
     level++;
     lhs->print(level);
     rhs->print(level);
     level--;
 }
 void EqExpr::print(int level){
-    LevelPrint(level, Operat, true);
+    LevelPrint(level, binopTOStr(operat), true);
     level++;
     lhs->print(level);
     rhs->print(level);
     level--;
 }
 void BinopExpr::print(int level){
-    LevelPrint(level, Operat, true);
+    LevelPrint(level, binopTOStr(operat), true);
     level++;
     lhs->print(level);
     rhs->print(level);

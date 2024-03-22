@@ -13,7 +13,26 @@ using std::cout,std::string,std::vector;
 using type::ValType;
 namespace ast {
 class ASTVisitor;
-
+enum class BinOp{
+    ILLEGAL,
+    PlUS,
+    MINUS,
+    MULTI,
+    SLASH,
+    DOR,
+    DAND,
+    EQ,
+    NOT_EQ,
+    LT,
+    LE,
+    GT,
+    GE,
+};
+enum class UnOp{
+    PLUS='+',
+    MINUS='-',
+    NOT='!',
+};
 enum ExprType{
     FLOAT_LITERAL,
     INT_LITERAL,
@@ -68,7 +87,7 @@ struct ExprNode: SyntaxNode {
     virtual void accept(ASTVisitor &visitor) =0;
 };
 struct UnaryExpr:public ExprNode{
-    string Operat;//type
+    UnOp operat;//type
     unique_ptr<ExprNode> rhs;
     UnaryExpr(Pos pos);
     virtual int getType()override;
@@ -84,7 +103,8 @@ struct UnaryExpr:public ExprNode{
 //     virtual void accept(ASTVisitor &visitor)  final;
 // };
 struct InfixExpr:public ExprNode{
-    string Operat;
+    // string Operat;
+    BinOp operat;
     unique_ptr<ExprNode> rhs;
     unique_ptr<ExprNode> lhs;
     InfixExpr(Pos pos ,unique_ptr<ExprNode> lhs);
@@ -164,7 +184,8 @@ struct FloatConst:public Literal{
 };
 struct CallExpr:public ExprNode{
     // string name;//type
-    unique_ptr<ExprNode> call_name;
+    // unique_ptr<ExprNode> call_name;
+    string call_name;
     vector<unique_ptr<ast::ExprNode>> func_r_params;
     CallExpr(Pos pos);
     CallExpr(Pos pos,string name);

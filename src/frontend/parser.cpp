@@ -14,6 +14,26 @@
 //     curTok=lex->nextToken();
 //     peekTok=lex->nextToken();
 // }
+::ast::BinOp strToBinop(string &str){
+    static std::map<std::string,::ast::BinOp> str_to_binop={
+        {"+",ast::BinOp::PlUS},
+        {"-",ast::BinOp::MINUS},
+        {"*",ast::BinOp::MULTI},
+        {"/",ast::BinOp::SLASH},
+        {"==",ast::BinOp::EQ},
+        {"!=",ast::BinOp::NOT_EQ},
+        {"||",ast::BinOp::DOR},
+        {"&&",ast::BinOp::DAND},
+        {"<",ast::BinOp::LT},
+        {"<=",ast::BinOp::LE},
+        {">",ast::BinOp::GT},
+        {">=",ast::BinOp::GE},
+    };
+    auto i=str_to_binop.find(str);
+    if(i!=str_to_binop.end())
+        return i->second;
+    return ast::BinOp::ILLEGAL;
+}
 Parser::Parser(std::string filename):file_name(filename),comp(make_unique<ast::CompunitNode>()),cur_pos(0,0){
     std::ifstream sysy_file;
     sysy_file.open(filename,std::ios::in);
@@ -390,12 +410,12 @@ void  Parser::AddLvalIndex(ast::LvalExpr* lval ){
 }
 unique_ptr<ast::CallExpr> Parser::parserCall(unique_ptr<ast::ExprNode> name){
     if(name==nullptr){
-        exit(114);
-    }else if(name->getType()!=(int)ast::ExprType::LVAL_EXPR){
-        exit(114);
+        exit(60);
+    }else if(auto *tmp=dynamic_cast<ast::LvalExpr*>(name.get())){
+        if(!tmp->index_num.empty())
+            exit(60);
     }
-    unique_ptr<ast::CallExpr> ret=make_unique<ast::CallExpr>(curTok->tok_pos);
-    ret->call_name=std::move(name);
+    unique_ptr<ast::CallExpr> ret=make_unique<ast::CallExpr>(curTok->tok_pos,dynamic_cast<ast::LvalExpr*>(name.get())->name);
     skipIfCurIs(tokenType::LPAREM);
     while(!curTokIs(tokenType::RPAREM)){
         ret->func_r_params.push_back(std::move(parserExpr()));
@@ -404,7 +424,7 @@ unique_ptr<ast::CallExpr> Parser::parserCall(unique_ptr<ast::ExprNode> name){
         }else if(curTokIs(tokenType::COMMA))
             nextToken();
         else
-            exit(191);
+            exit(60);
     }
     skipIfCurIs(tokenType::RPAREM);
     return ret;
@@ -458,7 +478,7 @@ parserOpPrec Parser::curPrecedence(){
 }
 unique_ptr<ast::ExprNode> Parser::parserPrefixExpr(){
     unique_ptr<ast::UnaryExpr> express=make_unique<ast::UnaryExpr>(curTok->tok_pos);
-    express->Operat=curTok->literal;
+    express->operat=(ast::UnOp)curTok->literal[0];
     nextToken();
     express->rhs=this->parserExpr(OP_PREFIX);
     return express;
@@ -477,7 +497,7 @@ unique_ptr<ast::ExprNode> Parser::parserInfixExpr(unique_ptr<ast::ExprNode>left)
     }else{
         express=make_unique<ast::RelopExpr>(curTok->tok_pos,std::move(left));
     }
-    express->Operat=curTok->literal;
+    express->operat=strToBinop(curTok->literal);
     this->nextToken();
     express->rhs=parserExpr(curPrec);
     return express;    
@@ -485,7 +505,7 @@ unique_ptr<ast::ExprNode> Parser::parserInfixExpr(unique_ptr<ast::ExprNode>left)
 unique_ptr<ast::ExprNode> Parser::parserAssignExpr(unique_ptr<ast::ExprNode> left){
     // parserOpPrec curPrec=this->curPrecedence();
     unique_ptr<ast::AssignExpr> express=make_unique<ast::AssignExpr>(curTok->tok_pos,std::move(left));
-    express->Operat=curTok->literal;
+    express->operat=strToBinop(curTok->literal);
     this->nextToken();
     //是否可以以最低优先级表示右结合
     express->rhs=parserExpr(parserOpPrec::LOWEST);
