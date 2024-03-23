@@ -142,21 +142,13 @@ unique_ptr<ast::CompunitNode> Parser::parserComp(){
             nextToken();
         }
         type::ValType val=parserDefType();
-        unique_ptr<ast::DefStmt> p_gval=nullptr;
+        unique_ptr<ast::Statement> p_gval=nullptr;
         if(peekTokIs(tokenType::LPAREM)){
             p_gval=parserFuncStmt(val);
             comp->global_defs.push_back(std::move(p_gval));
         }else{
             unique_ptr<ast::ValDeclStmt> p=parserValDeclStmt(val);
-            for(auto &i:p->var_def_list){
-                if(this->comp->isReDef(i->name)){
-                    std::cerr<<"re def"<<endl;
-                    exit(45);
-                }else{
-                    comp->global_defs.push_back(std::move(i));
-                }
-            }
-            //std::move(p->var_def_list.begin(),p->var_def_list.end(),comp->global_defs.end());
+            comp->global_defs.push_back(std::move(p));
         }
 
         

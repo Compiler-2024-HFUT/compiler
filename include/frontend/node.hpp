@@ -259,8 +259,8 @@ struct DefStmt:public Statement{
 
 struct CompunitNode : public SyntaxNode
 {
-    vector<std::unique_ptr<DefStmt>> global_defs;
-    bool isReDef(string s);
+    vector<std::unique_ptr<Statement>> global_defs;
+    // bool isReDef(string s);
     CompunitNode();
     ~CompunitNode();
     // virtual int getType();

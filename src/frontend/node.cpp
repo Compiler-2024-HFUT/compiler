@@ -233,11 +233,16 @@ void ConstArrDefStmt::print(int level){
     }
 }
 void ValDeclStmt::print(int level){
+    LevelPrint(level, "value decl", true);
     for(auto&i:var_def_list){
         i->print(level);
     }
 }
 void ConstDeclStmt::print(int level){
+    LevelPrint(level, "const decl", true);
+    for(auto&i:var_def_list){
+        i->print(level);
+    }
     for(auto&i:var_def_list){
         i->print(level);
     }
@@ -427,15 +432,15 @@ void BreakStmt::print(int level){
     cout<<s<<"break"<<endl;
 }
 
-bool CompunitNode::isReDef(string tok_name){
-    bool re_def=false;
-    for(auto &i:global_defs){
-        if(i->name==tok_name){
-            re_def=true;
-        }
-    }
-    return re_def;
-}
+// bool CompunitNode::isReDef(string tok_name){
+//     // bool re_def=false;
+//     // for(auto &i:global_defs){
+//     //     if(i->name==tok_name){
+//     //         re_def=true;
+//     //     }
+//     // }
+//     // return re_def;
+// }
 void CompunitNode::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
