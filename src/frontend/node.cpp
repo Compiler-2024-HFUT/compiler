@@ -233,13 +233,13 @@ void ConstArrDefStmt::print(int level){
     }
 }
 void ValDeclStmt::print(int level){
-    LevelPrint(level, "value decl", true);
+    LevelPrint(level, "value decl", false);
     for(auto&i:var_def_list){
         i->print(level);
     }
 }
 void ConstDeclStmt::print(int level){
-    LevelPrint(level, "const decl", true);
+    LevelPrint(level, "const decl", false);
     for(auto&i:var_def_list){
         i->print(level);
     }
