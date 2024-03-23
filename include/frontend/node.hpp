@@ -19,6 +19,7 @@ enum class BinOp{
     MINUS,
     MULTI,
     SLASH,
+    MOD,
     DOR,
     DAND,
     EQ,
@@ -33,21 +34,21 @@ enum class UnOp{
     MINUS='-',
     NOT='!',
 };
-enum ExprType{
-    FLOAT_LITERAL,
-    INT_LITERAL,
-    ASSIGN_EXPR,
-    BIN_OP_EXPR,
-    REL_OP_EXPR,
-    Eq_EXPR,
-    OR_EXPR,
-    AND_EXPR,
-    ARR_USE_EXPR,
-    PREFIX,
-    CALL_EXPR,
-    LVAL_EXPR,
-    INITIALIZER,
-};
+// enum ExprType{
+//     FLOAT_LITERAL,
+//     INT_LITERAL,
+//     ASSIGN_EXPR,
+//     BIN_OP_EXPR,
+//     REL_OP_EXPR,
+//     Eq_EXPR,
+//     OR_EXPR,
+//     AND_EXPR,
+//     ARR_USE_EXPR,
+//     PREFIX,
+//     CALL_EXPR,
+//     LVAL_EXPR,
+//     INITIALIZER,
+// };
 enum StmtType{
     // NULL_STMT,
     // ROOT,
@@ -82,7 +83,7 @@ struct ExprNode: SyntaxNode {
 //     // 用于访问者模式
     //std::unique_ptr<Token> tok;//记录位置
     ExprNode(Pos pos);
-    virtual int getType()=0;
+    // virtual int getType()=0;
     virtual void print(int level=0)=0;
     virtual void accept(ASTVisitor &visitor) =0;
 };
@@ -90,7 +91,7 @@ struct UnaryExpr:public ExprNode{
     UnOp operat;//type
     unique_ptr<ExprNode> rhs;
     UnaryExpr(Pos pos);
-    virtual int getType()override;
+    // virtual int getType()override;
     virtual void print(int level=0)override;
     virtual void accept(ASTVisitor &visitor) override final;
 };
@@ -109,7 +110,7 @@ struct InfixExpr:public ExprNode{
     unique_ptr<ExprNode> lhs;
     InfixExpr(Pos pos ,unique_ptr<ExprNode> lhs);
     ~InfixExpr();
-    virtual int getType()=0;
+    // virtual int getType()=0;
     virtual void print(int level=0)=0;
     virtual void accept(ASTVisitor &visitor)=0;
 
@@ -117,37 +118,37 @@ struct InfixExpr:public ExprNode{
 
 struct AssignExpr:public InfixExpr{
     AssignExpr(Pos pos ,unique_ptr<ExprNode> lhs);
-    virtual int getType();
+    // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
 };
 struct RelopExpr:public InfixExpr{
     RelopExpr(Pos pos ,unique_ptr<ExprNode> lhs);
-    virtual int getType();
+    // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
 };
 struct EqExpr:public InfixExpr{
     EqExpr(Pos pos ,unique_ptr<ExprNode> lhs);
-    virtual int getType();
+    // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
 };
 struct AndExp:public InfixExpr{
     AndExp(Pos pos ,unique_ptr<ExprNode> lhs);
-    virtual int getType();
+    // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
 };
 struct ORExp:public InfixExpr{
     ORExp(Pos pos ,unique_ptr<ExprNode> lhs);
-    virtual int getType();
+    // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
 };
 struct BinopExpr:public InfixExpr{
     BinopExpr(Pos pos ,unique_ptr<ExprNode> lhs);
-    virtual int getType();
+    // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
 };
@@ -159,26 +160,26 @@ union valUnion{
 struct Literal:public ExprNode{
     valUnion Value;
     Literal(Pos pos,valUnion);
-    virtual int getType()=0;
+    // virtual int getType()=0;
     virtual void print(int level=0)=0;
     virtual void accept(ASTVisitor &visitor)  =0;
 };
 struct IntConst:public Literal{
     IntConst(Pos pos,valUnion);
-    virtual int getType();
+    // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
 };
 struct InitializerExpr:public ExprNode{
     InitializerExpr(Pos pos);
     vector<unique_ptr<ExprNode>> initializers;
-    virtual int getType();
+    // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
 };
 struct FloatConst:public Literal{
     FloatConst(Pos pos,valUnion);
-    virtual int getType();
+    // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
 };
@@ -189,7 +190,7 @@ struct CallExpr:public ExprNode{
     vector<unique_ptr<ast::ExprNode>> func_r_params;
     CallExpr(Pos pos);
     CallExpr(Pos pos,string name);
-    virtual int getType();
+    // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
 };
@@ -201,7 +202,7 @@ struct LvalExpr:public ExprNode{
     vector<unique_ptr<ExprNode>> index_num;
     // LvalExpr(string name ,Pos pos,ValType,unique_ptr<ExprNode>);
     // virtual void print();
-    virtual int getType();
+    // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
 

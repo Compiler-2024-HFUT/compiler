@@ -20,6 +20,7 @@
         {"-",ast::BinOp::MINUS},
         {"*",ast::BinOp::MULTI},
         {"/",ast::BinOp::SLASH},
+        {"%",ast::BinOp::MOD},
         {"==",ast::BinOp::EQ},
         {"!=",ast::BinOp::NOT_EQ},
         {"||",ast::BinOp::DOR},
@@ -183,7 +184,7 @@ unique_ptr<ast::Statement> Parser::parserExprStmt(){
     auto estmt=make_unique<ast::ExprStmt>(curTok->tok_pos,parserExpr());
     skipIfCurIs(tokenType::SEMICOLON);
     unique_ptr<ast::Statement> ret;
-    if(estmt->expr->getType()==ast::ASSIGN_EXPR){
+    if(dynamic_cast<ast::AssignExpr*>( estmt->expr.get())!=nullptr){
         auto expr=std::move(estmt->expr);
         ast::AssignExpr* aexp=(ast::AssignExpr*)expr.get();
         ret=make_unique<ast::AssignStmt>(estmt->pos,std::move(aexp->lhs),std::move(aexp->rhs));
@@ -488,14 +489,16 @@ unique_ptr<ast::ExprNode> Parser::parserInfixExpr(unique_ptr<ast::ExprNode>left)
     unique_ptr<ast::InfixExpr> express;
     if(curTok->type<=tokenType::ESPERLUTTE&&curTok->type>=tokenType::PLUS){
         express=make_unique<ast::BinopExpr>(curTok->tok_pos,std::move(left));
-    }else if (curTokIs(tokenType::EQUAL)) {
-        express=make_unique<ast::EqExpr>(curTok->tok_pos,std::move(left));
+    }else if (curTokIs(tokenType::EQUAL)||curTokIs(tokenType::NOTEQUAL)) {
+        express=make_unique<ast::BinopExpr>(curTok->tok_pos,std::move(left));
     }else if (curTokIs(tokenType::D_OR)) {
         express=make_unique<ast::ORExp>(curTok->tok_pos,std::move(left));
     }else if (curTokIs(tokenType::D_ESPERLUTTE)) {
         express=make_unique<ast::AndExp>(curTok->tok_pos,std::move(left));
+    }else if(curTok->type>=tokenType::LT&&curTok->type<=tokenType::GE){
+        express=make_unique<ast::BinopExpr>(curTok->tok_pos,std::move(left));
     }else{
-        express=make_unique<ast::RelopExpr>(curTok->tok_pos,std::move(left));
+        exit(63);
     }
     express->operat=strToBinop(curTok->literal);
     this->nextToken();
