@@ -243,9 +243,6 @@ void ConstDeclStmt::print(int level){
     for(auto&i:var_def_list){
         i->print(level);
     }
-    for(auto&i:var_def_list){
-        i->print(level);
-    }
 }
 // void FuncStmt::print(int level){
 
