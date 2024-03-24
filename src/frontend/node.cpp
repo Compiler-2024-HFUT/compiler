@@ -77,47 +77,44 @@ BinopExpr::BinopExpr(Pos pos,unique_ptr<ExprNode> lhs):InfixExpr(pos,std::move(l
 // int BlockStmt::getType(){
 //     return (int)ast::StmtType::BLOCK_STMT;
 // }
-int IntConst::getType(){
-    return (int)ast::ExprType::INT_LITERAL;
-}
-int InitializerExpr::getType(){
-    return (int)ast::ExprType::INITIALIZER;
-}
-int FloatConst::getType(){
-    return (int)ast::ExprType::FLOAT_LITERAL;
-}
-int CallExpr::getType(){
-    // exit(114);
-    return (int)ast::ExprType::CALL_EXPR;
-}
-int LvalExpr::getType(){
-    // exit(114);
-    return (int)ast::ExprType::LVAL_EXPR;
-}
-int UnaryExpr::getType(){
-    return (int)ast::ExprType::PREFIX;
-}
-// int InfixExpr::getType(){
-//     return (int)ast::ExprType::INFIX;
+// int IntConst::getType(){
+//     return (int)ast::ExprType::INT_LITERAL;
 // }
-int RelopExpr::getType(){
-    return (int)ast::ExprType::REL_OP_EXPR;
-}
-int ORExp::getType(){
-    return (int)ast::ExprType::OR_EXPR;
-}
-int AndExp::getType(){
-    return (int)ast::ExprType::AND_EXPR;
-}
-int EqExpr::getType(){
-    return (int)ast::ExprType::Eq_EXPR;
-}
-int AssignExpr::getType(){
-    return (int)ast::ExprType::ASSIGN_EXPR;
-}
-int BinopExpr::getType(){
-    return (int)ast::ExprType::BIN_OP_EXPR;
-}
+// int InitializerExpr::getType(){
+//     return (int)ast::ExprType::INITIALIZER;
+// }
+// int FloatConst::getType(){
+//     return (int)ast::ExprType::FLOAT_LITERAL;
+// }
+// int CallExpr::getType(){
+//     // exit(114);
+//     return (int)ast::ExprType::CALL_EXPR;
+// }
+// int LvalExpr::getType(){
+//     // exit(114);
+//     return (int)ast::ExprType::LVAL_EXPR;
+// }
+// int UnaryExpr::getType(){
+//     return (int)ast::ExprType::PREFIX;
+// }
+// int RelopExpr::getType(){
+//     return (int)ast::ExprType::REL_OP_EXPR;
+// }
+// int ORExp::getType(){
+//     return (int)ast::ExprType::OR_EXPR;
+// }
+// int AndExp::getType(){
+//     return (int)ast::ExprType::AND_EXPR;
+// }
+// int EqExpr::getType(){
+//     return (int)ast::ExprType::Eq_EXPR;
+// }
+// int AssignExpr::getType(){
+//     return (int)ast::ExprType::ASSIGN_EXPR;
+// }
+// int BinopExpr::getType(){
+//     return (int)ast::ExprType::BIN_OP_EXPR;
+// }
 // int ExprStmt::getType(){
 //     exit(114);
 //     //return (int)ast::StmtType::INT_LITERAL;
@@ -160,6 +157,8 @@ string binopTOStr(BinOp op){
         return "*";
     case BinOp::SLASH:
         return "/";
+    case BinOp::MOD:
+        return "%";
     case BinOp::EQ:
         return "=";
     case BinOp::NOT_EQ:
@@ -234,11 +233,13 @@ void ConstArrDefStmt::print(int level){
     }
 }
 void ValDeclStmt::print(int level){
+    LevelPrint(level, "value decl", false);
     for(auto&i:var_def_list){
         i->print(level);
     }
 }
 void ConstDeclStmt::print(int level){
+    LevelPrint(level, "const decl", false);
     for(auto&i:var_def_list){
         i->print(level);
     }
@@ -428,15 +429,15 @@ void BreakStmt::print(int level){
     cout<<s<<"break"<<endl;
 }
 
-bool CompunitNode::isReDef(string tok_name){
-    bool re_def=false;
-    for(auto &i:global_defs){
-        if(i->name==tok_name){
-            re_def=true;
-        }
-    }
-    return re_def;
-}
+// bool CompunitNode::isReDef(string tok_name){
+//     // bool re_def=false;
+//     // for(auto &i:global_defs){
+//     //     if(i->name==tok_name){
+//     //         re_def=true;
+//     //     }
+//     // }
+//     // return re_def;
+// }
 void CompunitNode::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }

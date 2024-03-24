@@ -50,7 +50,7 @@ private:
 
 class ConstantZero : public Constant {
 public:
-    static ConstantZero *get(Type *ty, Module *m);
+    static ConstantZero *get(Type *ty, Module *m=global_m_ptr);
     
     virtual std::string print() override;
 private:
