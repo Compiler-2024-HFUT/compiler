@@ -87,8 +87,62 @@ void IRGen::visit(ast::AssignExpr &node) {
 }
 void IRGen::visit(ast::RelopExpr &node) {}
 void IRGen::visit(ast::EqExpr &node) {}
-void IRGen::visit(ast::AndExp &node) {}
-void IRGen::visit(ast::ORExp &node){}
+void IRGen::visit(ast::AndExp &node) {
+    auto true_BB = BasicBlock::create(m_.get(), "", cur_fun);
+    node.lhs->accept(*this);
+        
+        Value *cond_val;
+        if(tmp_val->getType() == INT1_T) {
+            cond_val = tmp_val;
+        } else if(tmp_val->getType() == INT32_T) {
+            auto const_tmp_val = dynamic_cast<ConstantInt*>(tmp_val);
+            if(const_tmp_val) {
+                cond_val = CONST_INT(const_tmp_val->getValue() != 0);
+            } else {
+                cond_val=CmpInst::createCmp(CmpOp::NE,tmp_val, CONST_INT(0),cur_block_of_cur_fun,m_.get());
+            }
+        } else if(tmp_val->getType() == FLOAT_T) {
+            auto const_tmp_val = dynamic_cast<ConstantFP*>(tmp_val);
+            if(const_tmp_val) {
+                cond_val = CONST_INT(const_tmp_val->getValue() != 0);
+            } else {
+                cond_val =FCmpInst::createFCmp(CmpOp::NE,tmp_val, CONST_FP(0),cur_block_of_cur_fun,m_.get());
+            }
+        }
+
+    cur_block_of_cur_fun=true_BB;
+    node.rhs->accept(*this);
+}
+void IRGen::visit(ast::ORExp &node){
+    auto false_BB = BasicBlock::create(m_.get(), "", cur_fun);
+    IF_WHILE_Cond_Stack.push_back({IF_WHILE_Cond_Stack.back().trueBB, false_BB});
+    node.lhs->accept(*this);
+    IF_WHILE_Cond_Stack.pop_back();
+        
+        Value *cond_val;
+        if(tmp_val->getType() == INT1_T) {
+            cond_val = tmp_val;
+        } else if(tmp_val->getType() == INT32_T) {
+            auto const_tmp_val = dynamic_cast<ConstantInt*>(tmp_val);
+            if(const_tmp_val) {
+                cond_val = CONST_INT(const_tmp_val->getValue() != 0);
+            } else {
+                CmpInst::createCmp(CmpOp::NE,tmp_val, CONST_INT(0),cur_block_of_cur_fun,m_.get());
+            }
+        } else if(tmp_val->getType() == FLOAT_T) {
+            auto const_tmp_val = dynamic_cast<ConstantFP*>(tmp_val);
+            if(const_tmp_val) {
+                cond_val = CONST_INT(const_tmp_val->getValue() != 0);
+            } else {
+                cond_val =FCmpInst::createFCmp(CmpOp::NE,tmp_val, CONST_FP(0),cur_block_of_cur_fun,m_.get());
+            }
+        }
+
+
+    BranchInst::createCondBr(cond_val, IF_WHILE_Cond_Stack.back().trueBB, false_BB,cur_block_of_cur_fun);
+    setInsertPoint(false_BB);
+    node.rhs->accept(*this);
+}
 void IRGen::visit(ast::BinopExpr &node) {
     node.lhs->accept(*this);
     Value* lhs=tmp_val,*rhs;
