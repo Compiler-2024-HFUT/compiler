@@ -4,7 +4,7 @@
 #include "User.hpp"
 #include "Value.hpp"
 #include "Type.hpp"
-
+extern Module* global_m_ptr;
 class Constant : public User {
 public:
     Constant(Type *ty, const std::string &name="", unsigned num_ops = 0) 
@@ -16,7 +16,7 @@ private:
 
 class ConstantInt : public Constant {
 public:
-    static ConstantInt *get(int val, Module *m);
+    static ConstantInt *get(int val, Module *m = global_m_ptr);
     static ConstantInt *get(bool val, Module *m);
 
     static int &getValue(ConstantInt *const_val) { return const_val->val_; }
@@ -34,7 +34,7 @@ private:
 class ConstantFP : public Constant {
 
 public:
-    static ConstantFP *get(float val, Module *m);
+    static ConstantFP *get(float val, Module *m = global_m_ptr);
 
     float &getValue() { return val_; }
     
