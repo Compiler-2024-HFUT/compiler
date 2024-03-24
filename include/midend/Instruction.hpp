@@ -269,7 +269,7 @@ enum CmpOp {
 };
 class CmpInst : public Instruction {
 public:
-    static CmpInst *createCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb, Module *m);
+    static CmpInst *createCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb, Module *m=global_m_ptr);
 
     CmpOp getCmpOp() { return cmp_op_; }
 
@@ -292,7 +292,7 @@ private:
 
 class FCmpInst : public Instruction {
   public:
-    static FCmpInst *createFCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb, Module *m);
+    static FCmpInst *createFCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb, Module *m=global_m_ptr);
 
     CmpOp getCmpOp() { return cmp_op_; }
 
