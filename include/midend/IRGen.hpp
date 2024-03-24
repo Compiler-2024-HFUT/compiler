@@ -23,8 +23,9 @@ namespace IRBuilder {
 static Value *tmp_val = nullptr;       //& store tmp value
 static Type  *cur_type = nullptr;      //& store current type
 static bool require_lvalue = false;    //& whether require lvalue
-static Function *cur_fun = nullptr;    //& function that is being built
 static bool pre_enter_scope = false;   //& whether pre-enter scope
+
+static bool from_func = false;         // replace pre_enter_scope
 
 static Type *VOID_T;
 static Type *INT1_T;
@@ -45,11 +46,22 @@ static std::list<true_false_BB> While_Stack;         //& used for break and cont
 
 static std::vector<BasicBlock*> cur_basic_block_list;
 
+static Function *cur_fun = nullptr;    //& function that is being built
 static BasicBlock *entry_block_of_cur_fun;
 static BasicBlock *cur_block_of_cur_fun;   //& used for add instruction 
 
+// when use const as init_val, assign true
+// when use const as expr_val, assign false
+static bool is_init_val = false;
+
+// when defining an array, assign true , in the entry of visit_defarr
+//                 if not, assign false, in the entry of visit_defvar
+static bool is_init_array = false;
+static int arr_total_size = 1;
 static std::vector<int> array_bounds;
 static std::vector<int> array_sizes;
+// pair( the pos when into {, the offset bettween { and } )
+static std::vector< std::pair<int, int> > array_pos;
 static int cur_pos;
 static int cur_depth;     
 static std::map<int, Value*> init_val_map; 
@@ -143,17 +155,14 @@ class Scope {
         std::vector<std::map<std::string, ConstantArray*>> lookup_array_const_table;
 };
 
-
 class IRGen : public ast::ASTVisitor {
    // public:
    //     static std::unique_ptr<Module> module;
 
     public:
         IRGen();
-
-        std::unique_ptr<Module> getModule() { return (unique_ptr<Module>&&)m_; }
+        std::unique_ptr<Module>& getModule() { return module; }
   
-
     private:
         virtual void visit(ast::CompunitNode &node) override;
         virtual void visit(ast::FuncFParam &node) override;
@@ -187,15 +196,11 @@ class IRGen : public ast::ASTVisitor {
         virtual void visit(ast::EmptyStmt &node) override;
 
     private:
-       // InitZeroJudger zero_judger;
-        //std::unique_ptr<IRBuilder> builder;
-        std::unique_ptr<Module> m_;
+        // InitZeroJudger zero_judger;
+        // std::unique_ptr<IRBuilder> builder;
+        std::unique_ptr<Module> module;
         Scope scope;
-       
-
-        
 };
-
 
 }
 #endif
