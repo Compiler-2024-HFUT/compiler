@@ -15,8 +15,8 @@ extern Module *global_m_ptr;
 
 namespace IRBuilder {
 
-// #define CONST_INT(num)  ConstantInt::get(num, module.get())
-// #define CONST_FP(num)   ConstantFP::get(num, module.get())
+#define CONST_INT(num)  ConstantInt::get(num, module.get())
+#define CONST_FP(num)   ConstantFP::get(num, module.get())
 
 //& global variables
 

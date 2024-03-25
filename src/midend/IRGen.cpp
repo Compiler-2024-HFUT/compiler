@@ -1,11 +1,13 @@
 #include "midend/IRGen.hpp"
+#include "frontend/type.hpp"
+#include "midend/Constant.hpp"
+#include "midend/Instruction.hpp"
 #include "midend/Module.hpp"
+#include "midend/Type.hpp"
 Module* global_m_ptr;
-void setInsertPoint(BasicBlock* bb){IRBuilder::cur_block_of_cur_fun=bb;}
+
 #define LOG(msg) assert(0 && msg);
 
-#define CONST_INT(num)  ConstantInt::get(num, module.get())
-#define CONST_FP(num)   ConstantFP::get(num, module.get())
 
 using namespace IRBuilder;
 
@@ -427,10 +429,7 @@ void IRGen::visit(ast::IntConst &node) {
     if(cur_pos >= arr_total_size)
         LOG( "element num in array greater than array bound!" );
 
-    if(cur_type == INT32_T)
-        tmp_val = CONST_INT(node.Value.i);
-    else
-        tmp_val = CONST_FP( float(node.Value.i) );
+    tmp_val = CONST_INT(node.Value.i);
 
     // come from visit_arrdef_int
     if(is_init_array){
@@ -449,10 +448,7 @@ void IRGen::visit(ast::FloatConst &node){
     if(cur_pos >= arr_total_size)
         LOG( "element num in array greater than array bound!" );
 
-    if(cur_type == INT32_T)
-        tmp_val = CONST_INT( int(node.Value.f) );
-    else
-        tmp_val = CONST_FP(node.Value.f);
+    tmp_val = CONST_FP(node.Value.f);
 
     // come from visit_arrdef_int
     if(is_init_array){
@@ -486,9 +482,34 @@ void IRGen::visit(ast::InitializerExpr &node) {
     cur_depth--;
 }
 
-void IRGen::visit(ast::ExprStmt &node) {}
+void IRGen::visit(ast::ExprStmt &node) {
+    node.expr->accept(*this);
+}
 
-void IRGen::visit(ast::AssignStmt &node) {}
+void IRGen::visit(ast::AssignStmt &node) {
+    node.expr->accept(*this);
+    auto result = tmp_val;
+    require_lvalue = true;
+    node.l_val->accept(*this);
+    auto addr = tmp_val;
+    if (addr->getType()->getPointerElementType()->isIntegerType() && result->getType()->isFloatType()) {
+        auto const_result = dynamic_cast<ConstantFP*>(result);
+        if(const_result) {
+            result = CONST_INT(int(const_result->getValue()));
+        } else {
+            FpToSiInst::createFpToSi(result, INT32_T,cur_block_of_cur_fun);
+        }
+    } else if (addr->getType()->getPointerElementType()->isFloatType() && result->getType()->isIntegerType()) {
+        auto const_result = dynamic_cast<ConstantInt*>(result);
+        if(const_result) {
+            result = CONST_FP(float(const_result->getValue()));
+        } else {
+            SiToFpInst::createSiToFp(result, FLOAT_T,cur_block_of_cur_fun);
+        }
+    }
+    StoreInst::createStore(result, addr,cur_block_of_cur_fun);
+    tmp_val = result;
+}
 void IRGen::visit(ast::UnaryExpr &node) {
     node.rhs->accept(*this);
     if(auto tmp=dynamic_cast<ConstantInt*>(tmp_val)){
@@ -613,7 +634,7 @@ void IRGen::visit(ast::ORExp &node){
 
 
     BranchInst::createCondBr(cond_val, IF_WHILE_Cond_Stack.back().trueBB, false_BB,cur_block_of_cur_fun);
-    setInsertPoint(false_BB);
+    cur_block_of_cur_fun=false_BB;
     node.rhs->accept(*this);
 }
 void IRGen::visit(ast::BinopExpr &node) {
@@ -867,6 +888,12 @@ void IRGen::visit(ast::BinopExpr &node) {
 }
 void IRGen::visit(ast::LvalExpr &node){
     auto var = scope.find(node.name);
+    Type *type;
+    if(var->getType()->isFloatType()){
+        type=FLOAT_T;
+    }else{
+        type=INT32_T;
+    }
     bool should_return_lvalue = require_lvalue;
     require_lvalue = false;
     if(node.index_num.empty()) {
@@ -874,7 +901,7 @@ void IRGen::visit(ast::LvalExpr &node){
             if(var->getType()->getPointerElementType()->isArrayType()) {
                 GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(0)},cur_block_of_cur_fun);
             } else if(var->getType()->getPointerElementType()->isPointerType()) {
-                tmp_val = LoadInst::createLoad(var->getType(),var,cur_block_of_cur_fun);
+                tmp_val = LoadInst::createLoad(type,var,cur_block_of_cur_fun);
             } else {
                 tmp_val = var;
             }
@@ -884,7 +911,7 @@ void IRGen::visit(ast::LvalExpr &node){
             else 
                 tmp_val = dynamic_cast<ConstantInt*>(var);
             if(tmp_val==nullptr){
-                tmp_val = LoadInst::createLoad(var->getType(),var,cur_block_of_cur_fun);  
+                tmp_val = LoadInst::createLoad(type,var,cur_block_of_cur_fun);  
             }
         }
     } else {
@@ -955,6 +982,7 @@ void IRGen::visit(ast::IfStmt &node) {
 
    // is_init_val = false;
     node.pred->accept(*this);
+    // tmp_val=CmpInst::createCmp(CmpOp::NE,CONST_INT(0),tmp_val,cur_block_of_cur_fun);
     IF_WHILE_Cond_Stack.pop_back();
 
     //生成比较指令
@@ -984,20 +1012,22 @@ void IRGen::visit(ast::IfStmt &node) {
 
     cur_basic_block_list.pop_back();
     cur_basic_block_list.push_back(true_bb);
-
-    if(dynamic_cast<ast::BlockStmt*>(node.pred.get()))  node.pred->accept(*this);
+    cur_block_of_cur_fun=true_bb;
+    if(!dynamic_cast<ast::BlockStmt*>(node.then_stmt.get()))  
+        node.then_stmt->accept(*this);
     else{
         scope.enter();
-        node.pred->accept(*this);
+        node.then_stmt->accept(*this);
         scope.exit();
     }
-
+    cur_block_of_cur_fun=false_bb;
     if(cur_block_of_cur_fun->getTerminator()==nullptr)  BranchInst::createBr(next_bb, cur_block_of_cur_fun);
     cur_basic_block_list.pop_back();
     if(node.else_stmt==nullptr) false_bb->eraseFromParent();
     else{
         cur_basic_block_list.push_back(false_bb);
-        if(dynamic_cast<ast::BlockStmt*>(node.else_stmt.get())) node.else_stmt->accept(*this);
+        if(!dynamic_cast<ast::BlockStmt*>(node.else_stmt.get())) 
+            node.else_stmt->accept(*this);
         else{
             scope.enter();
             node.else_stmt->accept(*this);
@@ -1010,6 +1040,7 @@ void IRGen::visit(ast::IfStmt &node) {
     if(next_bb->getPreBasicBlocks().size()==0){
         next_bb->eraseFromParent();
     }
+    cur_block_of_cur_fun=next_bb;
 }
 void IRGen::visit(ast::WhileStmt &node){
     auto pred_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
