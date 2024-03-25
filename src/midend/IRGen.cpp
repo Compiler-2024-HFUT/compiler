@@ -97,11 +97,13 @@ void IRGen::visit(ast::FuncDef &node) {
     else if(ret_type == INT32_T)
         ret_addr = AllocaInst::createAlloca(INT32_T, cur_block_of_cur_fun);
 
-    // build func block
-    node.body->accept(*this);
+   
 
     // build return BB    
     ret_BB = BasicBlock::create(module.get(), "ret", fun);
+
+     // build func block
+    node.body->accept(*this);
 
     // cur block don't have terminator, br to ret_bb
     if(cur_block_of_cur_fun->getTerminator() == nullptr) {
