@@ -1011,22 +1011,24 @@ void IRGen::visit(ast::IfStmt &node) {
     else    BranchInst::createCondBr(inst_cmp, true_bb, false_bb, cur_block_of_cur_fun);
 
     cur_basic_block_list.pop_back();
+    cur_block_of_cur_fun = true_bb;
     cur_basic_block_list.push_back(true_bb);
-    cur_block_of_cur_fun=true_bb;
-    if(!dynamic_cast<ast::BlockStmt*>(node.then_stmt.get()))  
+  
+    if(dynamic_cast<ast::BlockStmt*>(node.then_stmt.get()))  
         node.then_stmt->accept(*this);
     else{
         scope.enter();
         node.then_stmt->accept(*this);
         scope.exit();
     }
-    cur_block_of_cur_fun=false_bb;
+   
     if(cur_block_of_cur_fun->getTerminator()==nullptr)  BranchInst::createBr(next_bb, cur_block_of_cur_fun);
     cur_basic_block_list.pop_back();
     if(node.else_stmt==nullptr) false_bb->eraseFromParent();
     else{
+         cur_block_of_cur_fun=false_bb;
         cur_basic_block_list.push_back(false_bb);
-        if(!dynamic_cast<ast::BlockStmt*>(node.else_stmt.get())) 
+        if(dynamic_cast<ast::BlockStmt*>(node.else_stmt.get())) 
             node.else_stmt->accept(*this);
         else{
             scope.enter();
@@ -1036,11 +1038,13 @@ void IRGen::visit(ast::IfStmt &node) {
         if(cur_block_of_cur_fun->getTerminator()==nullptr)  BranchInst::createBr(next_bb, cur_block_of_cur_fun);
         cur_basic_block_list.pop_back();
     }
+   cur_block_of_cur_fun=next_bb;
     cur_basic_block_list.push_back(next_bb);
     if(next_bb->getPreBasicBlocks().size()==0){
+        cur_block_of_cur_fun = true_bb;
         next_bb->eraseFromParent();
     }
-    cur_block_of_cur_fun=next_bb;
+ 
 }
 void IRGen::visit(ast::WhileStmt &node){
     auto pred_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
@@ -1049,6 +1053,7 @@ void IRGen::visit(ast::WhileStmt &node){
     While_Stack.push_back({pred_bb, next_bb});
     if(cur_block_of_cur_fun->getTerminator()==nullptr)  BranchInst::createBr(pred_bb, cur_block_of_cur_fun);
     cur_basic_block_list.pop_back();
+    cur_block_of_cur_fun = pred_bb;
     IF_WHILE_Cond_Stack.push_back({iter_bb, next_bb});
     node.pred->accept(*this);
     IF_WHILE_Cond_Stack.pop_back();
@@ -1076,6 +1081,7 @@ void IRGen::visit(ast::WhileStmt &node){
 
     if(cur_block_of_cur_fun->getTerminator()==nullptr)  BranchInst::createBr(pred_bb, cur_block_of_cur_fun);
     cur_basic_block_list.pop_back();
+    cur_block_of_cur_fun = next_bb;
     cur_basic_block_list.push_back(next_bb);
     While_Stack.pop_back();
     
