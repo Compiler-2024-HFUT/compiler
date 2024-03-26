@@ -186,9 +186,16 @@ void IRGen::visit(ast::ValDefStmt &node) {
         node.init_expr->accept(*this);
         auto tmp_int32_val = dynamic_cast<ConstantInt*>(tmp_val);
         auto tmp_float_val = dynamic_cast<ConstantFP*>(tmp_val);
-
+        //is not a constant
+        if(tmp_float_val==nullptr&&tmp_int32_val==nullptr){
+            if( cur_type == INT32_T && tmp_val->getType()->isFloatType() ){
+                tmp_val = FpToSiInst::createFpToSi(tmp_val, INT32_T, cur_block_of_cur_fun);
+            }else if( cur_type == FLOAT_T && tmp_val->getType() ->isIntegerType() ) {
+                tmp_val = SiToFpInst::createSiToFp(tmp_val, FLOAT_T, cur_block_of_cur_fun);
+            }
+        }
         // int <- const float
-        if( cur_type == INT32_T && tmp_float_val != nullptr ){
+        else if( cur_type == INT32_T && tmp_float_val != nullptr ){
             tmp_val = CONST_INT(int(tmp_float_val->getValue()));
         // float <- const int
         }else if(cur_type == FLOAT_T && tmp_int32_val != nullptr){
@@ -197,10 +204,12 @@ void IRGen::visit(ast::ValDefStmt &node) {
         }else if( tmp_int32_val != nullptr && tmp_float_val != nullptr ){
             // int <- var float
             if( cur_type == INT32_T && tmp_val->getType() == FLOAT_T ){
-                tmp_val = FpToSiInst::createFpToSi(tmp_val, INT32_T, cur_block_of_cur_fun);
+                int i=tmp_float_val->getValue();
+                tmp_val =CONST_INT(i);
             // float <- var int
             }else if( cur_type == FLOAT_T && tmp_val->getType() == INT32_T ) {
-                tmp_val = SiToFpInst::createSiToFp(tmp_val, FLOAT_T, cur_block_of_cur_fun);
+                float f=tmp_int32_val->getValue();
+                tmp_val =CONST_FP(f);
             }
             // tmp_val can be a array ??
             // int <- var int or float <- var float
@@ -682,6 +691,7 @@ void IRGen::visit(ast::BinopExpr &node) {
         default:
             exit(151);
         }
+        const_l=nullptr;const_r=nullptr;
     }else if(ConstantFP* const_l=dynamic_cast<ConstantFP*>(lhs),*const_r =dynamic_cast<ConstantFP*>(rhs);
     const_l!=nullptr&&const_r!=nullptr){
         switch(node_op){
@@ -717,9 +727,10 @@ void IRGen::visit(ast::BinopExpr &node) {
         default:
             exit(151);
         }
+        const_l=nullptr;const_r=nullptr;
     }else if(ConstantFP* const_l=dynamic_cast<ConstantFP*>(lhs);
-    const_l!=nullptr&&dynamic_cast<ConstantInt*>(lhs)){
-        auto const_r=dynamic_cast<ConstantInt*>(lhs);
+    const_l!=nullptr&&dynamic_cast<ConstantInt*>(rhs)){
+        auto const_r=dynamic_cast<ConstantInt*>(rhs);
         switch(node_op){
         case::ast::BinOp::PlUS:
             tmp_val=ConstantFP::get(const_l->getValue()+const_r->getValue(),module.get());
@@ -753,9 +764,10 @@ void IRGen::visit(ast::BinopExpr &node) {
         default:
             exit(151);
         }
+        const_l=nullptr;const_r=nullptr;
     }else if(ConstantInt* const_l=dynamic_cast<ConstantInt*>(lhs);
-    const_l!=nullptr&&dynamic_cast<ConstantFP*>(lhs)){
-        auto const_r=dynamic_cast<ConstantFP*>(lhs);
+    const_l!=nullptr&&dynamic_cast<ConstantFP*>(rhs)){
+        auto const_r=dynamic_cast<ConstantFP*>(rhs);
         switch(node_op){
         case::ast::BinOp::PlUS:
             tmp_val=ConstantFP::get(const_l->getValue()+const_r->getValue(),module.get());
@@ -789,6 +801,7 @@ void IRGen::visit(ast::BinopExpr &node) {
         default:
             exit(151);
         }
+        const_l=nullptr;const_r=nullptr;
     }else{
         Value* l_instr,* r_instr;
         bool is_float=false;
@@ -889,7 +902,7 @@ void IRGen::visit(ast::BinopExpr &node) {
 void IRGen::visit(ast::LvalExpr &node){
     auto var = scope.find(node.name);
     Type *type;
-    if(var->getType()->isFloatType()){
+    if(var->getType()->isFloatType()||var->getType()->getPointerElementType()->isFloatType()){
         type=FLOAT_T;
     }else{
         type=INT32_T;

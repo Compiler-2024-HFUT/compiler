@@ -10,6 +10,7 @@
 #include "Constant.hpp"
 #include "Function.hpp"
 #include "frontend/node.hpp"
+#include "midend/Module.hpp"
 
 extern Module *global_m_ptr;
 
@@ -161,8 +162,8 @@ class IRGen : public ast::ASTVisitor {
 
     public:
         IRGen();
-        std::unique_ptr<Module>& getModule() { return module; }
-  
+        // std::unique_ptr<Module>& getModule() { return module; }
+        Module*getModule() { return module.get(); }
     private:
         virtual void visit(ast::CompunitNode &node) override;
         virtual void visit(ast::FuncFParam &node) override;
