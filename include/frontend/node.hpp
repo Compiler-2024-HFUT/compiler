@@ -34,40 +34,6 @@ enum class UnOp{
     MINUS='-',
     NOT='!',
 };
-// enum ExprType{
-//     FLOAT_LITERAL,
-//     INT_LITERAL,
-//     ASSIGN_EXPR,
-//     BIN_OP_EXPR,
-//     REL_OP_EXPR,
-//     Eq_EXPR,
-//     OR_EXPR,
-//     AND_EXPR,
-//     ARR_USE_EXPR,
-//     PREFIX,
-//     CALL_EXPR,
-//     LVAL_EXPR,
-//     INITIALIZER,
-// };
-enum StmtType{
-    // NULL_STMT,
-    // ROOT,
-    // VAL_DEF_STMT,
-    // VAL_DECL_STMT,
-    // FUNSTMT,
-    // CONSTSTMT,
-    // RETURNSTMT,
-    // IF_STMT,
-    // WHILE_STMT,
-    // BLOCK_STMT,
-    // FLOAT_LITERAL,
-    // INT_LITERAL,
-    // INFIX,
-    // PREFIX,
-    // SUFFIX,
-    // CONTINUE_STMT,
-    // BREAK_STMT,
-};
 
 
 struct SyntaxNode {

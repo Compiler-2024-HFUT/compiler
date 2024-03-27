@@ -284,6 +284,7 @@ void IRGen::visit(ast::ArrDefStmt &node) {
     array_bounds.push_back(1);      
     for(auto &bound_expr : node.array_length) {
         is_init_val = false;
+        require_lvalue=false;
         bound_expr->accept(*this);
         auto bound = dynamic_cast<ConstantInt*>(tmp_val);
         if(bound == nullptr) {
@@ -496,6 +497,7 @@ void IRGen::visit(ast::ExprStmt &node) {
 }
 
 void IRGen::visit(ast::AssignStmt &node) {
+    require_lvalue = false;
     node.expr->accept(*this);
     auto result = tmp_val;
     require_lvalue = true;
@@ -902,10 +904,18 @@ void IRGen::visit(ast::BinopExpr &node) {
 void IRGen::visit(ast::LvalExpr &node){
     auto var = scope.find(node.name);
     Type *type;
-    if(var->getType()->isFloatType()||var->getType()->getPointerElementType()->isFloatType()){
-        type=FLOAT_T;
-    }else{
-        type=INT32_T;
+    if(!var->getType()->getPointerElementType())
+        if(var->getType()->isFloatType()){
+            type=FLOAT_T;
+        }else{
+            type=INT32_T;
+        }
+    else{
+        if(var->getType()->getPointerElementType()->isFloatType()){
+            type=FLOAT_T;
+        }else{
+            type=INT32_T;
+        }
     }
     bool should_return_lvalue = require_lvalue;
     require_lvalue = false;
@@ -922,8 +932,9 @@ void IRGen::visit(ast::LvalExpr &node){
             if(var->getType() == FLOAT_T) 
                 tmp_val = dynamic_cast<ConstantFP*>(var);
             else 
-                tmp_val = dynamic_cast<ConstantInt*>(var);
-            if(tmp_val==nullptr){
+                {tmp_val = dynamic_cast<ConstantInt*>(var);
+
+            }if(tmp_val==nullptr){
                 tmp_val = LoadInst::createLoad(type,var,cur_block_of_cur_fun);  
             }
         }
