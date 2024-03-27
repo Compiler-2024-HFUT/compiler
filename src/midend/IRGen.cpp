@@ -179,40 +179,31 @@ void IRGen::visit(ast::ValDeclStmt &node) {
 }
 
 void IRGen::visit(ast::ValDefStmt &node) {
-    is_init_array = false;
+    // is_init_array = false;
     
     // process init_val
     if(node.init_expr != nullptr) {
         node.init_expr->accept(*this);
         auto tmp_int32_val = dynamic_cast<ConstantInt*>(tmp_val);
         auto tmp_float_val = dynamic_cast<ConstantFP*>(tmp_val);
-        //is not a constant
+        // init_val isn't a const
         if(tmp_float_val==nullptr&&tmp_int32_val==nullptr){
+            // int <- var float
             if( cur_type == INT32_T && tmp_val->getType()->isFloatType() ){
                 tmp_val = FpToSiInst::createFpToSi(tmp_val, INT32_T, cur_block_of_cur_fun);
+            // float <- var int
             }else if( cur_type == FLOAT_T && tmp_val->getType() ->isIntegerType() ) {
                 tmp_val = SiToFpInst::createSiToFp(tmp_val, FLOAT_T, cur_block_of_cur_fun);
             }
-        }
+            // int <- var int or float <- var float
+        
         // int <- const float
-        else if( cur_type == INT32_T && tmp_float_val != nullptr ){
+        }else if( cur_type == INT32_T && tmp_float_val != nullptr ){
             tmp_val = CONST_INT(int(tmp_float_val->getValue()));
         // float <- const int
         }else if(cur_type == FLOAT_T && tmp_int32_val != nullptr){
             tmp_val = CONST_FP(float(tmp_int32_val->getValue()));
-        // init_val isn't a const
-        }else if( tmp_int32_val != nullptr && tmp_float_val != nullptr ){
-            // int <- var float
-            if( cur_type == INT32_T && tmp_val->getType() == FLOAT_T ){
-                int i=tmp_float_val->getValue();
-                tmp_val =CONST_INT(i);
-            // float <- var int
-            }else if( cur_type == FLOAT_T && tmp_val->getType() == INT32_T ) {
-                float f=tmp_int32_val->getValue();
-                tmp_val =CONST_FP(f);
-            }
-            // tmp_val can be a array ??
-            // int <- var int or float <- var float
+        
         }
         // int <- const int or float <- const float
     }else{
@@ -260,7 +251,7 @@ void IRGen::visit(ast::ConstDefStmt &node){
         }else if(cur_type == FLOAT_T && tmp_int32_val != nullptr){
             tmp_val = CONST_FP(float(tmp_int32_val->getValue()));
         // init_val isn't a const
-        }else if( tmp_int32_val != nullptr && tmp_float_val != nullptr ){
+        }else if( tmp_int32_val == nullptr && tmp_float_val == nullptr ){
             LOG( "init value must be const!" )
         }
         // int <- const int or float <- const float
@@ -431,41 +422,45 @@ void IRGen::visit(ast::ConstArrDefStmt &node) {
 }
 
 void IRGen::visit(ast::IntConst &node) {
-    if(!is_init_val){
-        tmp_val = CONST_INT(node.Value.i);
-        return;
-    }
-    
-    // if(cur_pos >= arr_total_size)
-    //     LOG( "element num in array greater than array bound!" );
-
     tmp_val = CONST_INT(node.Value.i);
-
-    // come from visit_arrdef_int
-    if(is_init_array){
-        init_val[cur_pos] = dynamic_cast<Constant *>(tmp_val);
-        init_val_map[cur_pos] = tmp_val;
-        cur_pos++;
-    }
+    
+    // if(!is_init_val){
+    //     tmp_val = CONST_INT(node.Value.i);
+    //     return;
+    // }
+    // 
+    // if(cur_pos >= arr_total_size)
+    //      LOG( "element num in array greater than array bound!" );
+ 
+    // tmp_val = CONST_INT(node.Value.i);
+ 
+    // // come from visit_arrdef_int
+    // if(is_init_array){
+    //     init_val[cur_pos] = dynamic_cast<Constant *>(tmp_val);
+    //     init_val_map[cur_pos] = tmp_val;
+    //     cur_pos++;
+    // }
 }
 
 void IRGen::visit(ast::FloatConst &node){
-    if(!is_init_val){
-        tmp_val = CONST_FP(node.Value.f);
-        return;
-    }
-    
-    if(cur_pos >= arr_total_size)
-        LOG( "element num in array greater than array bound!" );
-
     tmp_val = CONST_FP(node.Value.f);
+    
+    // if(!is_init_val){
+    //     tmp_val = CONST_FP(node.Value.f);
+    //     return;
+    // }
+    // 
+    // if(cur_pos >= arr_total_size)
+    //     LOG( "element num in array greater than array bound!" );
 
-    // come from visit_arrdef_int
-    if(is_init_array){
-        init_val[cur_pos] = dynamic_cast<Constant *>(tmp_val);
-        init_val_map[cur_pos] = tmp_val;
-        cur_pos++;
-    }
+    // tmp_val = CONST_FP(node.Value.f);
+
+    // // come from visit_arrdef_int
+    // if(is_init_array){
+    //     init_val[cur_pos] = dynamic_cast<Constant *>(tmp_val);
+    //     init_val_map[cur_pos] = tmp_val;
+    //     cur_pos++;
+    // }
 }
 
 void IRGen::visit(ast::InitializerExpr &node) {
@@ -487,6 +482,20 @@ void IRGen::visit(ast::InitializerExpr &node) {
     array_pos.push_back( {cur_pos, array_bounds[cur_depth]} );
     for(auto &initializer : node.initializers){
         initializer->accept(*this);
+
+        // tmp_val is const
+        auto tmp_int32_val = dynamic_cast<ConstantInt*>(tmp_val);
+        auto tmp_float_val = dynamic_cast<ConstantFP*>(tmp_val);
+
+        if(cur_type == INT32_T && tmp_float_val != nullptr){
+            tmp_val = CONST_INT( int(tmp_float_val->getValue()) );
+        }else if(cur_type == FLOAT_T && tmp_int32_val != nullptr){
+            tmp_val = CONST_FP( float(tmp_int32_val->getValue()) );
+        }
+
+        init_val[cur_pos] = dynamic_cast<Constant *>(tmp_val);
+        init_val_map[cur_pos] = tmp_val;
+        cur_pos++;
     }
     cur_pos = array_pos.back().first + array_pos.back().second;
     cur_depth--;
