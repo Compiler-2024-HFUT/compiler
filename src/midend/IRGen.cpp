@@ -436,8 +436,8 @@ void IRGen::visit(ast::IntConst &node) {
         return;
     }
     
-    if(cur_pos >= arr_total_size)
-        LOG( "element num in array greater than array bound!" );
+    // if(cur_pos >= arr_total_size)
+    //     LOG( "element num in array greater than array bound!" );
 
     tmp_val = CONST_INT(node.Value.i);
 
