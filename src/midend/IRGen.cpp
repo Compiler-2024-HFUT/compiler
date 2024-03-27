@@ -281,7 +281,7 @@ void IRGen::visit(ast::ArrDefStmt &node) {
 
     array_bounds.clear();
     // array_bounds = {1, array_dimensions_list, 1}
-    array_bounds.push_back(1);      
+    // array_bounds.push_back(1);      
     for(auto &bound_expr : node.array_length) {
         is_init_val = false;
         require_lvalue=false;
@@ -356,7 +356,7 @@ void IRGen::visit(ast::ConstArrDefStmt &node) {
 
     array_bounds.clear();
     // array_bounds = {1, array_dimensions_list, 1}
-    array_bounds.push_back(1);      
+    // array_bounds.push_back(1);      
     for(auto &bound_expr : node.array_length) {
         is_init_val = false;
         bound_expr->accept(*this);
@@ -922,7 +922,7 @@ void IRGen::visit(ast::LvalExpr &node){
     if(node.index_num.empty()) {
         if(should_return_lvalue) {
             if(var->getType()->getPointerElementType()->isArrayType()) {
-                GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(0)},cur_block_of_cur_fun);
+                tmp_val=GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(0)},cur_block_of_cur_fun);
             } else if(var->getType()->getPointerElementType()->isPointerType()) {
                 tmp_val = LoadInst::createLoad(type,var,cur_block_of_cur_fun);
             } else {
@@ -967,21 +967,27 @@ void IRGen::visit(ast::LvalExpr &node){
                 auto index_val = var_indexs[i];
                 Value* one_index;
                 if(size[i+1] > 1) {
-                    one_index = BinaryInst::createMul(CONST_INT(size[i+1]), index_val,cur_block_of_cur_fun,module.get());
+                    if(auto const_index=dynamic_cast<ConstantInt*>(index_val))
+                        one_index=CONST_INT(const_index->getValue()*size[i+1]);
+                    else
+                        one_index = BinaryInst::createMul(CONST_INT(size[i+1]), index_val,cur_block_of_cur_fun,module.get());
                 } else {
                     one_index = index_val;
                 }
                 if(var_index == nullptr) {
                     var_index = one_index;
                 } else {
-                    var_index=BinaryInst::createAdd(var_index, one_index,cur_block_of_cur_fun,module.get());
+                    if(dynamic_cast<ConstantInt*>(one_index)&&dynamic_cast<ConstantInt*>(var_index))
+                        var_index=CONST_INT(((ConstantInt*)one_index)->getValue()+((ConstantInt*)var_index)->getValue());
+                    else
+                        var_index=BinaryInst::createAdd(var_index, one_index,cur_block_of_cur_fun,module.get());
                 }
             }
             if(var->getType()->getPointerElementType()->isPointerType()) {
                 auto tmp_load = LoadInst::createLoad(var->getType(),var,cur_block_of_cur_fun);
                 tmp_val = GetElementPtrInst::createGep(tmp_load, {var_index},cur_block_of_cur_fun);
             } else {
-                tmp_val =  GetElementPtrInst::createGep(var, {CONST_INT(0), var_index},cur_block_of_cur_fun);
+                tmp_val =  GetElementPtrInst::createGep(var, {var_index},cur_block_of_cur_fun);
             }
             if(!should_return_lvalue)
                 tmp_val = LoadInst::createLoad(tmp_val->getType(),tmp_val,cur_block_of_cur_fun);
