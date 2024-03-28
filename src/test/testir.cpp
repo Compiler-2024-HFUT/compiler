@@ -13,7 +13,7 @@ int main(int argc , char**argv){
     }
     Parser *p=new Parser(argv[1]);
     p->parserComp();
-    p->comp->print();
+    // p->comp->print();
     IRBuilder::IRGen irgen;
     p->comp->accept(irgen);
     

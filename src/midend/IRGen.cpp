@@ -941,12 +941,10 @@ void IRGen::visit(ast::LvalExpr &node){
         std::vector<Value*> var_indexs;
         Value *var_index = nullptr;
         int index_const = 0;
-        
         bool const_check = true;
         auto const_array = scope.findConst(node.name);
         if(const_array == nullptr) 
             const_check = false;
-        
         for(int i = 0; i < node.index_num.size(); ++i) {
             node.index_num[i]->accept(*this);
             var_indexs.push_back(tmp_val);
@@ -959,25 +957,29 @@ void IRGen::visit(ast::LvalExpr &node){
                 }
             }
         }
-
         if(should_return_lvalue == false && const_check == true) {
             ConstantInt *tmp_const = dynamic_cast<ConstantInt*>(const_array->getElementValue(index_const));
             tmp_val = CONST_INT(tmp_const->getValue());
         } else {
-            for(int i = 0; i < var_indexs.size(); i++) {
-                auto index_val = var_indexs[i];
+            /*
+            int x[30][20][10] ;
+            {6000,200,10,1}
+            */
+            std::vector<Value*> indexs;
+            for(auto & index:node.index_num){
+                index->accept(*this);
+                indexs.push_back(tmp_val);
+            }
+            for(int i=1;i<size.size();i++){
                 Value* one_index;
-                if(size[i+1] > 1) {
-                    if(auto const_index=dynamic_cast<ConstantInt*>(index_val))
-                        one_index=CONST_INT(const_index->getValue()*size[i+1]);
-                    else
-                        one_index = BinaryInst::createMul(CONST_INT(size[i+1]), index_val,cur_block_of_cur_fun,module.get());
-                } else {
-                    one_index = index_val;
+                if(auto const_val=dynamic_cast<ConstantInt*>(indexs[i-1])){
+                    one_index=CONST_INT(const_val->getValue()*size[i]);    
+                }else{
+                    one_index=BinaryInst::createMul(indexs[i-1],CONST_INT(size[i]),cur_block_of_cur_fun);
                 }
-                if(var_index == nullptr) {
-                    var_index = one_index;
-                } else {
+                if(var_index==nullptr)
+                    var_index=one_index;
+                else {
                     if(dynamic_cast<ConstantInt*>(one_index)&&dynamic_cast<ConstantInt*>(var_index))
                         var_index=CONST_INT(((ConstantInt*)one_index)->getValue()+((ConstantInt*)var_index)->getValue());
                     else
@@ -986,16 +988,15 @@ void IRGen::visit(ast::LvalExpr &node){
             }
             if(var->getType()->getPointerElementType()->isPointerType()) {
                 auto tmp_load = LoadInst::createLoad(var->getType(),var,cur_block_of_cur_fun);
-                tmp_val = GetElementPtrInst::createGep(tmp_load, {var_index},cur_block_of_cur_fun);
+                tmp_val = GetElementPtrInst::createGep(tmp_load, {CONST_INT(0),var_index},cur_block_of_cur_fun);
             } else {
-                tmp_val =  GetElementPtrInst::createGep(var, {var_index},cur_block_of_cur_fun);
+                tmp_val =  GetElementPtrInst::createGep(var, {CONST_INT(0),var_index},cur_block_of_cur_fun);
             }
             if(!should_return_lvalue)
-                tmp_val = LoadInst::createLoad(tmp_val->getType(),tmp_val,cur_block_of_cur_fun);
+                tmp_val = LoadInst::createLoad(static_cast<PointerType *>(tmp_val->getType())->getElementType(),tmp_val,cur_block_of_cur_fun);
         }
     }
 }
-
 void IRGen::visit(ast::IfStmt &node) {
     auto true_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
     auto false_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
