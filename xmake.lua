@@ -10,7 +10,7 @@ target("lexTest")
     add_includedirs("include")
     add_files("src/frontend/*.cpp")
     add_files("src/test/testlex.cpp")
-    set_optimize("fast")
+    set_optimize("none")
 
 target("astTest")
     set_kind("binary")
@@ -18,7 +18,7 @@ target("astTest")
     add_includedirs("include")
     add_files("src/frontend/*.cpp")
     add_files("src/test/testast.cpp")
-    set_optimize("fast")
+    set_optimize("none")
 
 
 target("irTest")
@@ -28,7 +28,7 @@ target("irTest")
     add_files("src/frontend/*.cpp")
     add_files("src/midend/*.cpp")
     add_files("src/test/testir.cpp")
-    set_optimize("fast")
+    set_optimize("none")
 
 --
 -- If you want to known more usage about xmake, please see https://xmake.io

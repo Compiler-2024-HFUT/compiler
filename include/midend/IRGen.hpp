@@ -53,14 +53,14 @@ static BasicBlock *cur_block_of_cur_fun;   //& used for add instruction
 
 // when use const as init_val, assign true
 // when use const as expr_val, assign false
-static bool is_init_val = false;
+// static bool is_init_val = false;
 
 // when defining an array, assign true , in the entry of visit_defarr
 //                 if not, assign false, in the entry of visit_defvar
-static bool is_init_array = false;
+// static bool is_init_array = false;
 static int arr_total_size = 1;
 static std::vector<int> array_bounds;
-static std::vector<int> array_sizes;
+// static std::vector<int> array_sizes;
 // pair( the pos when into {, the offset bettween { and } )
 static std::vector< std::pair<int, int> > array_pos;
 static int cur_pos;

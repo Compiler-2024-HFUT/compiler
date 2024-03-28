@@ -78,7 +78,6 @@ void IRGen::visit(ast::FuncDef &node) {
                 if(bound_expr == nullptr) {
                     array_bounds.push_back(1);
                 } else {
-                    is_init_val = false;
                     bound_expr->accept(*this);
                     auto bound = dynamic_cast<ConstantInt*>(tmp_val);
                     if(bound == nullptr) {
@@ -172,7 +171,6 @@ void IRGen::visit(ast::ValDeclStmt &node) {
         cur_type = FLOAT_T;
 
     for (auto &def : node.var_def_list){
-        is_init_val = true;
         def->accept(*this);
     }
         
@@ -231,14 +229,11 @@ void IRGen::visit(ast::ConstDeclStmt &node){
         cur_type = FLOAT_T;
 
     for (auto &def : node.var_def_list){
-        is_init_val = true;
         def->accept(*this);
     }
 }
 
 void IRGen::visit(ast::ConstDefStmt &node){
-    is_init_array = false;
-
     if(node.init_expr != nullptr) {
         node.init_expr->accept(*this);
         auto tmp_int32_val = dynamic_cast<ConstantInt*>(tmp_val);
@@ -265,42 +260,52 @@ void IRGen::visit(ast::ConstDefStmt &node){
 // for scope, any array can have more than one dimensions
 // for ir   , any array only has one dimension
 void IRGen::visit(ast::ArrDefStmt &node) {
-    is_init_array = true;
-
     arr_total_size = 1;
     ArrayType * array_type;
 
     array_bounds.clear();
     // array_bounds = {1, array_dimensions_list, 1}
-    // array_bounds.push_back(1);      
+    array_bounds.push_back(1);      
     for(auto &bound_expr : node.array_length) {
-        is_init_val = false;
         require_lvalue=false;
         bound_expr->accept(*this);
         auto bound = dynamic_cast<ConstantInt*>(tmp_val);
         if(bound == nullptr) {
             LOG( "Array bounds must be const int var or literal" )
+        }else if(bound->getValue() < 0){
+            LOG( "Array bounds must be greater than 0" )
         }
+
         array_bounds.push_back(bound->getValue());
         arr_total_size *= bound->getValue();
     }
     array_bounds.push_back(1);
     array_type = ArrayType::get(cur_type, arr_total_size);
     
+    std::list<int> array_sizes_l = {1};
+    for(auto iter_r = array_bounds.rbegin()+1; iter_r != array_bounds.rend()-1; iter_r++){
+        array_sizes_l.push_front(array_sizes_l.front() * *iter_r);
+    }
+    std::vector<int> array_sizes = std::vector<int>(array_sizes_l.begin(), array_sizes_l.end());
+
     cur_depth = 0;
     cur_pos = 0;
     array_pos.clear();
     init_val.clear();
     init_val_map.clear();
 
-    for(int i=0; i<arr_total_size; i++)
-        init_val.push_back( ConstantZero::get(cur_type, module.get()) );
+    for(int i=0; i<arr_total_size; i++){
+        if(cur_type == INT32_T){
+            init_val.push_back( CONST_INT(0) );
+        }else{
+            init_val.push_back( CONST_FP(0.0) );
+        }
+    }
 
     // set all element in array to 0
     // add memset(array, array_len)
 
     if(node.initializers) {
-        is_init_val = true;
         node.initializers->accept(*this);
     }
 
@@ -310,13 +315,13 @@ void IRGen::visit(ast::ArrDefStmt &node) {
             auto initializer = ConstantZero::get(array_type, module.get());
             auto var = GlobalVariable::create(node.name, module.get(), array_type, false, initializer);
             scope.push(node.name, var);
-            scope.pushSize(node.name, array_bounds);
+            scope.pushSize(node.name, array_sizes);
         }else{
             // print all elements
             auto initializer = ConstantArray::get(array_type, init_val);
             auto var = GlobalVariable::create(node.name, module.get(), array_type, false, initializer);
             scope.push(node.name, var);
-            scope.pushSize(node.name, array_bounds);
+            scope.pushSize(node.name, array_sizes);
         }
     } else {
         auto var = AllocaInst::createAlloca(array_type, cur_block_of_cur_fun);
@@ -335,46 +340,56 @@ void IRGen::visit(ast::ArrDefStmt &node) {
             } 
         }
         scope.push(node.name, var);
-        scope.pushSize(node.name, array_bounds);
+        scope.pushSize(node.name, array_sizes);
     }
 }
 
 void IRGen::visit(ast::ConstArrDefStmt &node) {
-    is_init_array = true;
-
     arr_total_size = 1;
     ArrayType * array_type;
 
     array_bounds.clear();
     // array_bounds = {1, array_dimensions_list, 1}
-    // array_bounds.push_back(1);      
+    array_bounds.push_back(1);      
     for(auto &bound_expr : node.array_length) {
-        is_init_val = false;
         bound_expr->accept(*this);
         auto bound = dynamic_cast<ConstantInt*>(tmp_val);
         if(bound == nullptr) {
             LOG( "Array bounds must be const int var or literal" )
+        }else if(bound->getValue() < 0){
+            LOG( "Array bounds must be greater than 0" )
         }
+
         array_bounds.push_back(bound->getValue());
         arr_total_size *= bound->getValue();
     }
     array_bounds.push_back(1);
     array_type = ArrayType::get(cur_type, arr_total_size);
     
+    std::list<int> array_sizes_l = {1};
+    for(auto iter_r = array_bounds.rbegin()+1; iter_r != array_bounds.rend()-1; iter_r++){
+        array_sizes_l.push_front(array_sizes_l.front() * *iter_r);
+    }
+    std::vector<int> array_sizes = std::vector<int>(array_sizes_l.begin(), array_sizes_l.end());
+
     cur_depth = 0;
     cur_pos = 0;
     array_pos.clear();
     init_val.clear();
     init_val_map.clear();
 
-    for(int i=0; i<arr_total_size; i++)
-        init_val.push_back( ConstantZero::get(cur_type, module.get()) );
+    for(int i=0; i<arr_total_size; i++){
+        if(cur_type == INT32_T){
+            init_val.push_back( CONST_INT(0) );
+        }else{
+            init_val.push_back( CONST_FP(0.0) );
+        }
+    }
 
     // set all element in array to 0
     // add memset(array, array_len)
 
     if(node.initializers) {
-        is_init_val = true;
         node.initializers->accept(*this);
     }
 
@@ -390,13 +405,13 @@ void IRGen::visit(ast::ConstArrDefStmt &node) {
             auto initializer = ConstantZero::get(array_type, module.get());
             auto var = GlobalVariable::create(node.name, module.get(), array_type, false, initializer);
             scope.push(node.name, var);
-            scope.pushSize(node.name, array_bounds);
+            scope.pushSize(node.name, array_sizes);
             scope.pushConst(node.name, ConstantArray::get(array_type, init_val));
         }else{
             auto initializer = ConstantArray::get(array_type, init_val);
             auto var = GlobalVariable::create(node.name, module.get(), array_type, false, initializer);
             scope.push(node.name, var);
-            scope.pushSize(node.name, array_bounds);
+            scope.pushSize(node.name, array_sizes);
             scope.pushConst(node.name, initializer);
         }
     } else {
@@ -416,51 +431,17 @@ void IRGen::visit(ast::ConstArrDefStmt &node) {
             } 
         }
         scope.push(node.name, var);
-        scope.pushSize(node.name, array_bounds);
+        scope.pushSize(node.name, array_sizes);
         scope.pushConst(node.name, ConstantArray::get(array_type, init_val));
     }
 }
 
 void IRGen::visit(ast::IntConst &node) {
     tmp_val = CONST_INT(node.Value.i);
-    
-    // if(!is_init_val){
-    //     tmp_val = CONST_INT(node.Value.i);
-    //     return;
-    // }
-    // 
-    // if(cur_pos >= arr_total_size)
-    //      LOG( "element num in array greater than array bound!" );
- 
-    // tmp_val = CONST_INT(node.Value.i);
- 
-    // // come from visit_arrdef_int
-    // if(is_init_array){
-    //     init_val[cur_pos] = dynamic_cast<Constant *>(tmp_val);
-    //     init_val_map[cur_pos] = tmp_val;
-    //     cur_pos++;
-    // }
 }
 
 void IRGen::visit(ast::FloatConst &node){
     tmp_val = CONST_FP(node.Value.f);
-    
-    // if(!is_init_val){
-    //     tmp_val = CONST_FP(node.Value.f);
-    //     return;
-    // }
-    // 
-    // if(cur_pos >= arr_total_size)
-    //     LOG( "element num in array greater than array bound!" );
-
-    // tmp_val = CONST_FP(node.Value.f);
-
-    // // come from visit_arrdef_int
-    // if(is_init_array){
-    //     init_val[cur_pos] = dynamic_cast<Constant *>(tmp_val);
-    //     init_val_map[cur_pos] = tmp_val;
-    //     cur_pos++;
-    // }
 }
 
 void IRGen::visit(ast::InitializerExpr &node) {
@@ -483,17 +464,25 @@ void IRGen::visit(ast::InitializerExpr &node) {
     for(auto &initializer : node.initializers){
         initializer->accept(*this);
 
+        if(dynamic_cast<ast::InitializerExpr*>(initializer.get()) != nullptr)
+            continue;
+
+        if(cur_pos >= arr_total_size)
+            LOG( "element num in array greater than array bound!" );
+
         // tmp_val is const
         auto tmp_int32_val = dynamic_cast<ConstantInt*>(tmp_val);
         auto tmp_float_val = dynamic_cast<ConstantFP*>(tmp_val);
 
         if(cur_type == INT32_T && tmp_float_val != nullptr){
             tmp_val = CONST_INT( int(tmp_float_val->getValue()) );
+            init_val[cur_pos] = dynamic_cast<Constant *>(tmp_val);
         }else if(cur_type == FLOAT_T && tmp_int32_val != nullptr){
             tmp_val = CONST_FP( float(tmp_int32_val->getValue()) );
+            init_val[cur_pos] = dynamic_cast<Constant *>(tmp_val);
         }
 
-        init_val[cur_pos] = dynamic_cast<Constant *>(tmp_val);
+        // tmp_val is const and var
         init_val_map[cur_pos] = tmp_val;
         cur_pos++;
     }
@@ -904,9 +893,9 @@ void IRGen::visit(ast::BinopExpr &node) {
                     }
                 };
             if(is_float)
-                FCmpInst::createFCmp(binop_to_cmpop(),lhs,rhs,cur_block_of_cur_fun,module.get());
+                tmp_val =  FCmpInst::createFCmp(binop_to_cmpop(),lhs,rhs,cur_block_of_cur_fun,module.get());
             else    
-                CmpInst::createCmp(binop_to_cmpop(),lhs,rhs,cur_block_of_cur_fun,module.get());
+                tmp_val  =  CmpInst::createCmp(binop_to_cmpop(),lhs,rhs,cur_block_of_cur_fun,module.get());
         }
     }
 }
@@ -952,10 +941,12 @@ void IRGen::visit(ast::LvalExpr &node){
         std::vector<Value*> var_indexs;
         Value *var_index = nullptr;
         int index_const = 0;
+        
         bool const_check = true;
         auto const_array = scope.findConst(node.name);
         if(const_array == nullptr) 
             const_check = false;
+        
         for(int i = 0; i < node.index_num.size(); ++i) {
             node.index_num[i]->accept(*this);
             var_indexs.push_back(tmp_val);
@@ -968,6 +959,7 @@ void IRGen::visit(ast::LvalExpr &node){
                 }
             }
         }
+
         if(should_return_lvalue == false && const_check == true) {
             ConstantInt *tmp_const = dynamic_cast<ConstantInt*>(const_array->getElementValue(index_const));
             tmp_val = CONST_INT(tmp_const->getValue());
@@ -1030,7 +1022,7 @@ void IRGen::visit(ast::IfStmt &node) {
     else if(tmp_val->getType()==INT32_T){
         auto tmp_val_const = dynamic_cast<ConstantInt*>(tmp_val);
         if(tmp_val_const){
-            inst_cmp = ConstantInt::get(tmp_val_const->getValue()!=0);
+            inst_cmp = ConstantInt::get(static_cast<bool>(tmp_val_const->getValue()!=0));
         }
         else{
             inst_cmp = CmpInst::createCmp(NE, tmp_val, ConstantInt::get(0), cur_block_of_cur_fun);
@@ -1039,7 +1031,7 @@ void IRGen::visit(ast::IfStmt &node) {
     else if(tmp_val->getType()==FLOAT_T){
         auto tmp_val_const = dynamic_cast<ConstantFP*>(tmp_val);
         if(tmp_val_const){
-            inst_cmp = ConstantInt::get(tmp_val_const->getValue()!=0);
+            inst_cmp = ConstantInt::get(static_cast<bool>(tmp_val_const->getValue()!=0));
         }
         else{
             inst_cmp = FCmpInst::createFCmp(NE, tmp_val, ConstantFP::get(0), cur_block_of_cur_fun);
