@@ -591,6 +591,7 @@ void IRGen::visit(ast::AssignExpr &node) {
 void IRGen::visit(ast::RelopExpr &node) {}
 void IRGen::visit(ast::EqExpr &node) {}
 void IRGen::visit(ast::AndExp &node) {
+    require_lvalue = false;
     auto true_BB = BasicBlock::create(module.get(), "", cur_fun);
     node.lhs->accept(*this);
         
@@ -617,6 +618,7 @@ void IRGen::visit(ast::AndExp &node) {
     node.rhs->accept(*this);
 }
 void IRGen::visit(ast::ORExp &node){
+    require_lvalue = false;
     auto false_BB = BasicBlock::create(module.get(), "", cur_fun);
     IF_WHILE_Cond_Stack.push_back({IF_WHILE_Cond_Stack.back().trueBB, false_BB});
     node.lhs->accept(*this);
@@ -647,6 +649,7 @@ void IRGen::visit(ast::ORExp &node){
     node.rhs->accept(*this);
 }
 void IRGen::visit(ast::BinopExpr &node) {
+    require_lvalue = false;
     node.lhs->accept(*this);
     Value* lhs=tmp_val,*rhs;
     node.rhs->accept(*this);
@@ -909,10 +912,18 @@ void IRGen::visit(ast::LvalExpr &node){
             type=INT32_T;
         }
     else{
-        if(var->getType()->getPointerElementType()->isFloatType()){
-            type=FLOAT_T;
+        if(var->getType()->getPointerElementType()->isPointerType()){
+            if(var->getType()->getPointerElementType()->getPointerElementType()->isFloatType()){
+                type=FLOATPTR_T;
+            }else{
+                type=INT32PTR_T;
+            }
         }else{
-            type=INT32_T;
+            if(var->getType()->getPointerElementType()->isFloatType()){
+                type=FLOAT_T;
+            }else{
+                type=INT32_T;
+            }
         }
     }
     bool should_return_lvalue = require_lvalue;
@@ -987,8 +998,8 @@ void IRGen::visit(ast::LvalExpr &node){
                 }
             }
             if(var->getType()->getPointerElementType()->isPointerType()) {
-                auto tmp_load = LoadInst::createLoad(var->getType(),var,cur_block_of_cur_fun);
-                tmp_val = GetElementPtrInst::createGep(tmp_load, {CONST_INT(0),var_index},cur_block_of_cur_fun);
+                auto tmp_load = LoadInst::createLoad(var->getType()->getPointerElementType(),var,cur_block_of_cur_fun);
+                tmp_val = GetElementPtrInst::createGep(tmp_load, {CONST_INT(0)},cur_block_of_cur_fun);
             } else {
                 tmp_val =  GetElementPtrInst::createGep(var, {CONST_INT(0),var_index},cur_block_of_cur_fun);
             }
