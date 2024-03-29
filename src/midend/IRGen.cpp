@@ -843,7 +843,7 @@ void IRGen::visit(ast::BinopExpr &node) {
                 r_instr = SiToFpInst::createSiToFp(rhs, FLOAT_T,cur_block_of_cur_fun);
                 is_float=true;       
         }else{
-            exit(152);
+            exit(153);
         }
         switch(node_op){
         case::ast::BinOp::PlUS:
@@ -870,6 +870,12 @@ void IRGen::visit(ast::BinopExpr &node) {
             else
                 tmp_val=BinaryInst::createSDiv(l_instr,r_instr,cur_block_of_cur_fun);
             break;
+        case::ast::BinOp::MOD:
+            if(is_float)
+                exit(154);
+            else
+                tmp_val=BinaryInst::createSRem(l_instr,r_instr,cur_block_of_cur_fun);
+            break;
         default:
             auto binop_to_cmpop=[node_op](){
                 switch (node_op) {
@@ -892,7 +898,7 @@ void IRGen::visit(ast::BinopExpr &node) {
                     return CmpOp::EQ;
                     break;
                 default:
-                    exit(152);
+                    exit(154);
                     }
                 };
             if(is_float)
