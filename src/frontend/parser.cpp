@@ -240,7 +240,7 @@ unique_ptr<ast::InitializerExpr> Parser::parserInitlizer(){
     }
     while(!curTokIs(tokenType::RBRACE)){
         if(curTokIs(tokenType::LBRACE)){
-            ret->initializers.push_back(std::move( parserInitlizer()));
+            ret->initializers.push_back(parserInitlizer());
                 //ret.insert(ret.end(), std::make_move_iterator(tmp.begin()), std::make_move_iterator(tmp.end()));
         }else 
             ret->initializers.push_back(parserExpr());

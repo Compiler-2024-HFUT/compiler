@@ -224,7 +224,8 @@ void IRGen::visit(ast::ValDefStmt &node) {
         scope.push(node.name, var);
     } else {
         auto var = AllocaInst::createAlloca(cur_type, cur_block_of_cur_fun);
-        StoreInst::createStore(tmp_val, var, cur_block_of_cur_fun);
+        if(node.init_expr)
+            StoreInst::createStore(tmp_val, var, cur_block_of_cur_fun);
         scope.push(node.name, var);
     }
 }
@@ -715,7 +716,6 @@ void IRGen::visit(ast::BinopExpr &node) {
         default:
             exit(151);
         }
-        delete(lhs);delete(rhs);
         const_l=nullptr;const_r=nullptr;
     }else if(ConstantFP* const_l=dynamic_cast<ConstantFP*>(lhs),*const_r =dynamic_cast<ConstantFP*>(rhs);
     const_l!=nullptr&&const_r!=nullptr){
@@ -752,7 +752,6 @@ void IRGen::visit(ast::BinopExpr &node) {
         default:
             exit(151);
         }
-        delete(lhs);delete(rhs);
         const_l=nullptr;const_r=nullptr;
     }else if(ConstantFP* const_l=dynamic_cast<ConstantFP*>(lhs);
     const_l!=nullptr&&dynamic_cast<ConstantInt*>(rhs)){
@@ -790,7 +789,6 @@ void IRGen::visit(ast::BinopExpr &node) {
         default:
             exit(151);
         }
-        delete(lhs);delete(rhs);
         const_l=nullptr;const_r=nullptr;
     }else if(ConstantInt* const_l=dynamic_cast<ConstantInt*>(lhs);
     const_l!=nullptr&&dynamic_cast<ConstantFP*>(rhs)){
@@ -828,7 +826,6 @@ void IRGen::visit(ast::BinopExpr &node) {
         default:
             exit(151);
         }
-        delete(lhs);delete(rhs);
         const_l=nullptr;const_r=nullptr;
     }else{
         Value* l_instr,* r_instr;
