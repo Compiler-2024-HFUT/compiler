@@ -23,6 +23,7 @@ public:
     int &getValue() { return val_; }
 
     virtual std::string print() override;
+    virtual ~ConstantInt(){}
 
 private:
     ConstantInt(Type *ty, int val) : Constant(ty, "", 0), val_(val) {}
@@ -39,6 +40,7 @@ public:
     float &getValue() { return val_; }
     
     virtual std::string print() override;
+    virtual ~ConstantFP(){}
 
 private:
     ConstantFP(Type *ty, float val)

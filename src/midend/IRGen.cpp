@@ -715,6 +715,7 @@ void IRGen::visit(ast::BinopExpr &node) {
         default:
             exit(151);
         }
+        delete(lhs);delete(rhs);
         const_l=nullptr;const_r=nullptr;
     }else if(ConstantFP* const_l=dynamic_cast<ConstantFP*>(lhs),*const_r =dynamic_cast<ConstantFP*>(rhs);
     const_l!=nullptr&&const_r!=nullptr){
@@ -751,6 +752,7 @@ void IRGen::visit(ast::BinopExpr &node) {
         default:
             exit(151);
         }
+        delete(lhs);delete(rhs);
         const_l=nullptr;const_r=nullptr;
     }else if(ConstantFP* const_l=dynamic_cast<ConstantFP*>(lhs);
     const_l!=nullptr&&dynamic_cast<ConstantInt*>(rhs)){
@@ -788,6 +790,7 @@ void IRGen::visit(ast::BinopExpr &node) {
         default:
             exit(151);
         }
+        delete(lhs);delete(rhs);
         const_l=nullptr;const_r=nullptr;
     }else if(ConstantInt* const_l=dynamic_cast<ConstantInt*>(lhs);
     const_l!=nullptr&&dynamic_cast<ConstantFP*>(rhs)){
@@ -825,6 +828,7 @@ void IRGen::visit(ast::BinopExpr &node) {
         default:
             exit(151);
         }
+        delete(lhs);delete(rhs);
         const_l=nullptr;const_r=nullptr;
     }else{
         Value* l_instr,* r_instr;
@@ -1026,7 +1030,7 @@ void IRGen::visit(ast::LvalExpr &node){
             }
             if(var->getType()->getPointerElementType()->isPointerType()) {
                 auto tmp_load = LoadInst::createLoad(var->getType()->getPointerElementType(),var,cur_block_of_cur_fun);
-                tmp_val = GetElementPtrInst::createGep(tmp_load, {CONST_INT(0)},cur_block_of_cur_fun);
+                tmp_val = GetElementPtrInst::createGep(tmp_load, {var_index},cur_block_of_cur_fun);
             } else {
                 tmp_val =  GetElementPtrInst::createGep(var, {CONST_INT(0),var_index},cur_block_of_cur_fun);
             }
