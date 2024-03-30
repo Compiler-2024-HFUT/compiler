@@ -213,7 +213,8 @@ void IRGen::visit(ast::ValDefStmt &node) {
         }
         // int <- const int or float <- const float
     }else{
-        tmp_val = ConstantZero::get(cur_type, module.get());
+        if(scope.inGlobal())
+            tmp_val = ConstantZero::get(cur_type, module.get());
     }
 
     // alloc var
@@ -302,13 +303,13 @@ void IRGen::visit(ast::ArrDefStmt &node) {
     init_val.clear();
     init_val_map.clear();
 
-    for(int i=0; i<arr_total_size; i++){
-        if(cur_type == INT32_T){
-            init_val.push_back( CONST_INT(0) );
-        }else{
-            init_val.push_back( CONST_FP(0.0) );
-        }
-    }
+    // for(int i=0; i<arr_total_size; i++){
+    //     if(cur_type == INT32_T){
+    //         init_val.push_back( CONST_INT(0) );
+    //     }else{
+    //         init_val.push_back( CONST_FP(0.0) );
+    //     }
+    // }
 
     // set all element in array to 0
     // add memset(array, array_len)
@@ -333,20 +334,26 @@ void IRGen::visit(ast::ArrDefStmt &node) {
         }
     } else {
         auto var = AllocaInst::createAlloca(array_type, cur_block_of_cur_fun);
-        if(init_val_map.size() != 0) {
-            for(int i = 0; i < arr_total_size; i++) {
-                auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(i)}, cur_block_of_cur_fun);
-                if(init_val_map[i]) {
-                    StoreInst::createStore(init_val_map[i], elem_addr, cur_block_of_cur_fun);
-                } else {
-                    if (cur_type == INT32_T) {
-                        StoreInst::createStore(CONST_INT(0), elem_addr, cur_block_of_cur_fun);
-                    } else {
-                        StoreInst::createStore(CONST_FP(0), elem_addr, cur_block_of_cur_fun);
-                    }
-                }
-            } 
+        
+        for(auto [offset, value] : init_val_map){
+            auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(offset)}, cur_block_of_cur_fun);
+            StoreInst::createStore(value, elem_addr, cur_block_of_cur_fun);
         }
+
+        // if(init_val_map.size() != 0) {
+        //     for(int i = 0; i < arr_total_size; i++) {
+        //         auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(i)}, cur_block_of_cur_fun);
+        //         if(init_val_map[i]) {
+        //             StoreInst::createStore(init_val_map[i], elem_addr, cur_block_of_cur_fun);
+        //         } else {
+        //             if (cur_type == INT32_T) {
+        //                 StoreInst::createStore(CONST_INT(0), elem_addr, cur_block_of_cur_fun);
+        //             } else {
+        //                 StoreInst::createStore(CONST_FP(0), elem_addr, cur_block_of_cur_fun);
+        //             }
+        //         }
+        //     } 
+        // }
         scope.push(node.name, var);
         scope.pushSize(node.name, array_sizes);
     }
@@ -386,13 +393,13 @@ void IRGen::visit(ast::ConstArrDefStmt &node) {
     init_val.clear();
     init_val_map.clear();
 
-    for(int i=0; i<arr_total_size; i++){
-        if(cur_type == INT32_T){
-            init_val.push_back( CONST_INT(0) );
-        }else{
-            init_val.push_back( CONST_FP(0.0) );
-        }
-    }
+    // for(int i=0; i<arr_total_size; i++){
+    //     if(cur_type == INT32_T){
+    //         init_val.push_back( CONST_INT(0) );
+    //     }else{
+    //         init_val.push_back( CONST_FP(0.0) );
+    //     }
+    // }
 
     // set all element in array to 0
     // add memset(array, array_len)
@@ -424,20 +431,26 @@ void IRGen::visit(ast::ConstArrDefStmt &node) {
         }
     } else {
         auto var = AllocaInst::createAlloca(array_type, cur_block_of_cur_fun);
-        if(init_val_map.size() != 0) {
-            for(int i = 0; i < arr_total_size; i++) {
-                auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(i)}, cur_block_of_cur_fun);
-                if(init_val_map[i]) {
-                    StoreInst::createStore(init_val_map[i], elem_addr, cur_block_of_cur_fun);
-                } else {
-                    if (cur_type == INT32_T) {
-                        StoreInst::createStore(CONST_INT(0), elem_addr, cur_block_of_cur_fun);
-                    } else {
-                        StoreInst::createStore(CONST_FP(0), elem_addr, cur_block_of_cur_fun);
-                    }
-                }
-            } 
+        
+        for(auto [offset, value] : init_val_map){
+            auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(offset)}, cur_block_of_cur_fun);
+            StoreInst::createStore(value, elem_addr, cur_block_of_cur_fun);
         }
+
+        // if(init_val_map.size() != 0) {
+        //     for(int i = 0; i < arr_total_size; i++) {
+        //         auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(i)}, cur_block_of_cur_fun);
+        //         if(init_val_map[i]) {
+        //             StoreInst::createStore(init_val_map[i], elem_addr, cur_block_of_cur_fun);
+        //         } else {
+        //             if (cur_type == INT32_T) {
+        //                 StoreInst::createStore(CONST_INT(0), elem_addr, cur_block_of_cur_fun);
+        //             } else {
+        //                 StoreInst::createStore(CONST_FP(0), elem_addr, cur_block_of_cur_fun);
+        //             }
+        //         }
+        //     } 
+        // }
         scope.push(node.name, var);
         scope.pushSize(node.name, array_sizes);
         scope.pushConst(node.name, ConstantArray::get(array_type, init_val));
@@ -622,6 +635,7 @@ void IRGen::visit(ast::AndExp &node) {
             }
         }
 
+    BranchInst::createCondBr(cond_val, true_BB, IF_WHILE_Cond_Stack.back().falseBB, cur_block_of_cur_fun);
     cur_block_of_cur_fun=true_BB;
     node.rhs->accept(*this);
 }
@@ -650,7 +664,6 @@ void IRGen::visit(ast::ORExp &node){
                 cond_val =FCmpInst::createFCmp(CmpOp::NE,tmp_val, CONST_FP(0),cur_block_of_cur_fun,module.get());
             }
         }
-
 
     BranchInst::createCondBr(cond_val, IF_WHILE_Cond_Stack.back().trueBB, false_BB,cur_block_of_cur_fun);
     cur_block_of_cur_fun=false_BB;
