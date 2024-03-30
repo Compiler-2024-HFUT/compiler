@@ -1120,6 +1120,7 @@ void IRGen::visit(ast::WhileStmt &node){
     }
 
     BranchInst::createCondBr(inst_cmp, iter_bb, next_bb, cur_block_of_cur_fun);
+    cur_block_of_cur_fun = iter_bb;
     cur_basic_block_list.push_back(iter_bb);
     if(dynamic_cast<ast::BlockStmt*>(node.loop_stmt.get())) node.loop_stmt->accept(*this);
     else{
@@ -1168,7 +1169,7 @@ void IRGen::visit(ast::CallExpr &node) {
             else if(param_type->isIntegerType() && tmp_val->getType()->isFloatType()){
                 auto tmp_val_const_float = dynamic_cast<ConstantFP*>(tmp_val);
                 if(tmp_val_const_float != nullptr){
-                    tmp_val = ConstantInt::get( float(tmp_val_const_float->getValue()));
+                    tmp_val = ConstantInt::get( int(tmp_val_const_float->getValue()));
                 }
                 else{
                     FpToSiInst::createFpToSi(tmp_val, FLOAT_T, cur_block_of_cur_fun);

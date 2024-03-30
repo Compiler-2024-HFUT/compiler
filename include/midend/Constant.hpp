@@ -17,7 +17,7 @@ private:
 class ConstantInt : public Constant {
 public:
     static ConstantInt *get(int val, Module *m = global_m_ptr);
-    static ConstantInt *get(bool val, Module *m);
+    static ConstantInt *get(bool val, Module *m=global_m_ptr);
 
     static int &getValue(ConstantInt *const_val) { return const_val->val_; }
     int &getValue() { return val_; }
