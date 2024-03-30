@@ -74,6 +74,8 @@ void IRGen::visit(ast::FuncDef &node) {
             scope.push(node.func_f_params[i]->name, alloc_array);
             array_bounds.clear();
 
+            // array_bounds = {1, array_dimensions_list, 1}
+            array_bounds.push_back(1);
             for(auto &bound_expr : node.func_f_params[i]->index_num) {
                 if(bound_expr == nullptr) {
                     array_bounds.push_back(1);
@@ -87,8 +89,14 @@ void IRGen::visit(ast::FuncDef &node) {
                     total_size *= bound->getValue();
                 }
             }
+            array_bounds.push_back(1);
 
-            scope.pushSize(node.func_f_params[i]->name, array_bounds);
+            std::list<int> array_sizes_l = {1};
+            for(auto iter_r = array_bounds.rbegin()+1; iter_r != array_bounds.rend()-1; iter_r++){
+                array_sizes_l.push_front(array_sizes_l.front() * *iter_r);
+            }
+            std::vector<int> array_sizes = std::vector<int>(array_sizes_l.begin(), array_sizes_l.end());
+            scope.pushSize(node.func_f_params[i]->name, array_sizes);
         }
     }
 
