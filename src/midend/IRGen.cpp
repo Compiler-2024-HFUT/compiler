@@ -980,26 +980,8 @@ void IRGen::visit(ast::LvalExpr &node){
         std::vector<Value*> var_indexs;
         Value *var_index = nullptr;
         int index_const = 0;
-        bool const_check = true;
         auto const_array = scope.findConst(node.name);
-        if(const_array == nullptr) 
-            const_check = false;
-        for(int i = 0; i < node.index_num.size(); ++i) {
-            node.index_num[i]->accept(*this);
-            var_indexs.push_back(tmp_val);
-            if(const_check == true) {
-                auto tmp_const = dynamic_cast<ConstantInt*>(tmp_val);
-                if(tmp_const == nullptr) {
-                    const_check = false;
-                } else {
-                    index_const = size[i+1] * tmp_const->getValue() + index_const;
-                }
-            }
-        }
-        if(should_return_lvalue == false && const_check == true) {
-            ConstantInt *tmp_const = dynamic_cast<ConstantInt*>(const_array->getElementValue(index_const));
-            tmp_val = CONST_INT(tmp_const->getValue());
-        } else {
+        {
             /*
             int x[30][20][10] ;
             {6000,200,10,1}
@@ -1024,6 +1006,10 @@ void IRGen::visit(ast::LvalExpr &node){
                     else
                         var_index=BinaryInst::createAdd(var_index, one_index,cur_block_of_cur_fun,module.get());
                 }
+            }
+            if(const_array!=nullptr&&dynamic_cast<ConstantInt*>(var_index)){
+                tmp_val=const_array->getElementValue(dynamic_cast<ConstantInt*>(var_index)->getValue());
+                return ;
             }
             if(var->getType()->getPointerElementType()->isPointerType()) {
                 auto tmp_load = LoadInst::createLoad(var->getType()->getPointerElementType(),var,cur_block_of_cur_fun);
