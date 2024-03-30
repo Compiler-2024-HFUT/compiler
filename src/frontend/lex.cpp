@@ -44,6 +44,10 @@ enum::tokenType Token::lookupIdent(){
         ret=tokenType::DEFFLOAT;
     }else if(literal=="void"){
         ret=tokenType::VOID;
+    }else if(literal=="break"){
+        ret=tokenType::BREAK;
+    }else if(literal=="continue"){
+        ret=tokenType::CONTINUE;
     }
     else ret=tokenType::IDENT;
     return ret;

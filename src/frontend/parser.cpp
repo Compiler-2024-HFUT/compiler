@@ -121,8 +121,12 @@ std::unique_ptr<ast::Statement> Parser::parserStmts(){
         ret=parserBlock();
     }else if(curTokIs(tokenType::CONTINUE)){
         ret=make_unique<ast::ContinueStmt>(curTok->tok_pos);
+        nextToken();
+        skipIfCurIs(tokenType::SEMICOLON);
     }else if(curTokIs(tokenType::BREAK)){
         ret=make_unique<ast::BreakStmt>(curTok->tok_pos);
+        nextToken();
+        skipIfCurIs(tokenType::SEMICOLON);
     }else if(curTokIs(tokenType::SEMICOLON)){
         ret=make_unique<ast::EmptyStmt>(curTok->tok_pos);
         nextToken();
