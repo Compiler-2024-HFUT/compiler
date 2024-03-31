@@ -304,13 +304,13 @@ void IRGen::visit(ast::ArrDefStmt &node) {
     init_val.clear();
     init_val_map.clear();
 
-    // for(int i=0; i<arr_total_size; i++){
-    //     if(cur_type == INT32_T){
-    //         init_val.push_back( CONST_INT(0) );
-    //     }else{
-    //         init_val.push_back( CONST_FP(0.0) );
-    //     }
-    // }
+    for(int i=0; i<arr_total_size; i++){
+        if(cur_type == INT32_T){
+            init_val.push_back( CONST_INT(0) );
+        }else{
+            init_val.push_back( CONST_FP(0.0) );
+        }
+    }
 
     // set all element in array to 0
     // add memset(array, array_len)
@@ -394,13 +394,13 @@ void IRGen::visit(ast::ConstArrDefStmt &node) {
     init_val.clear();
     init_val_map.clear();
 
-    // for(int i=0; i<arr_total_size; i++){
-    //     if(cur_type == INT32_T){
-    //         init_val.push_back( CONST_INT(0) );
-    //     }else{
-    //         init_val.push_back( CONST_FP(0.0) );
-    //     }
-    // }
+    for(int i=0; i<arr_total_size; i++){
+        if(cur_type == INT32_T){
+            init_val.push_back( CONST_INT(0) );
+        }else{
+            init_val.push_back( CONST_FP(0.0) );
+        }
+    }
 
     // set all element in array to 0
     // add memset(array, array_len)
@@ -498,11 +498,12 @@ void IRGen::visit(ast::InitializerExpr &node) {
 
         if(cur_type == INT32_T && tmp_float_val != nullptr){
             tmp_val = CONST_INT( int(tmp_float_val->getValue()) );
-            init_val[cur_pos] = dynamic_cast<Constant *>(tmp_val);
         }else if(cur_type == FLOAT_T && tmp_int32_val != nullptr){
             tmp_val = CONST_FP( float(tmp_int32_val->getValue()) );
-            init_val[cur_pos] = dynamic_cast<Constant *>(tmp_val);
         }
+
+        if(scope.inGlobal())
+            init_val[cur_pos] = dynamic_cast<Constant *>(tmp_val);
 
         // tmp_val is const and var
         init_val_map[cur_pos] = tmp_val;
