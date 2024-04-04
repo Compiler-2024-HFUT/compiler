@@ -1,17 +1,7 @@
 #!/bin/sh 
-f=$(ls testcase/*.sy)
-names=""
-
-#get name
-for file in $f
-do
-    name=(${file//./ })
-    names="$names  $name"
-done
-
-#run
-for name in $names
-do
+#the argv1 only need filename don't add path before filename
+    name=(${1//./ })
+    name=testcase/$name
     source="$name.sy"
     ../build/linux/x86_64/debug/irtest "`pwd`/$source" > "$name.ll"
     llvm-as "$name.ll" -o "$name.tmp.bc"
@@ -28,4 +18,3 @@ do
     ret=$?
     rm "`pwd`/$name.bc" "`pwd`/$name.output"
     echo $ret
-done
