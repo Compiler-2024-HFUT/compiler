@@ -54,9 +54,10 @@ void IRGen::visit(ast::FuncDef &node) {
     for(auto iter = fun->argBegin(); iter != fun->argEnd(); ++iter)
         args.push_back( *iter );
 
+    scope.enter();
     // need alloc var for func
     if(args.size() != 0 && ret_type != VOID_T){
-        scope.enter();
+
         from_func = true;
     }
     
@@ -132,6 +133,7 @@ void IRGen::visit(ast::FuncDef &node) {
       auto ret_val = LoadInst::createLoad(ret_type, ret_addr, ret_BB);
       ReturnInst::createRet(ret_val, ret_BB);
     }
+    scope.exit();
 }
 
 void IRGen::visit(ast::FuncFParam &node) {
@@ -1191,6 +1193,7 @@ void IRGen::visit(ast::CallExpr &node) {
 
 }
 void IRGen::visit(ast::RetStmt &node) {
+    require_lvalue=true;
     if(node.expr != nullptr){   //有返回值
         node.expr->accept(*this);
         //int
