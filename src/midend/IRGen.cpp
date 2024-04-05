@@ -321,6 +321,10 @@ void IRGen::visit(ast::ArrDefStmt &node) {
         node.initializers->accept(*this);
     }
 
+    for(auto i:init_val_map){
+        init_val.push_back((Constant*)i.second);
+    }
+
     if(scope.inGlobal()) {
         if(init_val_map.size() == 0){
             // only print zeroinitializer
@@ -409,6 +413,10 @@ void IRGen::visit(ast::ConstArrDefStmt &node) {
 
     if(node.initializers) {
         node.initializers->accept(*this);
+    }
+
+    for(auto i:init_val_map){
+        init_val.push_back((Constant*)i.second);
     }
 
     // how to check const, method using below is so bad!!
