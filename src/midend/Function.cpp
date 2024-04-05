@@ -58,16 +58,32 @@ void Function::setInstrName() {
         auto bb = bb1;
         if (seq.find(bb) == seq.end()) {
             auto seq_num = seq.size() + seq_cnt_;
-            if (bb->setName("label" + std::to_string(seq_num))) {
+            #ifdef DEBUG
+                std::string f_name=this->getName();
+            if (bb->setName(f_name+"_label_" + std::to_string(seq_num))) {
                 seq.insert({bb, seq_num});
             }
+            #else
+                if (bb->setName("label" + std::to_string(seq_num))) {
+                    seq.insert({bb, seq_num});
+                }
+            #endif
+
         }
         for (auto &instr : bb->getInstructions()) {
             if (!instr->isVoid() && seq.find(instr) == seq.end()) {
                 auto seq_num = seq.size() + seq_cnt_;
+                #ifdef DEBUG
+                std::string f_name=this->getName();
+                    if (instr->setName(f_name+"_op_" + std::to_string(seq_num))) {
+                        seq.insert({instr, seq_num});
+                    }
+                #else
                 if (instr->setName("op" + std::to_string(seq_num))) {
                     seq.insert({instr, seq_num});
                 }
+                #endif
+
             }
         }
     }

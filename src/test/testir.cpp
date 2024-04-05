@@ -1,4 +1,6 @@
 #include "frontend/parser.hpp"
+#include <fstream>
+#include <ios>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -13,12 +15,29 @@ int main(int argc , char**argv){
     }
     Parser *p=new Parser(argv[1]);
     p->parserComp();
-    // p->comp->print();
     IRBuilder::IRGen irgen;
     p->comp->accept(irgen);
-    
+    auto m=irgen.getModule();
+ 
+    // string str_out=argv[1];
+    // str_out=str_out+".ll";
+    // fstream os;
+    // os.open(str_out,ios_base::out);
+ 
     cout << irgen.getModule()->print();
 
+    // auto fs=m->getFunctions();
+    // for(auto f:fs){
+    //     f->setInstrName();
+    //     // cout<<f->getName()<<endl;
+    //     for(auto bb:f->getBasicBlocks()){
+    //         cout<<"cur: "<<bb->getName()<<" sb::";
+    //         for(auto sb:bb->getSuccBasicBlocks()){
+    //             cout<<sb->getName();
+    //         }
+    //         cout<<endl;
+    //     }
+    // }
     delete (p);
 
 }

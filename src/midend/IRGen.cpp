@@ -644,10 +644,9 @@ void IRGen::visit(ast::AndExp &node) {
 }
 void IRGen::visit(ast::ORExp &node){
     require_lvalue = false;
+    auto true_BB = BasicBlock::create(module.get(), "", cur_fun);
     auto false_BB = BasicBlock::create(module.get(), "", cur_fun);
-    IF_WHILE_Cond_Stack.push_back({IF_WHILE_Cond_Stack.back().trueBB, false_BB});
     node.lhs->accept(*this);
-    IF_WHILE_Cond_Stack.pop_back();
         
         Value *cond_val;
         if(tmp_val->getType() == INT1_T) {
@@ -657,7 +656,7 @@ void IRGen::visit(ast::ORExp &node){
             if(const_tmp_val) {
                 cond_val = CONST_INT(const_tmp_val->getValue() != 0);
             } else {
-                CmpInst::createCmp(CmpOp::NE,tmp_val, CONST_INT(0),cur_block_of_cur_fun,module.get());
+                cond_val=CmpInst::createCmp(CmpOp::NE,tmp_val, CONST_INT(0),cur_block_of_cur_fun,module.get());
             }
         } else if(tmp_val->getType() == FLOAT_T) {
             auto const_tmp_val = dynamic_cast<ConstantFP*>(tmp_val);
@@ -668,9 +667,31 @@ void IRGen::visit(ast::ORExp &node){
             }
         }
 
-    BranchInst::createCondBr(cond_val, IF_WHILE_Cond_Stack.back().trueBB, false_BB,cur_block_of_cur_fun);
+    BranchInst::createCondBr(cond_val, true_BB, false_BB, cur_block_of_cur_fun);
     cur_block_of_cur_fun=false_BB;
     node.rhs->accept(*this);
+    auto false1_BB = BasicBlock::create(module.get(), "", cur_fun);
+    IF_WHILE_Cond_Stack.push_back({true_BB,false1_BB});
+        
+        if(tmp_val->getType() == INT1_T) {
+            cond_val = tmp_val;
+        } else if(tmp_val->getType() == INT32_T) {
+            auto const_tmp_val = dynamic_cast<ConstantInt*>(tmp_val);
+            if(const_tmp_val) {
+                cond_val = CONST_INT(const_tmp_val->getValue() != 0);
+            } else {
+                cond_val=CmpInst::createCmp(CmpOp::NE,tmp_val, CONST_INT(0),cur_block_of_cur_fun,module.get());
+            }
+        } else if(tmp_val->getType() == FLOAT_T) {
+            auto const_tmp_val = dynamic_cast<ConstantFP*>(tmp_val);
+            if(const_tmp_val) {
+                cond_val = CONST_INT(const_tmp_val->getValue() != 0);
+            } else {
+                cond_val =FCmpInst::createFCmp(CmpOp::NE,tmp_val, CONST_FP(0),cur_block_of_cur_fun,module.get());
+            }
+        }
+    // BranchInst::createCondBr(cond_val, true_BB, false1_BB, cur_block_of_cur_fun);
+    // cur_block_of_cur_fun=true_BB
 }
 void IRGen::visit(ast::BinopExpr &node) {
     require_lvalue = false;
@@ -1040,8 +1061,23 @@ void IRGen::visit(ast::IfStmt &node) {
     }
 
    // is_init_val = false;
+   int size=IF_WHILE_Cond_Stack.size();
     node.pred->accept(*this);
+
+    if(size<IF_WHILE_Cond_Stack.size()){
+        true_bb->eraseFromParent();
+        true_bb=IF_WHILE_Cond_Stack.back().trueBB;
+        if(node.else_stmt == nullptr){
+            next_bb->eraseFromParent();
+            next_bb = IF_WHILE_Cond_Stack.back().falseBB;
+        }else{
+            false_bb->eraseFromParent();
+            false_bb = IF_WHILE_Cond_Stack.back().falseBB;
+        }
+        IF_WHILE_Cond_Stack.pop_back();
+    }
     // tmp_val=CmpInst::createCmp(CmpOp::NE,CONST_INT(0),tmp_val,cur_block_of_cur_fun);
+
     IF_WHILE_Cond_Stack.pop_back();
 
     //生成比较指令
@@ -1114,7 +1150,16 @@ void IRGen::visit(ast::WhileStmt &node){
     cur_basic_block_list.pop_back();
     cur_block_of_cur_fun = pred_bb;
     IF_WHILE_Cond_Stack.push_back({iter_bb, next_bb});
+    int size=IF_WHILE_Cond_Stack.size();
     node.pred->accept(*this);
+    if(size<IF_WHILE_Cond_Stack.size()){
+        iter_bb->eraseFromParent();
+        next_bb->eraseFromParent();
+        iter_bb=IF_WHILE_Cond_Stack.back().trueBB;
+        next_bb=IF_WHILE_Cond_Stack.back().falseBB;
+
+        IF_WHILE_Cond_Stack.pop_back();
+    }
     IF_WHILE_Cond_Stack.pop_back();
     Value * inst_cmp;
     if(tmp_val->getType()==INT1_T)  inst_cmp = tmp_val;
@@ -1193,7 +1238,7 @@ void IRGen::visit(ast::CallExpr &node) {
 
 }
 void IRGen::visit(ast::RetStmt &node) {
-    require_lvalue=true;
+    require_lvalue=false;
     if(node.expr != nullptr){   //有返回值
         node.expr->accept(*this);
         //int
