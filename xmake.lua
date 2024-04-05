@@ -1,5 +1,8 @@
 add_rules("mode.debug", "mode.release")
-
+if is_mode("debug")
+then 
+    add_defines("DEBUG")
+end 
 -- target("Sysy2023")
     -- set_kind("binary")
     -- add_files("src/*.cpp")

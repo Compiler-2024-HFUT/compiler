@@ -231,7 +231,7 @@ void Lexer::skipOther(){
             while(this->ch!='\n'){ 
                 readChar();
                 if(this->ch==0){
-                    cout<<11<<endl;
+                    // cout<<11<<endl;
                 break;
             }
             }
@@ -250,7 +250,7 @@ void Lexer::skipOther(){
                 }
                 readChar();
                 if(this->ch==0){
-                    cout<<11<<endl;
+                    // cout<<11<<endl;
                     break;
                 }
             }
