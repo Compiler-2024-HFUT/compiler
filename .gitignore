@@ -8,4 +8,8 @@ build/
 # MacOS Cache
 .DS_Store
 
+*.sy
+*.ll
+*.bc
 .vscode/
+testcase/
