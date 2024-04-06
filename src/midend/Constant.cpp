@@ -85,7 +85,7 @@ std::string ConstantArray::print() {
     const_ir += this->getType()->getArrayElementType()->print();
     const_ir += " ";
     const_ir += getElementValue(0)->print();
-    for ( int i = 0 ; i < this->getSizeOfArray() ; i++ ){
+    for ( int i = 1 ; i < this->getSizeOfArray() ; i++ ){
         const_ir += ", ";
         const_ir += this->getType()->getArrayElementType()->print();
         const_ir += " ";
