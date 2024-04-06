@@ -8,13 +8,16 @@ Module* global_m_ptr;
 
 #define LOG(msg) assert(0 && msg);
 
-
 using namespace IRBuilder;
 
 void IRGen::visit(ast::CompunitNode &node) {
+    global_init_block = BasicBlock::create( module.get(), "init", dynamic_cast<Function*>(scope.findFunc("global_var_init")) );
+
     for (auto &decl : node.global_defs) {
         decl->accept(*this);
     }
+
+    ReturnInst::createVoidRet(global_init_block);
 }
 
 void IRGen::visit(ast::FuncDef &node) {
@@ -44,11 +47,24 @@ void IRGen::visit(ast::FuncDef &node) {
     scope.pushFunc(node.name, fun);
     cur_fun = fun;
     
-    // create entry block, which alloc params
-    auto entryBB = BasicBlock::create(module.get(), "entry", fun);
-    cur_block_of_cur_fun = entryBB;
-    cur_basic_block_list.push_back(entryBB);
-    
+    // call global_init in main func
+    if(node.name == "main"){
+        auto globalVarInitBB = BasicBlock::create(module.get(), "global_init", fun);
+        CallInst::createCall( dynamic_cast<Function*>(scope.findFunc("global_var_init")), {}, globalVarInitBB);
+        
+        // create entry block, which alloc params
+        auto entryBB = BasicBlock::create(module.get(), "entry", fun);
+        cur_block_of_cur_fun = entryBB;
+        cur_basic_block_list.push_back(entryBB);
+
+        BranchInst::createBr(entryBB, globalVarInitBB);
+    }else{
+        // create entry block, which alloc params
+        auto entryBB = BasicBlock::create(module.get(), "entry", fun);
+        cur_block_of_cur_fun = entryBB;
+        cur_basic_block_list.push_back(entryBB);
+    }
+
     // alloc params, it should be in vist funcParams!!!!!
     vector<Value *> args;
     for(auto iter = fun->argBegin(); iter != fun->argEnd(); ++iter)
@@ -272,6 +288,7 @@ void IRGen::visit(ast::ConstDefStmt &node){
 // for scope, any array can have more than one dimensions
 // for ir   , any array only has one dimension
 void IRGen::visit(ast::ArrDefStmt &node) {
+    is_init_const_array = false;
     arr_total_size = 1;
     ArrayType * array_type;
 
@@ -303,66 +320,56 @@ void IRGen::visit(ast::ArrDefStmt &node) {
     cur_depth = 0;
     cur_pos = 0;
     array_pos.clear();
-    init_val.clear();
     init_val_map.clear();
 
-    for(int i=0; i<arr_total_size; i++){
-        if(cur_type == INT32_T){
-            init_val.push_back( CONST_INT(0) );
-        }else{
-            init_val.push_back( CONST_FP(0.0) );
-        }
-    }
-
-    // set all element in array to 0
-    // add memset(array, array_len)
-
-    if(node.initializers) {
-        node.initializers->accept(*this);
-    }
+    // default initializer zero is stored in -1
+    init_val_map[-1] = (cur_type == INT32_T) ? dynamic_cast<Constant*>( CONST_INT(0) )  : dynamic_cast<Constant*>( CONST_FP(0.0) );
 
     if(scope.inGlobal()) {
-        if(init_val_map.size() == 0){
-            // only print zeroinitializer
-            auto initializer = ConstantZero::get(array_type, module.get());
-            auto var = GlobalVariable::create(node.name, module.get(), array_type, false, initializer);
-            scope.push(node.name, var);
-            scope.pushSize(node.name, array_sizes);
-        }else{
-            // print all elements
-            auto initializer = ConstantArray::get(array_type, init_val);
-            auto var = GlobalVariable::create(node.name, module.get(), array_type, false, initializer);
-            scope.push(node.name, var);
-            scope.pushSize(node.name, array_sizes);
+        // zeroinitializer, global array is inited in global_var_init
+        auto initializer = ConstantZero::get(array_type, module.get());
+        auto var = GlobalVariable::create(node.name, module.get(), array_type, false, initializer);
+        scope.push(node.name, var);
+        scope.pushSize(node.name, array_sizes);
+
+        BasicBlock *tmp_block = cur_block_of_cur_fun;
+        cur_block_of_cur_fun = global_init_block;
+
+        if(node.initializers) {
+            node.initializers->accept(*this);
         }
-    } else {
-        auto var = AllocaInst::createAlloca(array_type, cur_block_of_cur_fun);
-        
+
         for(auto [offset, value] : init_val_map){
+            if(offset == -1)    continue;
             auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(offset)}, cur_block_of_cur_fun);
             StoreInst::createStore(value, elem_addr, cur_block_of_cur_fun);
         }
 
-        // if(init_val_map.size() != 0) {
-        //     for(int i = 0; i < arr_total_size; i++) {
-        //         auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(i)}, cur_block_of_cur_fun);
-        //         if(init_val_map[i]) {
-        //             StoreInst::createStore(init_val_map[i], elem_addr, cur_block_of_cur_fun);
-        //         } else {
-        //             if (cur_type == INT32_T) {
-        //                 StoreInst::createStore(CONST_INT(0), elem_addr, cur_block_of_cur_fun);
-        //             } else {
-        //                 StoreInst::createStore(CONST_FP(0), elem_addr, cur_block_of_cur_fun);
-        //             }
-        //         }
-        //     } 
-        // }
+        cur_block_of_cur_fun = tmp_block;
+    } else {
+        auto var = AllocaInst::createAlloca(array_type, cur_block_of_cur_fun);
+        
+        auto memsetFunc = (cur_type == INT32_T) ? scope.findFunc("memset_i") : scope.findFunc("memset_f");
+        auto arr_addr = GetElementPtrInst::createGep(var, { CONST_INT(0), CONST_INT(0) }, cur_block_of_cur_fun);
+        CallInst::createCall(dynamic_cast<Function*>(memsetFunc), {arr_addr, CONST_INT( arr_total_size )}, cur_block_of_cur_fun);
+
+        if(node.initializers) {
+            node.initializers->accept(*this);
+        }
+
+        for(auto [offset, value] : init_val_map){
+            if(offset == -1)    continue;
+            auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(offset)}, cur_block_of_cur_fun);
+            StoreInst::createStore(value, elem_addr, cur_block_of_cur_fun);
+        }
+
         scope.push(node.name, var);
         scope.pushSize(node.name, array_sizes);
     }
 }
 
 void IRGen::visit(ast::ConstArrDefStmt &node) {
+    is_init_const_array = true;
     arr_total_size = 1;
     ArrayType * array_type;
 
@@ -393,40 +400,24 @@ void IRGen::visit(ast::ConstArrDefStmt &node) {
     cur_depth = 0;
     cur_pos = 0;
     array_pos.clear();
-    init_val.clear();
     init_val_map.clear();
 
-    for(int i=0; i<arr_total_size; i++){
-        if(cur_type == INT32_T){
-            init_val.push_back( CONST_INT(0) );
-        }else{
-            init_val.push_back( CONST_FP(0.0) );
-        }
-    }
-
-    // set all element in array to 0
-    // add memset(array, array_len)
+    // default initializer zero is stored in -1
+    init_val_map[-1] = (cur_type == INT32_T) ? dynamic_cast<Constant*>( CONST_INT(0) )  : dynamic_cast<Constant*>( CONST_FP(0.0) );
 
     if(node.initializers) {
         node.initializers->accept(*this);
     }
 
-    // how to check const, method using below is so bad!!
-    for(auto [index, val]: init_val_map){
-        if(dynamic_cast<Constant *>(val) == nullptr){
-            LOG( "const array using a no const to init!" );
-        }
-    }
-
     if(scope.inGlobal()) {
-        if(init_val_map.size() == 0){
+        if(init_val_map.size() == 1){
             auto initializer = ConstantZero::get(array_type, module.get());
             auto var = GlobalVariable::create(node.name, module.get(), array_type, false, initializer);
             scope.push(node.name, var);
             scope.pushSize(node.name, array_sizes);
-            scope.pushConst(node.name, ConstantArray::get(array_type, init_val));
+            scope.pushConst(node.name, ConstantArray::get(array_type, init_val_map, arr_total_size));
         }else{
-            auto initializer = ConstantArray::get(array_type, init_val);
+            auto initializer = ConstantArray::get(array_type, init_val_map, arr_total_size);
             auto var = GlobalVariable::create(node.name, module.get(), array_type, false, initializer);
             scope.push(node.name, var);
             scope.pushSize(node.name, array_sizes);
@@ -435,28 +426,19 @@ void IRGen::visit(ast::ConstArrDefStmt &node) {
     } else {
         auto var = AllocaInst::createAlloca(array_type, cur_block_of_cur_fun);
         
+        auto memsetFunc = (cur_type == INT32_T) ? scope.findFunc("memset_i") : scope.findFunc("memset_f");
+        auto arr_addr = GetElementPtrInst::createGep(var, { CONST_INT(0), CONST_INT(0) }, cur_block_of_cur_fun);
+        CallInst::createCall(dynamic_cast<Function*>(memsetFunc), {arr_addr, CONST_INT( arr_total_size )}, cur_block_of_cur_fun);
+
         for(auto [offset, value] : init_val_map){
+            if(offset == -1)    continue;
             auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(offset)}, cur_block_of_cur_fun);
             StoreInst::createStore(value, elem_addr, cur_block_of_cur_fun);
         }
 
-        // if(init_val_map.size() != 0) {
-        //     for(int i = 0; i < arr_total_size; i++) {
-        //         auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(i)}, cur_block_of_cur_fun);
-        //         if(init_val_map[i]) {
-        //             StoreInst::createStore(init_val_map[i], elem_addr, cur_block_of_cur_fun);
-        //         } else {
-        //             if (cur_type == INT32_T) {
-        //                 StoreInst::createStore(CONST_INT(0), elem_addr, cur_block_of_cur_fun);
-        //             } else {
-        //                 StoreInst::createStore(CONST_FP(0), elem_addr, cur_block_of_cur_fun);
-        //             }
-        //         }
-        //     } 
-        // }
         scope.push(node.name, var);
         scope.pushSize(node.name, array_sizes);
-        scope.pushConst(node.name, ConstantArray::get(array_type, init_val));
+        scope.pushConst(node.name, ConstantArray::get(array_type, init_val_map, arr_total_size));
     }
 }
 
@@ -498,20 +480,33 @@ void IRGen::visit(ast::InitializerExpr &node) {
         auto tmp_int32_val = dynamic_cast<ConstantInt*>(tmp_val);
         auto tmp_float_val = dynamic_cast<ConstantFP*>(tmp_val);
 
-        if(cur_type == INT32_T && tmp_float_val != nullptr){
-            tmp_val = CONST_INT( int(tmp_float_val->getValue()) );
-        }else if(cur_type == FLOAT_T && tmp_int32_val != nullptr){
-            tmp_val = CONST_FP( float(tmp_int32_val->getValue()) );
+        // init value is a var
+        if(tmp_int32_val == nullptr && tmp_float_val == nullptr){
+            // const array check
+            if(is_init_const_array){
+                LOG( "const array using a no const to init!" );
+            }
+
+            if(cur_type == INT32_T && tmp_val->getType() == FLOAT_T){
+                LOG( "float var can't init int array!" );
+            }else if(cur_type == FLOAT_T && tmp_val->getType() == INT32_T){
+                LOG( "int var can't init float array!" );
+            }
+
+        // init value is a const
+        }else{
+            if(cur_type == INT32_T && tmp_float_val != nullptr){
+                LOG( "float const can't init int array!" );
+            }else if(cur_type == FLOAT_T && tmp_int32_val != nullptr){
+                tmp_val = CONST_FP( float(tmp_int32_val->getValue()) );
+            }
         }
 
-        if(scope.inGlobal())
-            init_val[cur_pos] = dynamic_cast<Constant *>(tmp_val);
-
-        // tmp_val is const and var
+        // tmp_val is const or var
         init_val_map[cur_pos] = tmp_val;
         cur_pos++;
     }
-    cur_pos = array_pos.back().first + array_pos.back().second;
+    if(cur_depth != 1)  cur_pos = array_pos.back().first + array_pos.back().second;
     cur_depth--;
 }
 
@@ -1399,6 +1394,34 @@ IRGen::IRGen() {
                 "_sysy_stoptime",
                 module.get());
 
+    std::vector<Type *>().swap(input_params);
+    input_params.push_back(INT32PTR_T);
+    input_params.push_back(INT32_T);
+    auto mem_type_i = FunctionType::get(VOID_T, input_params);
+    auto memset_i =
+        Function::create(
+                mem_type_i,
+                "memset_i",
+                module.get());
+
+    std::vector<Type *>().swap(input_params);
+    input_params.push_back(FLOATPTR_T);
+    input_params.push_back(INT32_T);
+    auto mem_type_f = FunctionType::get(VOID_T, input_params);
+    auto memset_f =
+        Function::create(
+                mem_type_f,
+                "memset_f",
+                module.get());
+
+    std::vector<Type *>().swap(input_params);
+    auto gvi_type = FunctionType::get(VOID_T, input_params);
+    auto global_var_init =
+        Function::create(
+                gvi_type,
+                "global_var_init",
+                module.get());
+
     scope.enter();
     scope.pushFunc("getint", get_int);
     scope.pushFunc("getfloat", get_float);
@@ -1412,5 +1435,8 @@ IRGen::IRGen() {
     scope.pushFunc("putfarray", put_farray);
     scope.pushFunc("starttime", start_time);
     scope.pushFunc("stoptime", stop_time);
-    
+
+    scope.pushFunc("memset_i", memset_i);
+    scope.pushFunc("memset_f", memset_f);
+    scope.pushFunc("global_var_init", global_var_init);
 }

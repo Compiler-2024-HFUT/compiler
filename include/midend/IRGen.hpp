@@ -51,13 +51,10 @@ static Function *cur_fun = nullptr;    //& function that is being built
 static BasicBlock *entry_block_of_cur_fun;
 static BasicBlock *cur_block_of_cur_fun;   //& used for add instruction 
 
-// when use const as init_val, assign true
-// when use const as expr_val, assign false
-// static bool is_init_val = false;
+static bool has_global_init;
+static BasicBlock *global_init_block;
 
-// when defining an array, assign true , in the entry of visit_defarr
-//                 if not, assign false, in the entry of visit_defvar
-// static bool is_init_array = false;
+static bool is_init_const_array = false;
 static int arr_total_size = 1;
 static std::vector<int> array_bounds;
 // static std::vector<int> array_sizes;

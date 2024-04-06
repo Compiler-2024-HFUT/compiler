@@ -64,14 +64,19 @@ std::string ConstantZero::print() {
 }
 
 //& ConstantArray
-ConstantArray::ConstantArray(ArrayType *ty, const std::vector<Constant *> &val) : Constant(ty, "", val.size()) {
-    for (int i = 0; i < val.size(); i++)
-        setOperand(i, val[i]);
-    this->const_array_.assign(val.begin(), val.end());
+ConstantArray::ConstantArray(ArrayType *ty, const std::map<int, Value *>&vals, unsigned int size) : Constant(ty, "", size) {
+    for (int i = 0; i < size; i++){
+        if(vals.find(i) != vals.end())
+            setOperand(i, vals.find(i)->second);
+        else
+            setOperand(i, vals.find(-1)->second);
+    }
+    array_size = size;
+    this->init_val_map = vals;
 }
 
-ConstantArray *ConstantArray::get(ArrayType *ty, const std::vector<Constant *> &val) {
-    return new ConstantArray(ty, val);
+ConstantArray *ConstantArray::get(ArrayType *ty, const std::map<int, Value *>&vals_map, unsigned int size) {
+    return new ConstantArray(ty, vals_map, size);
 }
 
 std::string ConstantArray::print() {
@@ -80,7 +85,7 @@ std::string ConstantArray::print() {
     const_ir += this->getType()->getArrayElementType()->print();
     const_ir += " ";
     const_ir += getElementValue(0)->print();
-    for ( int i = 1 ; i < this->getSizeOfArray() ; i++ ){
+    for ( int i = 0 ; i < this->getSizeOfArray() ; i++ ){
         const_ir += ", ";
         const_ir += this->getType()->getArrayElementType()->print();
         const_ir += " ";

@@ -1,6 +1,8 @@
 #ifndef CONSTANT_HPP
 #define CONSTANT_HPP
 
+#include <map>
+
 #include "User.hpp"
 #include "Value.hpp"
 #include "Type.hpp"
@@ -63,18 +65,24 @@ class ConstantArray : public Constant {
 public:
     ~ConstantArray() = default;
 
-    static ConstantArray *get(ArrayType *ty, const std::vector<Constant *>&vals);
+    static ConstantArray *get(ArrayType *ty, const std::map<int, Value *>&vals_map, unsigned int size);
 
-    Constant *getElementValue(int index) { return const_array_[index]; };
+    Constant *getElementValue(int index) { 
+        if(init_val_map[index]){
+            return dynamic_cast<Constant*>(init_val_map[index]);
+        }
+        return dynamic_cast<Constant*>(init_val_map[-1]);
+    };
 
-    unsigned getSizeOfArray() { return const_array_.size(); }
+    unsigned getSizeOfArray() { return array_size; }
 
     virtual std::string print() override;
 private:
-    ConstantArray(ArrayType *ty, const std::vector<Constant *>&vals);
+    ConstantArray(ArrayType *ty, const std::map<int, Value *>&vals, unsigned int size);
 
 private:
-    std::vector<Constant *> const_array_;
+    std::map<int, Value *> init_val_map;
+    int array_size;
 };
 
 #endif
