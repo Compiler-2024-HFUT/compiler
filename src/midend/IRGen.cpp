@@ -575,11 +575,14 @@ void IRGen::visit(ast::UnaryExpr &node) {
             if(tmp_val->getType()->isFloatType()){
                 Value* lhs = CONST_FP(0);
                 Value* rhs = tmp_val;
-                BinaryInst::createFSub(lhs, rhs, cur_block_of_cur_fun);
+                tmp_val=BinaryInst::createFSub(lhs, rhs, cur_block_of_cur_fun);
             }else{
+                if(tmp_val->getType()==INT1_T){
+                    tmp_val= ZextInst::createZext(tmp_val, INT32_T,cur_block_of_cur_fun);
+                }
                 Value* lhs = CONST_INT(0);
                 Value* rhs = tmp_val;
-                BinaryInst::createSub(lhs, rhs, cur_block_of_cur_fun);    
+                tmp_val=BinaryInst::createSub(lhs, rhs, cur_block_of_cur_fun);    
             }
             break;
         case::ast::UnOp::NOT:{
@@ -594,11 +597,11 @@ void IRGen::visit(ast::UnaryExpr &node) {
                     if(tmp_val->getType()->isFloatType()) {
                         Value* lhs = tmp_val;
                         Value* rhs = CONST_FP(0);
-                        FCmpInst::createFCmp(CmpOp::EQ,lhs, rhs,cur_block_of_cur_fun,module.get());
+                        tmp_val=FCmpInst::createFCmp(CmpOp::EQ,lhs, rhs,cur_block_of_cur_fun,module.get());
                     } else {
                         Value* lhs = tmp_val;
                         Value* rhs = CONST_INT(0);
-                        CmpInst::createCmp(CmpOp::EQ,lhs, rhs,cur_block_of_cur_fun,module.get());
+                        tmp_val=CmpInst::createCmp(CmpOp::EQ,lhs, rhs,cur_block_of_cur_fun,module.get());
                     }
                 }
             }
@@ -643,11 +646,8 @@ void IRGen::visit(ast::AndExp &node) {
     node.rhs->accept(*this);
 }
 void IRGen::visit(ast::ORExp &node){
-    if(IF_WHILE_Cond_Stack.size()>1){
-        exit(209);
-    }
     BasicBlock* true_BB,*false1_BB;
-    if(IF_WHILE_Cond_Stack.size()==1){
+    if(IF_WHILE_Cond_Stack.size()>0){
         true_BB = IF_WHILE_Cond_Stack.back().trueBB;
         false1_BB=IF_WHILE_Cond_Stack.back().falseBB;
     }else{
@@ -655,6 +655,7 @@ void IRGen::visit(ast::ORExp &node){
     }
     auto false_BB = BasicBlock::create(module.get(), "", cur_fun);
     require_lvalue = false;
+    IF_WHILE_Cond_Stack.push_back({true_BB,false_BB});
     node.lhs->accept(*this);
         
         Value *cond_val;
@@ -678,6 +679,8 @@ void IRGen::visit(ast::ORExp &node){
 
     BranchInst::createCondBr(cond_val, true_BB, false_BB, cur_block_of_cur_fun);
     cur_block_of_cur_fun=false_BB;
+    IF_WHILE_Cond_Stack.pop_back();
+    
     node.rhs->accept(*this);
     // IF_WHILE_Cond_Stack.push_back({true_BB,false1_BB});
     // BranchInst::createCondBr(cond_val, true_BB, false1_BB, cur_block_of_cur_fun);
@@ -933,7 +936,7 @@ void IRGen::visit(ast::BinopExpr &node) {
                     return CmpOp::EQ;
                     break;
                 case::ast::BinOp::NOT_EQ:
-                    return CmpOp::EQ;
+                    return CmpOp::NE;
                     break;
                 default:
                     exit(154);
