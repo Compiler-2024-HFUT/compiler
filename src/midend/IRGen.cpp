@@ -848,7 +848,7 @@ void IRGen::visit(ast::BinopExpr &node) {
         bool is_float=false;
         if(lhs->getType() == INT1_T && rhs->getType() == INT1_T) {
                 l_instr= ZextInst::createZext(lhs, INT32_T,cur_block_of_cur_fun);
-                r_instr= ZextInst::createZext(lhs, INT32_T,cur_block_of_cur_fun);
+                r_instr= ZextInst::createZext(rhs, INT32_T,cur_block_of_cur_fun);
         }else if(lhs->getType() == INT32_T && rhs->getType() == INT32_T) {
                 l_instr=lhs;
                 r_instr=rhs;
@@ -866,14 +866,14 @@ void IRGen::visit(ast::BinopExpr &node) {
                 is_float=true;       
         }else if(lhs->getType() == INT32_T && rhs->getType() == INT1_T) {
                 l_instr=lhs;
-                r_instr= ZextInst::createZext(lhs, INT32_T,cur_block_of_cur_fun);   
+                r_instr= ZextInst::createZext(rhs, INT32_T,cur_block_of_cur_fun);   
         }else if(lhs->getType() == INT32_T && rhs->getType() == FLOAT_T) {
                 l_instr = SiToFpInst::createSiToFp(lhs, FLOAT_T,cur_block_of_cur_fun);
                 r_instr=rhs;
                 is_float=true;       
         }else if(lhs->getType() == FLOAT_T && rhs->getType() == INT1_T) {
                 l_instr=lhs;
-                r_instr= ZextInst::createZext(lhs, INT32_T,cur_block_of_cur_fun);   
+                r_instr= ZextInst::createZext(rhs, INT32_T,cur_block_of_cur_fun);   
                 r_instr = SiToFpInst::createSiToFp(r_instr, FLOAT_T,cur_block_of_cur_fun);
                 is_float=true;       
         }else if(lhs->getType() == FLOAT_T && rhs->getType() == INT32_T) {
@@ -940,9 +940,9 @@ void IRGen::visit(ast::BinopExpr &node) {
                     }
                 };
             if(is_float)
-                tmp_val =  FCmpInst::createFCmp(binop_to_cmpop(),lhs,rhs,cur_block_of_cur_fun,module.get());
+                tmp_val =  FCmpInst::createFCmp(binop_to_cmpop(),l_instr,r_instr,cur_block_of_cur_fun,module.get());
             else    
-                tmp_val  =  CmpInst::createCmp(binop_to_cmpop(),lhs,rhs,cur_block_of_cur_fun,module.get());
+                tmp_val  =  CmpInst::createCmp(binop_to_cmpop(),l_instr,r_instr,cur_block_of_cur_fun,module.get());
         }
     }
 }
@@ -991,6 +991,8 @@ void IRGen::visit(ast::LvalExpr &node){
             }
             if(vc==nullptr){
                 tmp_val = LoadInst::createLoad(type,var,cur_block_of_cur_fun);  
+            }else{
+                tmp_val=vc;
             }
         }
     } else {
@@ -1203,7 +1205,7 @@ void IRGen::visit(ast::CallExpr &node) {
                     tmp_val = ConstantInt::get( int(tmp_val_const_float->getValue()));
                 }
                 else{
-                    FpToSiInst::createFpToSi(tmp_val, FLOAT_T, cur_block_of_cur_fun);
+                    FpToSiInst::createFpToSi(tmp_val, INT32_T, cur_block_of_cur_fun);
                 }              
             }
             params_list.push_back(tmp_val);
