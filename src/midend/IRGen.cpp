@@ -556,7 +556,7 @@ void IRGen::visit(ast::UnaryExpr &node) {
                 tmp_val=ConstantInt::get(!tmp->getValue());
                 break;
         }
-    }else if(auto tmp=dynamic_cast<ConstantInt*>(tmp_val)){
+    }else if(auto tmp=dynamic_cast<ConstantFP*>(tmp_val)){
         switch (node.operat) {
             case::ast::UnOp::PLUS:
                 tmp_val=ConstantFP::get(tmp->getValue());
@@ -812,8 +812,8 @@ void IRGen::visit(ast::BinopExpr &node) {
             exit(151);
         }
         const_l=nullptr;const_r=nullptr;
-    }else if(ConstantInt* const_l=dynamic_cast<ConstantInt*>(lhs);
-    const_l!=nullptr&&dynamic_cast<ConstantFP*>(rhs)){
+    }else if(dynamic_cast<ConstantInt*>(lhs)&&dynamic_cast<ConstantFP*>(rhs)){
+        ConstantInt* const_l=dynamic_cast<ConstantInt*>(lhs);
         auto const_r=dynamic_cast<ConstantFP*>(rhs);
         switch(node_op){
         case::ast::BinOp::PlUS:
@@ -874,7 +874,7 @@ void IRGen::visit(ast::BinopExpr &node) {
                 l_instr=lhs;
                 r_instr= ZextInst::createZext(lhs, INT32_T,cur_block_of_cur_fun);   
         }else if(lhs->getType() == INT32_T && rhs->getType() == FLOAT_T) {
-                l_instr = SiToFpInst::createSiToFp(l_instr, FLOAT_T,cur_block_of_cur_fun);
+                l_instr = SiToFpInst::createSiToFp(lhs, FLOAT_T,cur_block_of_cur_fun);
                 r_instr=rhs;
                 is_float=true;       
         }else if(lhs->getType() == FLOAT_T && rhs->getType() == INT1_T) {
@@ -953,6 +953,7 @@ void IRGen::visit(ast::BinopExpr &node) {
     }
 }
 void IRGen::visit(ast::LvalExpr &node){
+    string name =node.name;
     auto var = scope.find(node.name);
     Type *type;
     if(!var->getType()->getPointerElementType())
@@ -988,12 +989,13 @@ void IRGen::visit(ast::LvalExpr &node){
                 tmp_val = var;
             }
         } else {
+            Value* vc=nullptr;
             if(var->getType() == FLOAT_T) 
-                tmp_val = dynamic_cast<ConstantFP*>(var);
-            else 
-                {tmp_val = dynamic_cast<ConstantInt*>(var);
-
-            }if(tmp_val==nullptr){
+                vc = dynamic_cast<ConstantFP*>(var);
+            else {
+                vc = dynamic_cast<ConstantInt*>(var);
+            }
+            if(vc==nullptr){
                 tmp_val = LoadInst::createLoad(type,var,cur_block_of_cur_fun);  
             }
         }
