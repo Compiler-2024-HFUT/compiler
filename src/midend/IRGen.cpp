@@ -324,6 +324,10 @@ void IRGen::visit(ast::ArrDefStmt &node) {
     // default initializer zero is stored in -1
     init_val_map[-1] = (cur_type == INT32_T) ? dynamic_cast<Constant*>( CONST_INT(0) )  : dynamic_cast<Constant*>( CONST_FP(0.0) );
 
+    for(auto i:init_val_map){
+        init_val.push_back((Constant*)i.second);
+    }
+
     if(scope.inGlobal()) {
         // zeroinitializer, global array is inited in global_var_init
         auto initializer = ConstantZero::get(array_type, module.get());
@@ -1009,7 +1013,7 @@ void IRGen::visit(ast::LvalExpr &node){
                 index->accept(*this);
                 indexs.push_back(tmp_val);
             }
-            for(int i=1;i<size.size();i++){
+            for(int i=1;i<node.index_num.size()+1;i++){
                 Value* one_index;
                 if(auto const_val=dynamic_cast<ConstantInt*>(indexs[i-1])){
                     one_index=CONST_INT(const_val->getValue()*size[i]);    
