@@ -1022,7 +1022,7 @@ void IRGen::visit(ast::LvalExpr &node){
                 index->accept(*this);
                 indexs.push_back(tmp_val);
             }
-            for(int i=1;i<size.size();i++){
+            for(int i=1;i<node.index_num.size()+1;i++){
                 Value* one_index;
                 if(auto const_val=dynamic_cast<ConstantInt*>(indexs[i-1])){
                     one_index=CONST_INT(const_val->getValue()*size[i]);    
