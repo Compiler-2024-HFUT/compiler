@@ -15,7 +15,7 @@ do
     source="$name.sy"
     ../build/linux/x86_64/debug/irtest "`pwd`/$source" > "$name.ll"
     llvm-as "$name.ll" -o "$name.tmp.bc"
-    llvm-link -o "$name.bc" "$name.tmp.bc" ../lib/sylib.bc
+    llvm-link -o "$name.bc" "$name.tmp.bc" ../lib/sylib.bc ../lib/memset.bc
 
     rm  "`pwd`/$name.tmp.bc" 
     #run

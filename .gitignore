@@ -9,7 +9,6 @@ build/
 .DS_Store
 
 *.sy
-*.ll
-*.bc
 .vscode/
+test/testcase
 testcase/

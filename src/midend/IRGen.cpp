@@ -70,13 +70,11 @@ void IRGen::visit(ast::FuncDef &node) {
     for(auto iter = fun->argBegin(); iter != fun->argEnd(); ++iter)
         args.push_back( *iter );
 
-    scope.enter();
-    // need alloc var for func
-    if(args.size() != 0 && ret_type != VOID_T){
-
-        from_func = true;
-    }
     
+    // need alloc var for func
+    from_func = true;
+    scope.enter();
+
     for(int i=0; i<node.func_f_params.size(); i++) {
         if(node.func_f_params[i]->index_num.size() == 0) {
             Value* alloc = AllocaInst::createAlloca(args[i]->getType(), cur_block_of_cur_fun);
@@ -149,6 +147,7 @@ void IRGen::visit(ast::FuncDef &node) {
       auto ret_val = LoadInst::createLoad(ret_type, ret_addr, ret_BB);
       ReturnInst::createRet(ret_val, ret_BB);
     }
+
     scope.exit();
 }
 
@@ -173,8 +172,8 @@ void IRGen::visit(ast::FuncFParam &node) {
 
 void IRGen::visit(ast::BlockStmt &node) {
     bool need_enter_scope = !from_func;
-    
     from_func = false;
+    
     if(need_enter_scope) {
         scope.enter();
     }
