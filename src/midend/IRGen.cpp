@@ -1,5 +1,6 @@
 #include "midend/IRGen.hpp"
 #include "frontend/type.hpp"
+#include "midend/BasicBlock.hpp"
 #include "midend/Constant.hpp"
 #include "midend/Instruction.hpp"
 #include "midend/Module.hpp"
@@ -642,9 +643,18 @@ void IRGen::visit(ast::AndExp &node) {
     node.rhs->accept(*this);
 }
 void IRGen::visit(ast::ORExp &node){
-    require_lvalue = false;
-    auto true_BB = BasicBlock::create(module.get(), "", cur_fun);
+    if(IF_WHILE_Cond_Stack.size()>1){
+        exit(209);
+    }
+    BasicBlock* true_BB,*false1_BB;
+    if(IF_WHILE_Cond_Stack.size()==1){
+        true_BB = IF_WHILE_Cond_Stack.back().trueBB;
+        false1_BB=IF_WHILE_Cond_Stack.back().falseBB;
+    }else{
+        true_BB = BasicBlock::create(module.get(), "", cur_fun);
+    }
     auto false_BB = BasicBlock::create(module.get(), "", cur_fun);
+    require_lvalue = false;
     node.lhs->accept(*this);
         
         Value *cond_val;
@@ -669,28 +679,12 @@ void IRGen::visit(ast::ORExp &node){
     BranchInst::createCondBr(cond_val, true_BB, false_BB, cur_block_of_cur_fun);
     cur_block_of_cur_fun=false_BB;
     node.rhs->accept(*this);
-    auto false1_BB = BasicBlock::create(module.get(), "", cur_fun);
-    IF_WHILE_Cond_Stack.push_back({true_BB,false1_BB});
-        
-        if(tmp_val->getType() == INT1_T) {
-            cond_val = tmp_val;
-        } else if(tmp_val->getType() == INT32_T) {
-            auto const_tmp_val = dynamic_cast<ConstantInt*>(tmp_val);
-            if(const_tmp_val) {
-                cond_val = CONST_INT(const_tmp_val->getValue() != 0);
-            } else {
-                cond_val=CmpInst::createCmp(CmpOp::NE,tmp_val, CONST_INT(0),cur_block_of_cur_fun,module.get());
-            }
-        } else if(tmp_val->getType() == FLOAT_T) {
-            auto const_tmp_val = dynamic_cast<ConstantFP*>(tmp_val);
-            if(const_tmp_val) {
-                cond_val = CONST_INT(const_tmp_val->getValue() != 0);
-            } else {
-                cond_val =FCmpInst::createFCmp(CmpOp::NE,tmp_val, CONST_FP(0),cur_block_of_cur_fun,module.get());
-            }
-        }
+    // IF_WHILE_Cond_Stack.push_back({true_BB,false1_BB});
     // BranchInst::createCondBr(cond_val, true_BB, false1_BB, cur_block_of_cur_fun);
     // cur_block_of_cur_fun=true_BB
+    if(IF_WHILE_Cond_Stack.size()==0){
+        cur_block_of_cur_fun=false_BB;
+    }
 }
 void IRGen::visit(ast::BinopExpr &node) {
     require_lvalue = false;
@@ -1065,18 +1059,6 @@ void IRGen::visit(ast::IfStmt &node) {
    int size=IF_WHILE_Cond_Stack.size();
     node.pred->accept(*this);
 
-    if(size<IF_WHILE_Cond_Stack.size()){
-        true_bb->eraseFromParent();
-        true_bb=IF_WHILE_Cond_Stack.back().trueBB;
-        if(node.else_stmt == nullptr){
-            next_bb->eraseFromParent();
-            next_bb = IF_WHILE_Cond_Stack.back().falseBB;
-        }else{
-            false_bb->eraseFromParent();
-            false_bb = IF_WHILE_Cond_Stack.back().falseBB;
-        }
-        IF_WHILE_Cond_Stack.pop_back();
-    }
     // tmp_val=CmpInst::createCmp(CmpOp::NE,CONST_INT(0),tmp_val,cur_block_of_cur_fun);
 
     IF_WHILE_Cond_Stack.pop_back();
@@ -1146,22 +1128,15 @@ void IRGen::visit(ast::WhileStmt &node){
     auto pred_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
     auto iter_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
     auto next_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
-    While_Stack.push_back({pred_bb, next_bb});
+    
     if(cur_block_of_cur_fun->getTerminator()==nullptr)  BranchInst::createBr(pred_bb, cur_block_of_cur_fun);
     cur_basic_block_list.pop_back();
     cur_block_of_cur_fun = pred_bb;
     IF_WHILE_Cond_Stack.push_back({iter_bb, next_bb});
-    int size=IF_WHILE_Cond_Stack.size();
     node.pred->accept(*this);
-    if(size<IF_WHILE_Cond_Stack.size()){
-        iter_bb->eraseFromParent();
-        next_bb->eraseFromParent();
-        iter_bb=IF_WHILE_Cond_Stack.back().trueBB;
-        next_bb=IF_WHILE_Cond_Stack.back().falseBB;
-
-        IF_WHILE_Cond_Stack.pop_back();
-    }
+    
     IF_WHILE_Cond_Stack.pop_back();
+    While_Stack.push_back({iter_bb,next_bb});
     Value * inst_cmp;
     if(tmp_val->getType()==INT1_T)  inst_cmp = tmp_val;
     else if(tmp_val->getType()==INT32_T){
