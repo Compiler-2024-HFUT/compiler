@@ -459,9 +459,15 @@ void IRGen::visit(ast::InitializerExpr &node) {
 
     // max_depth = array_sizes.size() - 1 = array_dimensions
     // cur_depth > max_depth -> only get the first element in last {}
+    
+    // it's an Initializer, but process as a value 
     if(array_sizes.size()-1 < cur_depth){
         node.initializers[0]->accept(*this);
         cur_depth--;
+        if(array_sizes.size()-1 == cur_depth){
+            init_val_map[cur_pos] = tmp_val;
+            cur_pos++;
+        }
         return;
     }
 
