@@ -5,6 +5,11 @@ names=""
 f=$(ls testcase/*.sy)
 names=""
 
+if [ -f error ]
+then
+    rm error
+fi
+
 #get name
 for file in $f
 do
@@ -34,15 +39,20 @@ do
         fi
         ret=$?
         rm "`pwd`/$name.bc" 
-        echo "$name complete"
-        outfile="`pwd`/$name.output";
-
-        # if [ $(tail -n1 $outfile | wc -l) -eq 1 ];then
+        outputfile="`pwd`/$name.output";
+        outfile="`pwd`/$name.out";
             echo "$ret" >>  "`pwd`/$name.output"
-        # else
-            # echo -e "\n$ret" >>  "`pwd`/$name.output"
-        # fi
-	    
+	    outputcontext=`cat $outputfile` 
+        outputcontext=${outputcontext//$'\n'/}
+        outcontext=`cat $outfile ` 
+        outcontext=${outcontext//$'\n'/}
+
+        if [ "$outcontext" == "$outputcontext" ]
+        then
+            echo "$source complete"
+        else
+            echo  $source >> "error"
+        fi
     fi
 
 done

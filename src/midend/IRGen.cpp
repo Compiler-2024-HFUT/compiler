@@ -714,6 +714,7 @@ void IRGen::visit(ast::BinopExpr &node) {
             break;
         case::ast::BinOp::MOD:
             tmp_val=ConstantInt::get(const_l->getValue()%const_r->getValue(),module.get());
+            break;
         case::ast::BinOp::LT:
             tmp_val=ConstantInt::get(const_l->getValue()<const_r->getValue(),module.get());
             break;
@@ -730,7 +731,7 @@ void IRGen::visit(ast::BinopExpr &node) {
             tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue(),module.get());
             break;
         case::ast::BinOp::NOT_EQ:
-            tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()!=const_r->getValue(),module.get());
             break;
         default:
             exit(151);
@@ -767,7 +768,8 @@ void IRGen::visit(ast::BinopExpr &node) {
             tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue(),module.get());
             break;
         case::ast::BinOp::NOT_EQ:
-            tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()!=const_r->getValue(),module.get());
+            break;
         default:
             exit(151);
         }
@@ -804,7 +806,8 @@ void IRGen::visit(ast::BinopExpr &node) {
             tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue(),module.get());
             break;
         case::ast::BinOp::NOT_EQ:
-            tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()!=const_r->getValue(),module.get());
+            break;
         default:
             exit(151);
         }
@@ -841,7 +844,8 @@ void IRGen::visit(ast::BinopExpr &node) {
             tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue(),module.get());
             break;
         case::ast::BinOp::NOT_EQ:
-            tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()!=const_r->getValue(),module.get());
+            break;
         default:
             exit(151);
         }
