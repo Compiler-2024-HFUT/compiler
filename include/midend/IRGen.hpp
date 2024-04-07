@@ -57,6 +57,7 @@ static BasicBlock *global_init_block;
 static bool is_init_const_array = false;
 static int arr_total_size = 1;
 static std::vector<int> array_bounds;
+static std::vector<int> array_sizes;
 // static std::vector<int> array_sizes;
 // pair( the pos when into {, the offset bettween { and } )
 static std::vector< std::pair<int, int> > array_pos;

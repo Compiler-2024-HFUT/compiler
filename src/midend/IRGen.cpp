@@ -111,7 +111,7 @@ void IRGen::visit(ast::FuncDef &node) {
             for(auto iter_r = array_bounds.rbegin()+1; iter_r != array_bounds.rend()-1; iter_r++){
                 array_sizes_l.push_front(array_sizes_l.front() * *iter_r);
             }
-            std::vector<int> array_sizes = std::vector<int>(array_sizes_l.begin(), array_sizes_l.end());
+            array_sizes = std::vector<int>(array_sizes_l.begin(), array_sizes_l.end());
             scope.pushSize(node.func_f_params[i]->name, array_sizes);
         }
     }
@@ -315,7 +315,7 @@ void IRGen::visit(ast::ArrDefStmt &node) {
     for(auto iter_r = array_bounds.rbegin()+1; iter_r != array_bounds.rend()-1; iter_r++){
         array_sizes_l.push_front(array_sizes_l.front() * *iter_r);
     }
-    std::vector<int> array_sizes = std::vector<int>(array_sizes_l.begin(), array_sizes_l.end());
+    array_sizes = std::vector<int>(array_sizes_l.begin(), array_sizes_l.end());
 
     cur_depth = 0;
     cur_pos = 0;
@@ -399,7 +399,7 @@ void IRGen::visit(ast::ConstArrDefStmt &node) {
     for(auto iter_r = array_bounds.rbegin()+1; iter_r != array_bounds.rend()-1; iter_r++){
         array_sizes_l.push_front(array_sizes_l.front() * *iter_r);
     }
-    std::vector<int> array_sizes = std::vector<int>(array_sizes_l.begin(), array_sizes_l.end());
+    array_sizes = std::vector<int>(array_sizes_l.begin(), array_sizes_l.end());
 
     cur_depth = 0;
     cur_pos = 0;
@@ -457,9 +457,9 @@ void IRGen::visit(ast::FloatConst &node){
 void IRGen::visit(ast::InitializerExpr &node) {
     cur_depth++;
 
-    // max_depth = array_bounds.size() = 1 + array_dimensions + 1
+    // max_depth = array_sizes.size() = 1 + array_dimensions + 1
     // cur_depth > max_depth -> only get the first element in last {}
-    if(array_bounds.size()-1 < cur_depth){
+    if(array_sizes.size()-1 < cur_depth){
         node.initializers[0]->accept(*this);
         cur_depth--;
         return;
@@ -470,7 +470,7 @@ void IRGen::visit(ast::InitializerExpr &node) {
         LOG( "element num in array greater than array bound!" );
 
     // cur_depth <= max_depth
-    array_pos.push_back( {cur_pos, array_bounds[cur_depth]} );
+    array_pos.push_back( {cur_pos, array_sizes[cur_depth]} );
     for(auto &initializer : node.initializers){
         initializer->accept(*this);
 
@@ -480,7 +480,6 @@ void IRGen::visit(ast::InitializerExpr &node) {
         if(cur_pos >= arr_total_size)
             LOG( "element num in array greater than array bound!" );
 
-        // tmp_val is const
         auto tmp_int32_val = dynamic_cast<ConstantInt*>(tmp_val);
         auto tmp_float_val = dynamic_cast<ConstantFP*>(tmp_val);
 
