@@ -528,16 +528,18 @@ void IRGen::visit(ast::AssignStmt &node) {
     if (addr->getType()->getPointerElementType()->isIntegerType() && result->getType()->isFloatType()) {
         auto const_result = dynamic_cast<ConstantFP*>(result);
         if(const_result) {
-            result = CONST_INT(int(const_result->getValue()));
+            int i=const_result->getValue();
+            result = CONST_INT(i);
         } else {
-            FpToSiInst::createFpToSi(result, INT32_T,cur_block_of_cur_fun);
+            result=FpToSiInst::createFpToSi(result, INT32_T,cur_block_of_cur_fun);
         }
     } else if (addr->getType()->getPointerElementType()->isFloatType() && result->getType()->isIntegerType()) {
         auto const_result = dynamic_cast<ConstantInt*>(result);
         if(const_result) {
-            result = CONST_FP(float(const_result->getValue()));
+            float f=const_result->getValue();
+            result = CONST_FP(f);
         } else {
-            SiToFpInst::createSiToFp(result, FLOAT_T,cur_block_of_cur_fun);
+            result=SiToFpInst::createSiToFp(result, FLOAT_T,cur_block_of_cur_fun);
         }
     }
     StoreInst::createStore(result, addr,cur_block_of_cur_fun);
@@ -1203,7 +1205,7 @@ void IRGen::visit(ast::CallExpr &node) {
                     tmp_val = ConstantFP::get( float(tmp_val_const_int->getValue()));
                 }
                 else{
-                    SiToFpInst::createSiToFp(tmp_val, FLOAT_T, cur_block_of_cur_fun);
+                    tmp_val=SiToFpInst::createSiToFp(tmp_val, FLOAT_T, cur_block_of_cur_fun);
                 }
             }
             else if(param_type->isIntegerType() && tmp_val->getType()->isFloatType()){
@@ -1212,7 +1214,7 @@ void IRGen::visit(ast::CallExpr &node) {
                     tmp_val = ConstantInt::get( int(tmp_val_const_float->getValue()));
                 }
                 else{
-                    FpToSiInst::createFpToSi(tmp_val, INT32_T, cur_block_of_cur_fun);
+                    tmp_val=FpToSiInst::createFpToSi(tmp_val, INT32_T, cur_block_of_cur_fun);
                 }              
             }
             params_list.push_back(tmp_val);
@@ -1230,12 +1232,12 @@ void IRGen::visit(ast::RetStmt &node) {
         if(cur_fun->getReturnType()->isIntegerType()){
             auto value = dynamic_cast<ConstantFP*>(tmp_val); 
             if(value != nullptr){
-                tmp_val = ConstantInt::get(int(value->getValue()));
+                int i=value->getValue();
+                tmp_val = ConstantInt::get(i);
 
             }
             else if(tmp_val->getType()==FLOAT_T){
                 tmp_val = FpToSiInst::createFpToSi(tmp_val, INT32_T, cur_block_of_cur_fun);
-
             }
             StoreInst::createStore(tmp_val, ret_addr, cur_block_of_cur_fun);
         }
@@ -1243,7 +1245,8 @@ void IRGen::visit(ast::RetStmt &node) {
         else{
             auto value = dynamic_cast<ConstantInt*>(tmp_val);
             if(value != nullptr){
-                tmp_val = ConstantFP::get(float(value->getValue()));
+                float f=value->getValue();
+                tmp_val = ConstantFP::get(f);
 
             }
             else if(tmp_val->getType()==INT32_T){
