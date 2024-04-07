@@ -1153,7 +1153,7 @@ void IRGen::visit(ast::WhileStmt &node){
     node.pred->accept(*this);
     
     IF_WHILE_Cond_Stack.pop_back();
-    While_Stack.push_back({iter_bb,next_bb});
+    While_Stack.push_back({pred_bb,next_bb});
     Value * inst_cmp;
     if(tmp_val->getType()==INT1_T)  inst_cmp = tmp_val;
     else if(tmp_val->getType()==INT32_T){
