@@ -457,7 +457,7 @@ void IRGen::visit(ast::FloatConst &node){
 void IRGen::visit(ast::InitializerExpr &node) {
     cur_depth++;
 
-    // max_depth = array_sizes.size() = 1 + array_dimensions + 1
+    // max_depth = array_sizes.size() - 1 = array_dimensions
     // cur_depth > max_depth -> only get the first element in last {}
     if(array_sizes.size()-1 < cur_depth){
         node.initializers[0]->accept(*this);
@@ -465,12 +465,11 @@ void IRGen::visit(ast::InitializerExpr &node) {
         return;
     }
 
-    // bug, fix after
     if(cur_pos >= arr_total_size)
         LOG( "element num in array greater than array bound!" );
 
     // cur_depth <= max_depth
-    array_pos.push_back( {cur_pos, array_sizes[cur_depth]} );
+    array_pos.push_back( {cur_pos, array_sizes[cur_depth-1]} );
     for(auto &initializer : node.initializers){
         initializer->accept(*this);
 
@@ -509,7 +508,9 @@ void IRGen::visit(ast::InitializerExpr &node) {
         init_val_map[cur_pos] = tmp_val;
         cur_pos++;
     }
-    if(cur_depth != 1)  cur_pos = array_pos.back().first + array_pos.back().second;
+    
+    cur_pos = array_pos.back().first + array_pos.back().second;
+    array_pos.pop_back();
     cur_depth--;
 }
 
