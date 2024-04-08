@@ -1,4 +1,5 @@
 #include "midend/IRGen.hpp"
+#include "frontend/node.hpp"
 #include "frontend/type.hpp"
 #include "midend/BasicBlock.hpp"
 #include "midend/Constant.hpp"
@@ -181,6 +182,8 @@ void IRGen::visit(ast::BlockStmt &node) {
 
     for(auto &inst : node.block_items){
         inst->accept(*this);
+        if(dynamic_cast<ast::ContinueStmt*>(inst.get())||dynamic_cast<ast::BreakStmt*>(inst.get()))
+            break;
     }
 
     if(need_enter_scope) {
