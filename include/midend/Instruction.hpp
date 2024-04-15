@@ -419,8 +419,8 @@ class StoreInst : public Instruction {
 public:
     static StoreInst *createStore(Value *val, Value *ptr, BasicBlock *bb);
 
-    Value *getRval() { return this->getOperand(0); }
-    Value *getLval() { return this->getOperand(1); }
+    Value *getRVal() { return this->getOperand(0); }
+    Value *getLVal() { return this->getOperand(1); }
 
     virtual std::string print() override;
 
@@ -437,7 +437,7 @@ class MemsetInst : public Instruction {
 public:
     static MemsetInst *createMemset(Value *ptr, BasicBlock *bb);
 
-    Value *getLval() { return this->getOperand(0); }
+    Value *getLVal() { return this->getOperand(0); }
 
     virtual std::string print() override;
 
@@ -453,7 +453,7 @@ class LoadInst : public Instruction {
 public:
     static LoadInst *createLoad(Type *ty, Value *ptr, BasicBlock *bb);
     
-    Value * getLval() { return this->getOperand(0); }
+    Value * getLVal() { return this->getOperand(0); }
 
     Type *getLoadType() const { return static_cast<PointerType *>(getOperand(0)->getType())->getElementType(); }
 
@@ -548,8 +548,8 @@ class PhiInst : public Instruction {
 public:
     static PhiInst *createPhi(Type *ty, BasicBlock *bb);
 
-    Value *getLval() { return l_val_; }
-    void setLval(Value *l_val) { l_val_ = l_val; }
+    Value *getLVal() { return l_val_; }
+    void setLVal(Value *l_val) { l_val_ = l_val; }
 
     void addPhiPairOperand(Value *val, Value *pre_bb) {
         this->addOperand(val);
@@ -628,7 +628,7 @@ class LoadOffsetInst: public Instruction {
 public:
     static LoadOffsetInst *createLoadOffset(Type *ty, Value *ptr, Value *offset, BasicBlock *bb);
 
-    Value *getLval() { return this->getOperand(0); }
+    Value *getLVal() { return this->getOperand(0); }
     Value *getOffset() { return this->getOperand(1); }
 
     Type *getLoadType() const;
@@ -654,8 +654,8 @@ public:
 
     Type *getStoreType() const;
 
-    Value *getRval() { return this->getOperand(0); }
-    Value *getLval() { return this->getOperand(1); }
+    Value *getRVal() { return this->getOperand(0); }
+    Value *getLVal() { return this->getOperand(1); }
     Value *getOffset() { return this->getOperand(2); }
 
     virtual std::string print() override;
