@@ -1,8 +1,5 @@
-#!/bin/sh 
-f=$(ls testcase/*.sy)
-names=""
-#!/bin/sh 
-f=$(ls testcase/*.sy)
+#!/bin/bash 
+f=$(ls testcase/performance/*.sy)
 names=""
 
 if [ -f error ]
@@ -39,19 +36,19 @@ do
         fi
         ret=$?
         rm "`pwd`/$name.bc" 
-        outputfile="`pwd`/$name.output";
-        outfile="`pwd`/$name.out";
+        outputfile="`pwd`/$name.output"
+        outfile="`pwd`/$name.out"
             echo "$ret" >>  "`pwd`/$name.output"
 	    outputcontext=`cat $outputfile` 
         outputcontext=${outputcontext//$'\n'/}
         outcontext=`cat $outfile ` 
         outcontext=${outcontext//$'\n'/}
 
-        if [ "$outcontext" == "$outputcontext" ]
+        if [ "$outcontext"=="$outputcontext" ]
         then
             echo "$source complete"
         else
-            echo  $source >> "error"
+            echo  $source > "error"
         fi
     fi
 

@@ -29,7 +29,7 @@
         outcontext=`cat $outfile ` 
         outcontext=${outcontext//$'\n'/}
 
-        if [ "$outcontext" == "$outputcontext" ]
+        if [ "$outcontext"=="$outputcontext" ]
         then
             echo "$source complete"
         else
