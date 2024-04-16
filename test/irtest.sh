@@ -48,7 +48,7 @@ do
         then
             echo "$source complete"
         else
-            echo  $source > "error"
+            echo  $source >> "error"
         fi
     fi
 
