@@ -9,7 +9,6 @@
 #include <memory>
 #include "lex.hpp"
 #include "type.hpp"
-using std::cout,std::string,std::vector;
 using type::ValType;
 namespace ast {
 class ASTVisitor;
@@ -75,7 +74,6 @@ struct InfixExpr:public ExprNode{
     unique_ptr<ExprNode> rhs;
     unique_ptr<ExprNode> lhs;
     InfixExpr(Pos pos ,unique_ptr<ExprNode> lhs);
-    ~InfixExpr();
     // virtual int getType()=0;
     virtual void print(int level=0)=0;
     virtual void accept(ASTVisitor &visitor)=0;
@@ -228,7 +226,6 @@ struct CompunitNode : public SyntaxNode
     vector<std::unique_ptr<Statement>> global_defs;
     // bool isReDef(string s);
     CompunitNode();
-    ~CompunitNode();
     // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor);
@@ -270,7 +267,6 @@ struct FuncDef :public  FuncStmt
     std::vector<unique_ptr<FuncFParam>>  func_f_params;
     // FuncDef(string name ,Pos pos);
     FuncDef(string name ,Pos pos,ValType );
-    ~FuncDef();
     // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
@@ -285,7 +281,6 @@ struct ValDeclStmt :public  Statement
     //vector<unique_ptr<int>> body;
     ValDeclStmt(Pos pos);
     ValDeclStmt(Pos pos,ValType type);
-    ~ValDeclStmt();
     // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  ;
@@ -296,7 +291,6 @@ struct ValDefStmt :public  DefStmt
     unique_ptr<ExprNode> init_expr;
     ValDefStmt(string name ,Pos pos,ValType);
     ValDefStmt(string name ,Pos pos,ValType,unique_ptr<ExprNode>);
-    ~ValDefStmt();
     //vector<unique_ptr<int>> body;
     // virtual int getType();
     virtual void print(int level=0);
@@ -345,7 +339,6 @@ struct IfStmt :public  Statement
     unique_ptr<Statement> then_stmt;
     unique_ptr<Statement> else_stmt;
     IfStmt(Pos Pos);
-    ~IfStmt();
     // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
@@ -356,7 +349,6 @@ struct WhileStmt :public  Statement
     unique_ptr<ExprNode>pred;
     unique_ptr<Statement>loop_stmt;
     WhileStmt(Pos Pos);
-    ~WhileStmt();
     // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;
@@ -367,7 +359,6 @@ struct RetStmt :public  Statement
     unique_ptr<ExprNode> expr;
     //vector<unique_ptr<int>> body;
     RetStmt(Pos pos);
-    ~RetStmt();
     // virtual int getType();
     virtual void print(int level=0);
     virtual void accept(ASTVisitor &visitor)  final;

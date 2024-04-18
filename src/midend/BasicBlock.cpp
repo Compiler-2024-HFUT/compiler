@@ -25,13 +25,13 @@ const Instruction *BasicBlock::getTerminator() const {
         return nullptr;
     }
     switch (instr_list_.back()->getInstrType()) {
-        case Instruction::ret: 
+        case Instruction::OpID::ret: 
             return instr_list_.back();
-        case Instruction::br: 
+        case Instruction::OpID::br: 
             return instr_list_.back();
-        case Instruction::cmpbr:
+        case Instruction::OpID::cmpbr:
             return instr_list_.back();
-        case Instruction::fcmpbr:
+        case Instruction::OpID::fcmpbr:
             return instr_list_.back();
         default: 
             return nullptr;

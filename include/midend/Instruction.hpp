@@ -16,7 +16,7 @@ class Function;
 
 class Instruction : public User {
 public:
-    enum OpID {
+    enum class OpID {
       //& Terminator Instructions
       ret,
       br,
@@ -71,52 +71,52 @@ public:
 
     static std::string getInstrOpName(OpID id) {
       switch(id) {
-        case ret: return "ret"; break;
-        case br: return "br"; break;
+        case OpID::ret: return "ret"; break;
+        case OpID::br: return "br"; break;
 
-        case add: return "add"; break;
-        case sub: return "sub"; break;
-        case mul: return "mul"; break;
-        case mul64: return "mulh64"; break;
-        case sdiv: return "sdiv"; break;
-        case srem: return "srem"; break;
+        case OpID::add: return "add"; break;
+        case OpID::sub: return "sub"; break;
+        case OpID::mul: return "mul"; break;
+        case OpID::mul64: return "mulh64"; break;
+        case OpID::sdiv: return "sdiv"; break;
+        case OpID::srem: return "srem"; break;
 
-        case fadd: return "fadd"; break;
-        case fsub: return "fsub"; break;
-        case fmul: return "fmul"; break;
-        case fdiv: return "fdiv"; break;
+        case OpID::fadd: return "fadd"; break;
+        case OpID::fsub: return "fsub"; break;
+        case OpID::fmul: return "fmul"; break;
+        case OpID::fdiv: return "fdiv"; break;
 
-        case alloca: return "alloca"; break;
-        case load: return "load"; break;
-        case store: return "store"; break;
-        case memset: return "memset"; break;
+        case OpID::alloca: return "alloca"; break;
+        case OpID::load: return "load"; break;
+        case OpID::store: return "store"; break;
+        case OpID::memset: return "memset"; break;
 
-        case cmp: return "cmp"; break;
-        case fcmp: return "fcmp"; break;
-        case phi: return "phi"; break;
-        case call: return "call"; break;
-        case getelementptr: return "getelementptr"; break;
+        case OpID::cmp: return "cmp"; break;
+        case OpID::fcmp: return "fcmp"; break;
+        case OpID::phi: return "phi"; break;
+        case OpID::call: return "call"; break;
+        case OpID::getelementptr: return "getelementptr"; break;
 
-        case land: return "and"; break;
-        case lor: return "or"; break;
-        case lxor: return "xor"; break;
+        case OpID::land: return "and"; break;
+        case OpID::lor: return "or"; break;
+        case OpID::lxor: return "xor"; break;
 
-        case asr: return "ashr"; break;
-        case shl: return "shl"; break;
-        case lsr: return "lshr"; break; 
-        case asr64: return "asr64"; break;
-        case shl64: return "shl64"; break;
-        case lsr64: return "lsr64"; break; 
+        case OpID::asr: return "ashr"; break;
+        case OpID::shl: return "shl"; break;
+        case OpID::lsr: return "lshr"; break; 
+        case OpID::asr64: return "asr64"; break;
+        case OpID::shl64: return "shl64"; break;
+        case OpID::lsr64: return "lsr64"; break; 
 
-        case zext: return "zext"; break;
+        case OpID::zext: return "zext"; break;
 
-        case fptosi: return "fptosi"; break; 
-        case sitofp: return "sitofp"; break; 
+        case OpID::fptosi: return "fptosi"; break; 
+        case OpID::sitofp: return "sitofp"; break; 
 
-        case cmpbr: return "cmpbr"; break;
-        case fcmpbr: return "fcmpbr"; break;
-        case loadoffset: return "loadoffset"; break;
-        case storeoffset: return "storeoffset"; break;
+        case OpID::cmpbr: return "cmpbr"; break;
+        case OpID::fcmpbr: return "fcmpbr"; break;
+        case OpID::loadoffset: return "loadoffset"; break;
+        case OpID::storeoffset: return "storeoffset"; break;
 
         default: return ""; break; 
       }
@@ -137,58 +137,58 @@ public:
     Module *getModule();
 
     bool isVoid() {
-        return ((op_id_ == ret) || (op_id_ == br) || (op_id_ == store) || (op_id_ == cmpbr) || (op_id_ == fcmpbr) || (op_id_ == storeoffset) || (op_id_ == memset) ||
-                (op_id_ == call && this->getType()->isVoidType()));
+        return ((op_id_ == OpID::ret) || (op_id_ == OpID::br) || (op_id_ == OpID::store) || (op_id_ == OpID::cmpbr) || (op_id_ == OpID::fcmpbr) || (op_id_ == OpID::storeoffset) || (op_id_ == OpID::memset) ||
+                (op_id_ == OpID::call && this->getType()->isVoidType()));
     }
 
-    bool isRet() { return op_id_ == ret; } 
-    bool isBr() { return op_id_ ==  br; } 
+    bool isRet() { return op_id_ == OpID::ret; } 
+    bool isBr() { return op_id_ ==  OpID::br; } 
 
-    bool isAdd() { return op_id_ ==  add; } 
-    bool isSub() { return op_id_ ==  sub; }
-    bool isMul() { return op_id_ ==  mul; } 
-    bool isMul64() { return op_id_ == mul64; }
-    bool isDiv() { return op_id_ ==  sdiv; }
-    bool isRem() { return op_id_ ==  srem; } 
+    bool isAdd() { return op_id_ ==  OpID::add; } 
+    bool isSub() { return op_id_ ==  OpID::sub; }
+    bool isMul() { return op_id_ ==  OpID::mul; } 
+    bool isMul64() { return op_id_ == OpID::mul64; }
+    bool isDiv() { return op_id_ ==  OpID::sdiv; }
+    bool isRem() { return op_id_ ==  OpID::srem; } 
 
-    bool isFAdd() { return op_id_ ==  fadd; } 
-    bool isFSub() { return op_id_ ==  fsub; } 
-    bool isFMul() { return op_id_ ==  fmul; } 
-    bool isFDiv() { return op_id_ ==  fdiv; } 
+    bool isFAdd() { return op_id_ ==  OpID::fadd; } 
+    bool isFSub() { return op_id_ ==  OpID::fsub; } 
+    bool isFMul() { return op_id_ ==  OpID::fmul; } 
+    bool isFDiv() { return op_id_ ==  OpID::fdiv; } 
 
-    bool isAlloca() { return op_id_ ==  alloca; } 
-    bool isLoad() { return op_id_ ==  load; } 
-    bool isStore() { return op_id_ ==  store; } 
-    bool isMemset() { return op_id_ == memset; }
+    bool isAlloca() { return op_id_ ==  OpID::alloca; } 
+    bool isLoad() { return op_id_ ==  OpID::load; } 
+    bool isStore() { return op_id_ ==  OpID::store; } 
+    bool isMemset() { return op_id_ == OpID::memset; }
 
-    bool isCmp() { return op_id_ ==  cmp; }
-    bool isFCmp() { return op_id_ ==  fcmp; } 
-    bool isPhi() { return op_id_ ==  phi; } 
-    bool isCall() { return op_id_ ==  call; }
-    bool isGep(){ return op_id_ ==  getelementptr; } 
+    bool isCmp() { return op_id_ ==  OpID::cmp; }
+    bool isFCmp() { return op_id_ ==  OpID::fcmp; } 
+    bool isPhi() { return op_id_ ==  OpID::phi; } 
+    bool isCall() { return op_id_ ==  OpID::call; }
+    bool isGep(){ return op_id_ ==  OpID::getelementptr; } 
 
-    bool isAnd() { return op_id_ ==  land; } 
-    bool isOr() { return op_id_ ==  lor; }
-    bool isXor() { return op_id_ == lxor; } 
+    bool isAnd() { return op_id_ ==  OpID::land; } 
+    bool isOr() { return op_id_ ==  OpID::lor; }
+    bool isXor() { return op_id_ == OpID::lxor; } 
 
-    bool isAsr() { return op_id_ ==  asr; }
-    bool isLsl() { return op_id_ ==  shl; } 
-    bool isLsr() { return op_id_ ==  lsr; } 
-    bool isAsr64() { return op_id_ ==  asr64; }
-    bool isLsl64() { return op_id_ ==  shl64; } 
-    bool isLsr64() { return op_id_ ==  lsr64; }
+    bool isAsr() { return op_id_ ==  OpID::asr; }
+    bool isLsl() { return op_id_ ==  OpID::shl; } 
+    bool isLsr() { return op_id_ ==  OpID::lsr; } 
+    bool isAsr64() { return op_id_ ==  OpID::asr64; }
+    bool isLsl64() { return op_id_ ==  OpID::shl64; } 
+    bool isLsr64() { return op_id_ ==  OpID::lsr64; }
 
-    bool isZext() { return op_id_ ==  zext; } 
+    bool isZext() { return op_id_ ==  OpID::zext; } 
     
-    bool isFptosi(){ return op_id_ ==  fptosi; } 
-    bool isSitofp(){ return op_id_ ==  sitofp; } 
+    bool isFptosi(){ return op_id_ ==  OpID::fptosi; } 
+    bool isSitofp(){ return op_id_ ==  OpID::sitofp; } 
 
-    bool isCmpBr() { return op_id_ == cmpbr; }
-    bool isFCmpBr() { return op_id_ == fcmpbr; }
-    bool isLoadOffset() { return op_id_ == loadoffset; }
-    bool isStoreOffset() { return op_id_ == storeoffset; }
+    bool isCmpBr() { return op_id_ == OpID::cmpbr; }
+    bool isFCmpBr() { return op_id_ == OpID::fcmpbr; }
+    bool isLoadOffset() { return op_id_ == OpID::loadoffset; }
+    bool isStoreOffset() { return op_id_ == OpID::storeoffset; }
 
-    bool isExtendBr() { return (op_id_ ==  br || op_id_ == cmpbr || op_id_ == fcmpbr); }
+    bool isExtendBr() { return (op_id_ ==  OpID::br || op_id_ == OpID::cmpbr || op_id_ == OpID::fcmpbr); }
     bool isExtendCondBr() const { return getNumOperands() == 3 || getNumOperands() == 4; }
 
 

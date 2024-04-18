@@ -74,13 +74,13 @@ public:
       );
     }
 
-    std::list<Instruction*>::iterator begin() { return instr_list_.begin(); }
-    std::list<Instruction*>::iterator end() { return instr_list_.end(); }
-    std::list<Instruction*>::iterator getTerminatorItr() {
-        auto itr = end();
-        itr--;
-        return itr;
-    }
+    // std::list<Instruction*>::iterator begin() { return instr_list_.begin(); }
+    // std::list<Instruction*>::iterator end() { return instr_list_.end(); }
+    // std::list<Instruction*>::iterator getTerminatorItr() {
+    //     auto itr = end();
+    //     itr--;
+    //     return itr;
+    // }
 
     void setInstructionsList(std::list<Instruction*> &insts_list) {
         instr_list_.clear();

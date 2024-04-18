@@ -451,45 +451,45 @@ void BreakStmt::accept(ASTVisitor &visitor) {
 void EmptyStmt::accept(ASTVisitor &visitor) {
     visitor.visit(*this);
 }
-CompunitNode::~CompunitNode(){
-    for(auto&i:this->global_defs){
-        i.reset();
-    }
-}
-FuncDef::~FuncDef(){
-    body.reset();
-    func_f_params.clear();
-    // name.shrink_to_fit();
-}
-ValDeclStmt::~ValDeclStmt(){
-    for(auto&i:var_def_list){
-        i.reset();
-    }
-    // name.shrink_to_fit();
-}
-ValDefStmt::~ValDefStmt(){
-    if(init_expr!=nullptr)
-        init_expr.reset();
-    // name.shrink_to_fit();
-}
-IfStmt::~IfStmt(){
-    pred.reset();
-    then_stmt.reset();
-    // if(else_stmt!=nullptr)
-        else_stmt.reset();
-    // name.shrink_to_fit();
-}
-WhileStmt::~WhileStmt(){
-    pred.reset();
-    loop_stmt.reset();
-}
-RetStmt::~RetStmt(){
-    expr.reset();
-}
-InfixExpr::~InfixExpr(){
-    lhs.reset();
-    rhs.reset();
-}
+// CompunitNode::~CompunitNode(){
+//     for(auto&i:this->global_defs){
+//         i.reset();
+//     }
+// }
+// FuncDef::~FuncDef(){
+//     body.reset();
+//     func_f_params.clear();
+//     // name.shrink_to_fit();
+// }
+// ValDeclStmt::~ValDeclStmt(){
+//     for(auto&i:var_def_list){
+//         i.reset();
+//     }
+//     // name.shrink_to_fit();
+// }
+// ValDefStmt::~ValDefStmt(){
+//     if(init_expr!=nullptr)
+//         init_expr.reset();
+//     // name.shrink_to_fit();
+// }
+// IfStmt::~IfStmt(){
+//     pred.reset();
+//     then_stmt.reset();
+//     // if(else_stmt!=nullptr)
+//         else_stmt.reset();
+//     // name.shrink_to_fit();
+// }
+// WhileStmt::~WhileStmt(){
+//     pred.reset();
+//     loop_stmt.reset();
+// }
+// RetStmt::~RetStmt(){
+//     expr.reset();
+// }
+// InfixExpr::~InfixExpr(){
+//     lhs.reset();
+//     rhs.reset();
+// }
 // bool FuncDef::isReDef(string tok_name){
 //     bool re_def=false;
 //     for(auto &i:body){
