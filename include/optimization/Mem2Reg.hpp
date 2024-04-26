@@ -10,6 +10,7 @@
 #include "analysis/Dominators.hpp"
 #include <list>
 #include <memory>
+#include <set>
 #include <utility>
 using ::std::map,::std::set,::std::vector;
 class Mem2Reg : public FunctionPass{
@@ -30,6 +31,7 @@ private:
     bool queuePhi(BasicBlock*bb,AllocaInst*ai,::std::set<PhiInst*>&phi_set);
     void rmDeadPhi(Function*func);
     void reName(BasicBlock*bb,BasicBlock*pred,::std::map<AllocaInst*,Value*> incoming_vals);
+    void generatePhi(AllocaInst*ai,::std::set<BasicBlock*>&define_bbs);
 
     bool isAllocVar(Instruction *instr);
 

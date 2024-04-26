@@ -3,7 +3,7 @@
     name=(${1//./ })
     name=testcase/$name
     source="$name.sy"
-    ../build/linux/x86_64/debug/irtest "`pwd`/$source" > "$name.ll"
+    ../build/linux/x86_64/debug/passtest "`pwd`/$source" > "$name.ll"
     if [ $? -ne 0 ]
     then
         echo "`pwd`$name.sy error 1145141919810" >> "compiler wrong"

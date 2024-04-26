@@ -135,6 +135,19 @@ void Mem2Reg::reName(BasicBlock*bb,BasicBlock*pred,::std::map<AllocaInst*,Value*
     for(auto succ_bb:bb->getSuccBasicBlocks())
         reName(succ_bb, bb, incoming_vals);
 }
+void Mem2Reg::generatePhi(AllocaInst*ai,::std::set<BasicBlock*>&define_bbs){
+    static ::std::set<PhiInst*> phi_set;
+    while(!define_bbs.empty()){
+        auto b=*define_bbs.rbegin();
+        define_bbs.erase(b);
+        if(b->getDomFrontier().empty())continue;
+        auto &df_set=b->getDomFrontier();
+        for(auto df:df_set)
+            if (queuePhi(df, ai,phi_set))
+                define_bbs.insert(df);
+    }
+
+}
 void Mem2Reg::run(){
     for (auto func : moudle_->getFunctions()){
         auto &bb_list=func->getBasicBlocks();
@@ -167,21 +180,8 @@ void Mem2Reg::run(){
             else{
                 ::std::set<BasicBlock*>define_bbs;
                 ::std::set<BasicBlock*>use_bbs;
-                ::std::set<PhiInst*> phi_set;
-
-                ::std::set<BasicBlock*>df_set;
-                for(auto b:func->getBasicBlocks()){
-                    df_set.insert(b->getDomFrontier().begin(),b->getDomFrontier().end());
-                }
-
                 calDefAndUse(ai,define_bbs,use_bbs);
-                for(auto b:define_bbs){
-                    if(b->getDomFrontier().empty())continue;
-                    // auto &df_set=b->getDomFrontier();
-                    for(auto df:df_set)
-                        if (queuePhi(df, ai,phi_set))
-                            define_bbs.insert(df);
-                }
+                generatePhi(ai,define_bbs);
             }
         }
 
