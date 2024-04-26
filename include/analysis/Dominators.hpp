@@ -1,8 +1,6 @@
 #ifndef DOMINATORS_HPP
 #define DOMINATORS_HPP
-#include "dom.hpp"
 #include "midend/BasicBlock.hpp"
-#include "midend/Function.hpp"
 #include <map>
 #include <set>
 
@@ -15,29 +13,34 @@ private:
     ::std::map<BasicBlock*,BasicBlock*> idom_;
 
     ::std::map<BasicBlock*,::std::set<BasicBlock*>> dom_set_;
+    ::std::map<BasicBlock*,::std::set<BasicBlock*>> dom_tree;
     ::std::map<BasicBlock*,::std::set<BasicBlock*>> dom_frontier_;
 
-    // DominatorSet dom_set_;
-    // DominanceFrontier dom_frontier_;
     
-    decltype(idom_.begin()) setIDom(BasicBlock*b,BasicBlock *idom){
+    void setIDom(BasicBlock*b,BasicBlock *idom){
         idom_[b]=idom;
+        // idomor_beidom[idom]=b;
         b->setIdom(idom);
-        return idom_.find(b);
+        // return idom_.find(b);
     }
-    void addDomFrontier(BasicBlock* bb,BasicBlock* frontier){dom_frontier_.find(bb)->second.insert(frontier);}
+    void addDomFrontier(BasicBlock* bb,BasicBlock* frontier){dom_frontier_.find(bb)->second.insert(frontier);bb->addDomFrontier(frontier);}
     void addDomSet(BasicBlock* bb,BasicBlock* dom){dom_set_.find(bb)->second.insert(dom);}
-    BasicBlock* intersect(BasicBlock*,BasicBlock*);
+    void addDomTree(BasicBlock* dominator,BasicBlock*bb ){dom_tree.find(dominator)->second.insert(bb);}
+    
     void post();
     void sFastIDomAlg();
     void domAlg();
+    void domTreeAlg();
     void domFrontierAlg();
 public:
     Dominators(Function* fun);
     void run();
+    void printDomFront();
+    void printDomSet();
 
     inline ::std::set<BasicBlock*> &getDomFrontier(BasicBlock* bb){return dom_frontier_.find(bb)->second;}
     inline ::std::set<BasicBlock*> &getDomSet(BasicBlock* bb){return dom_set_.find(bb)->second;}
+    inline ::std::set<BasicBlock*> &getDomTree(BasicBlock* dominator){return dom_set_.find(dominator)->second;}
     inline BasicBlock* getIDom(BasicBlock*b){ return idom_[b];}
 
 };

@@ -36,8 +36,20 @@ void Dominators::sFastIDomAlg(){
         setIDom(bb,new_idom);
     }
 
-    setIDom(entry,entry);
-    // setIDom(entry,nullptr);
+    // setIDom(entry,entry);
+    setIDom(entry,nullptr);
+
+    auto intersect=[this](BasicBlock *b1, BasicBlock *b2){
+        while (b1 != b2) {
+            if (post_order_id_[b1] < post_order_id_[b2]) {
+                b1 = getIDom(b1);
+            }else{
+                b2=getIDom(b2);
+            }
+        }
+        return b1; 
+    };
+    
     while (changed) {
         changed = false;
         for (auto bb : this->reverse_post_order_) {
@@ -65,58 +77,103 @@ void Dominators::sFastIDomAlg(){
     //         ::std::cout<<bb->getName()<<" idom: "<<idom->getName()<<::std::endl;
     // }
 }
-BasicBlock *Dominators::intersect(BasicBlock *b1, BasicBlock *b2){
-    while (b1 != b2) {
-        if (post_order_id_[b1] < post_order_id_[b2]) {
-            b1 = getIDom(b1);
-        }else{
-            b2=getIDom(b2);
-        }
-    }
-    return b1;   
-}
+
 void Dominators::domAlg(){
     for (auto bb : fun_->getBasicBlocks()) {
-        auto idom = getIDom(bb);
-        // e.g, entry bb
-        if (idom != bb) {
-            addDomSet(bb, idom);
+        auto idom = getIDom(bb);        
+        if (idom != bb&&idom!=nullptr) {
+            addDomSet(idom, bb);
         }
     }
-    // for(auto bb:fun_->getBasicBlocks()){
-    //     auto b_it=dom_set_.find(bb);
-    //     ::std::cout<<b_it->first->getName()<<" itsdom: ";
-    //     for(auto dom:b_it->second){
-    //         ::std::cout<<dom->getName();
-    //     }
-    //     ::std::cout<<::std::endl;
-    // }
-}
-void Dominators::domFrontierAlg(){
-
-    for (auto bb : fun_->getBasicBlocks()) {
-        if (bb->getPreBasicBlocks().size() > 1) {
-            for (auto pre : bb->getPreBasicBlocks()) {
-                auto runner = pre;
-                while (runner != getIDom(bb)) {
-                    // auto it=dom_frontier_.find(runner);
-                    addDomFrontier(runner,bb);
-                    runner = getIDom(runner);
+    bool changed=true;
+    while (changed) {
+        changed=false;
+        for(auto [domed,idom]:idom_){
+            for(auto &[dom, dset]:dom_set_){
+                if(idom==dom||dset.find(idom)!=dset.end()){
+                    if(dset.find(domed)==dset.end()){
+                        changed=true;
+                        dset.insert(domed);
+                    }
                 }
             }
         }
     }
-   
+}
+void Dominators::domTreeAlg(){
+    for (auto bb : fun_->getBasicBlocks()) {
+        auto idom = getIDom(bb);        
+        if (idom != bb&&idom!=nullptr) {
+            if(auto tree_iter=dom_tree.find(idom);tree_iter!=dom_tree.end())
+                tree_iter->second.insert(bb);
+            else
+                dom_tree.insert({idom,{bb}});
+        }
+    }
+}
+void Dominators::domFrontierAlg(){
+
+    for (auto bb : fun_->getBasicBlocks()) {
+        if (bb->getPreBasicBlocks().size() <2) continue;
+
+        for (auto pre : bb->getPreBasicBlocks()) {
+            auto runner = pre;
+            while (runner != getIDom(bb)) {
+                // if(runner==bb) break;
+                addDomFrontier(runner,bb);
+                runner = getIDom(runner);
+            }
+        }
+
+    }
+
+//    for(auto &[bb,bb_set]:dom_frontier_){
+//         if(auto find=bb_set.find(bb);find!=bb_set.end()){
+//             bb_set.erase(bb);
+//         }
+//    }
+
 }
 void Dominators::run(){
+    // sFastIDomAlg();
+    // domFrontierAlg();
+    // domAlg();
+}
+void Dominators::printDomFront(){
+#ifdef DEBUG
+    ::std::cout<<"dominate frontier:\n";
+    for(auto [b ,bbset]:dom_frontier_){
+        if(bbset.empty()) continue;
+        ::std::cout<<b->getName()<<" domf : ";
+        for(auto df:bbset){
+            ::std::cout<<df->getName()<<" ";            
+        }
+        ::std::cout<<::std::endl;
+    }
+#endif
+}
+void Dominators::printDomSet(){
+#ifdef DEBUG
+    ::std::cout<<"dominate set:\n";
+    for(auto &[b ,bbset]:dom_set_){
+        if(bbset.empty()) continue;
+        ::std::cout<<b->getName()<<" dom : "<<bbset.size()<<" ";
+        for(auto dom:bbset){
+            ::std::cout<<dom->getName()<<" ";            
+        }
+        ::std::cout<<::std::endl;
+    }
+#endif
+}
+Dominators::Dominators(Function* fun):fun_(fun){
+    for(auto bb:fun->getBasicBlocks()){
+        dom_set_.insert({bb,{bb}});
+        dom_frontier_.insert({bb,{}});
+    }
     sFastIDomAlg();
     domFrontierAlg();
     domAlg();
-}
-
-Dominators::Dominators(Function* fun):fun_(fun){
-    for(auto bb:fun->getBasicBlocks()){
-        dom_set_.insert({bb,{}});
-        dom_frontier_.insert({bb,{}});
-    }
+    domTreeAlg();
+    // printDomFront();
+    // printDomSet();
 }

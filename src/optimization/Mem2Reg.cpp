@@ -1,118 +1,213 @@
 #include "optimization/Mem2Reg.hpp"
 #include "midend/BasicBlock.hpp"
+#include "midend/Constant.hpp"
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include "midend/Value.hpp"
+#include <algorithm>
+#include <cassert>
+#include <cerrno>
 #include <iostream>
+#include <map>
 #include <memory>
+#include <set>
 
+BasicBlock* Mem2Reg::isOnlyInOneBB(AllocaInst*ai){
+    assert(!ai->getUseList().empty() && "There are no uses of the alloca!");
+    auto &uses=ai->getUseList();
+    BasicBlock*last=nullptr;
+    for(auto use:uses){
+        auto instr=dynamic_cast<Instruction*>(use.val_);
+        
+        assert(instr!=nullptr && "The use is not an instruction");
+        
+        if(last==nullptr) last=instr->getParent();
+        else if(last!=instr->getParent()){
+            return nullptr;
+        }
+    }
+    return last;
+
+}
+void Mem2Reg::rmLocallyAlloc(AllocaInst*ai,BasicBlock* used_bb){
+    assert(used_bb!=nullptr && "ai no used");
+    
+    //auto bb=static_cast<Instruction*>(ai->getUseList().front().val_)->getParent();
+    auto &instrs=used_bb->getInstructions();
+    Value* cur_val=nullptr;
+    for(auto iter=instrs.begin();iter!=instrs.end();){
+        auto ins=iter++;
+        if(LoadInst* load_instr=dynamic_cast<LoadInst*>(*ins)){
+            if(load_instr->getLVal()!=ai) continue;
+            assert(cur_val!=nullptr&&"this val did not define before use");
+            load_instr->replaceAllUseWith(cur_val);
+            used_bb->deleteInstr(load_instr);
+        }else if(StoreInst* store_instr=dynamic_cast<StoreInst*>(*ins)){
+            if(store_instr->getLVal()!=ai) continue;
+            cur_val=store_instr->getRVal();
+            used_bb->deleteInstr(store_instr);
+        }
+    }
+    ai->getParent()->deleteInstr(ai);
+}
+void Mem2Reg::calDefAndUse(AllocaInst*ai,::std::set<BasicBlock*>&def_bbs,::std::set<BasicBlock*>&use_bbs){
+    assert(!ai->getUseList().empty() && "There are no uses of the alloca!");
+    auto &uses=ai->getUseList();
+    for(auto use:uses){
+        auto instr=dynamic_cast<Instruction*>(use.val_);
+        assert(instr!=nullptr && "The use is not an instruction");
+        if(auto store_instr=dynamic_cast<StoreInst*>(instr)){
+            def_bbs.insert(store_instr->getParent());
+        }else if(auto load_instr=dynamic_cast<LoadInst*>(instr)){
+            use_bbs.insert(load_instr->getParent());
+        }else{
+            assert(0 && "The use is not an instruction");
+        }
+        
+    }
+}
+bool Mem2Reg::queuePhi(BasicBlock*bb,AllocaInst*ai,::std::set<PhiInst*>&phi_set){
+    //找bb的phi节点表
+    auto &bb_phi = new_phi[bb];
+    for(auto bp:bb_phi){
+        if(bp.first==ai)
+            return false;
+    }
+
+    //有没有指向此alloc的phi
+    auto phi=PhiInst::createPhi(ai->getAllocaType(),bb);
+    bb->addInstrBegin(phi);
+    
+    bb_phi.insert({ai,phi});
+    phi_set.insert(phi);
+    
+    return true;
+}
+void Mem2Reg::rmDeadPhi(Function*func){
+        for(auto b:func->getBasicBlocks()){
+            auto &instrs=b->getInstructions();
+            for(auto iter=instrs.begin();iter!=instrs.end();){
+                auto ins=iter++;
+                if((*ins)->isPhi()&&(*ins)->getUseList().empty()){
+                    b->deleteInstr(*ins);
+                }
+            }
+        }
+
+}
+void Mem2Reg::reName(BasicBlock*bb,BasicBlock*pred,::std::map<AllocaInst*,Value*> incoming_vals){
+    static ::std::set<BasicBlock*>visited;
+    if(auto bb_alloc_phi=new_phi.find(bb);bb_alloc_phi!=new_phi.end()){
+        auto&alloc_phi=bb_alloc_phi->second;
+        for(auto &[ai ,phi]:alloc_phi){
+            phi->addPhiPairOperand(incoming_vals.find(ai)->second,pred);
+            incoming_vals[ai]=phi;
+        }
+    }
+    
+    if(visited.count(bb)) return ;
+    
+    visited.insert(bb);
+    auto &instrs=bb->getInstructions();
+    for(auto instr_iter=instrs.begin();instr_iter!=instrs.end();){
+        auto instr=*instr_iter;
+        instr_iter++;
+        
+        if(LoadInst*load_instr=dynamic_cast<LoadInst*>(instr)){
+            auto lval=load_instr->getLVal();
+            if(auto ai_lval=dynamic_cast<AllocaInst*>(lval)){
+                auto it=incoming_vals.find(ai_lval);
+                if(it==incoming_vals.end()) continue;
+                Value* v=it->second;
+                load_instr->replaceAllUseWith(v);
+                bb->deleteInstr(load_instr);
+            }
+        }else if(StoreInst*store_instr=dynamic_cast<StoreInst*>(instr)){
+            auto lval=store_instr->getLVal();
+            if(auto ai_lval=dynamic_cast<AllocaInst*>(lval)){
+                auto it=incoming_vals.find(ai_lval);
+                if(it==incoming_vals.end()) continue;
+                it->second=store_instr->getRVal();
+                bb->deleteInstr(store_instr);
+            }
+        }
+    }
+    
+    ::std::map<AllocaInst*,Value*> next(incoming_vals);
+    //std::copy(incoming_vals.begin(),incoming_vals.end(),inserter(next,next.begin()));    
+    
+    for(auto succ_bb:bb->getSuccBasicBlocks())
+        reName(succ_bb, bb, next);
+}
 void Mem2Reg::run(){
     for (auto func : moudle_->getFunctions()){
         auto &bb_list=func->getBasicBlocks();
         if(bb_list.empty())continue;
-
         ::std::unique_ptr<Dominators> dom=std::make_unique<Dominators>(func);
         cur_fun_dom=func_dom_.insert({func,std::move(dom)}).first;
 
-        removeSL();
-        // for(auto bb:func->getBasicBlocks()){
-        //     removeOneBBLoad(bb);
+        for(auto bb:func->getBasicBlocks()){
+            for(auto instr:bb->getInstructions()){
+                if(isAllocVar(instr)){
+                    allocas.push_back(static_cast<AllocaInst*>(instr));
+                }
+            }
+        }
+        if(allocas.empty())continue;
+        for(auto iter=allocas.begin();iter!=allocas.end() ;){
+            auto i=iter++;
+            auto ai=*i;
+            
+            //if no use
+            if(ai->getUseList().empty()){
+                ai->getParent()->deleteInstr(ai);
+                // allocas.erase(i);
+            }
+            //only used in one bb
+            else if(auto bb=isOnlyInOneBB(ai)){
+                rmLocallyAlloc(ai,bb);
+                ai->getParent()->deleteInstr(ai);
+            }
+            else{
+                ::std::set<BasicBlock*>define_bbs;
+                ::std::set<BasicBlock*>use_bbs;
+                ::std::set<PhiInst*> phi_set;
+                calDefAndUse(ai,define_bbs,use_bbs);
+                for(auto b:define_bbs){
+                    if(b->getDomFrontier().empty())continue;
+                    auto &df_set=b->getDomFrontier();
+                    for(auto df:df_set)
+                        if (queuePhi(df, ai,phi_set))
+                            define_bbs.insert(df);
+                }
+            }
+        }
+
+        if(allocas.empty())
+            continue;
         
-        // };
-        generatePhi();
-    
+        ::std::map<AllocaInst*,Value*> alloc_va;
+        for(auto i:allocas){
+            alloc_va.insert({i,ConstantInt::get(114514,moudle_)});
+        }
+        reName(func->getBasicBlocks().front(),nullptr,alloc_va);
+        rmDeadPhi(func);
+
+        for(auto ai_iter=allocas.begin();ai_iter!=allocas.end();){
+            auto ai=*ai_iter;ai_iter++;
+            if(!ai->getUseList().empty()){
+                assert(0&& "do not define before use ");
+            }
+            ai->getParent()->deleteInstr(ai);
+        }
     }
 }
-bool Mem2Reg::isLocalVarOp(Instruction *instr){
-    if (instr->isStore()){
-        StoreInst *store_instr = (StoreInst *)instr;
-        auto l_value = store_instr->getLVal();
-        auto alloc = dynamic_cast<AllocaInst *>(l_value);
-        auto array_element_ptr = dynamic_cast<GetElementPtrInst *>(l_value);
-        return alloc!=nullptr && array_element_ptr==nullptr;
-    }else if (instr->isLoad()){
-        LoadInst *load_instr = (LoadInst *)instr;
-        auto l_value = load_instr->getLVal();
-        auto alloc = dynamic_cast<AllocaInst *>(l_value);
-        auto array_element_ptr = dynamic_cast<GetElementPtrInst *>(l_value);
-        return alloc!=nullptr && array_element_ptr==nullptr;
-    }else
-        return false;
-}
+
 bool Mem2Reg::isAllocVar(Instruction *instr){
     if(instr->isAlloca()){
         AllocaInst *alloc=static_cast<AllocaInst*>(instr);
-        return alloc->getType()->isFloatType()||alloc->getType()->isIntegerType();
+        return alloc->getAllocaType()->isFloatType()  ||alloc->getAllocaType()->isIntegerType();
     }else
         return false;
 
-}
-void Mem2Reg::removeSL(){
-    ::std::map<Value *, Instruction *> define_list;
-    ::std::map<Value *, Value *> new_value;
-    for(auto bb:cur_fun_dom->first->getBasicBlocks())
-        removeOne(bb,define_list,new_value);
-}
-void Mem2Reg::removeOne(BasicBlock*cur_bb,map<Value *, Instruction *> define_list,map<Value *, Value *> new_value){
-    ::std::map<Instruction *, Value *> use_list;
-    for(Instruction* instr : cur_bb->getInstructions()){
-        if(!isLocalVarOp(instr)) continue;
-        else
-        if(instr->isStore()){
-            auto store_ins=(StoreInst*)instr;
-            auto l_val=store_ins->getLVal();
-            auto r_val=store_ins->getRVal();
-            auto r_val_load_instr = dynamic_cast<Instruction*>(r_val);
-            if(r_val_load_instr!=nullptr)
-                if(auto it=use_list.find(r_val_load_instr); it!= use_list.end())
-                    r_val = it->second;
-            
-            new_value[l_val]=r_val;
-
-            //remove when redefine in one block
-            if(auto it_pair=define_list.find(l_val);it_pair != define_list.end()){
-                cur_bb->deleteInstr(it_pair->second);
-                it_pair->second = store_ins;
-            }else{
-                define_list.insert({l_val, store_ins});
-            }
-
-        }else if(instr->isLoad()) {
-            LoadInst* load_ins=static_cast<LoadInst *>(instr);
-            Value* l_val = static_cast<LoadInst *>(instr)->getLVal();
-            Value* r_val = dynamic_cast<Value *>(instr);
-            if(define_list.find(l_val) == define_list.end())
-                continue;
-            
-            Value* value = new_value.find(l_val)->second;
-            use_list.insert({load_ins, value});
-        }
-
-    }
-    
-    for(auto [load_instr ,value]: use_list){
-        for(auto use: load_instr->getUseList()){
-            Instruction * use_inst = dynamic_cast<Instruction *>(use.val_);
-            use_inst->setOperand(use.arg_no_, value);
-        }
-        cur_bb->deleteInstr(load_instr);
-        // use_list.erase(load_instr);
-    }
-
-    auto is_df=[this](BasicBlock*bb){
-        for(auto b:cur_fun_dom->first->getBasicBlocks()){
-            auto dfs=b->getDomFrontier();
-            for(auto df:dfs)
-                if(df==bb)return true; 
-        }
-        return false;
-    };
-
-    for (BasicBlock* succ_bb : cur_bb->getSuccBasicBlocks() ){
-        if(!is_df(succ_bb))
-            removeOne(succ_bb,define_list,new_value);
-    }
-}
-
-void Mem2Reg::generatePhi(){
 }
