@@ -170,12 +170,13 @@ void Mem2Reg::run(){
             //if no use
             if(ai->getUseList().empty()){
                 ai->getParent()->deleteInstr(ai);
-                // allocas.erase(i);
+                allocas.erase(i);
             }
             //only used in one bb
             else if(auto bb=isOnlyInOneBB(ai)){
                 rmLocallyAlloc(ai,bb);
                 ai->getParent()->deleteInstr(ai);
+                allocas.erase(i);
             }
             else{
                 ::std::set<BasicBlock*>define_bbs;
