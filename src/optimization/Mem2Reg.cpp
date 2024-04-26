@@ -63,7 +63,6 @@ void Mem2Reg::calDefAndUse(AllocaInst*ai,::std::set<BasicBlock*>&def_bbs,::std::
         }else{
             assert(0 && "The use is not an instruction");
         }
-        
     }
 }
 bool Mem2Reg::queuePhi(BasicBlock*bb,AllocaInst*ai,::std::set<PhiInst*>&phi_set){
@@ -133,11 +132,8 @@ void Mem2Reg::reName(BasicBlock*bb,BasicBlock*pred,::std::map<AllocaInst*,Value*
         }
     }
     
-    ::std::map<AllocaInst*,Value*> next(incoming_vals);
-    //std::copy(incoming_vals.begin(),incoming_vals.end(),inserter(next,next.begin()));    
-    
     for(auto succ_bb:bb->getSuccBasicBlocks())
-        reName(succ_bb, bb, next);
+        reName(succ_bb, bb, incoming_vals);
 }
 void Mem2Reg::run(){
     for (auto func : moudle_->getFunctions()){
@@ -172,10 +168,16 @@ void Mem2Reg::run(){
                 ::std::set<BasicBlock*>define_bbs;
                 ::std::set<BasicBlock*>use_bbs;
                 ::std::set<PhiInst*> phi_set;
+
+                ::std::set<BasicBlock*>df_set;
+                for(auto b:func->getBasicBlocks()){
+                    df_set.insert(b->getDomFrontier().begin(),b->getDomFrontier().end());
+                }
+
                 calDefAndUse(ai,define_bbs,use_bbs);
                 for(auto b:define_bbs){
                     if(b->getDomFrontier().empty())continue;
-                    auto &df_set=b->getDomFrontier();
+                    // auto &df_set=b->getDomFrontier();
                     for(auto df:df_set)
                         if (queuePhi(df, ai,phi_set))
                             define_bbs.insert(df);
