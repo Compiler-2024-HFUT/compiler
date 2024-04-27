@@ -4,6 +4,7 @@
 #include <list>
 #include <iterator>
 #include <set>
+#include <unordered_set>
 
 #include "Value.hpp"
 #include "Instruction.hpp"
@@ -93,6 +94,7 @@ public:
     void addInstrBegin(Instruction *instr);
 
     void deleteInstr(Instruction *instr);
+    void eraseInstr(::std::list<Instruction*>::iterator instr_iter);
 
     std::list<Instruction *>::iterator findInstruction(Instruction *instr);
 
@@ -108,6 +110,11 @@ public:
 
     virtual std::string print() override;
 
+    ~BasicBlock(){
+        for(auto ins:dead){
+            delete ins;
+        }
+    }
 
 private:
     explicit BasicBlock(Module *m, const std::string &name, Function *parent);
@@ -127,5 +134,7 @@ private:
     std::set<Value*> flive_out;
     int incoming_branch = 0;
     int loop_depth = 0;
+
+    std::unordered_set<Instruction*>dead;
 };
 #endif

@@ -52,6 +52,13 @@ void BasicBlock::addInstrBegin(Instruction *instr) {
 void BasicBlock::deleteInstr(Instruction *instr) {
     instr_list_.remove(instr);
     instr->removeUseOfOps();
+    dead.insert(instr);
+}
+void BasicBlock::eraseInstr(::std::list<Instruction*>::iterator instr_iter) {
+    auto instr=*instr_iter;
+    instr_list_.erase(instr_iter);
+    instr->removeUseOfOps();
+    dead.insert(instr);
 }
 
 std::list<Instruction*>::iterator BasicBlock::findInstruction(Instruction *instr) {

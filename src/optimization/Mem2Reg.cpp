@@ -36,19 +36,18 @@ void Mem2Reg::rmLocallyAlloc(AllocaInst*ai,BasicBlock* used_bb){
     auto &instrs=used_bb->getInstructions();
     Value* cur_val=nullptr;
     for(auto iter=instrs.begin();iter!=instrs.end();){
-        auto ins=iter++;
-        if(LoadInst* load_instr=dynamic_cast<LoadInst*>(*ins)){
+        auto cur_iter=iter++;
+        if(LoadInst* load_instr=dynamic_cast<LoadInst*>(*cur_iter)){
             if(load_instr->getLVal()!=ai) continue;
             assert(cur_val!=nullptr&&"this val did not define before use");
             load_instr->replaceAllUseWith(cur_val);
-            used_bb->deleteInstr(load_instr);
-        }else if(StoreInst* store_instr=dynamic_cast<StoreInst*>(*ins)){
+            used_bb->eraseInstr(cur_iter);
+        }else if(StoreInst* store_instr=dynamic_cast<StoreInst*>(*cur_iter)){
             if(store_instr->getLVal()!=ai) continue;
             cur_val=store_instr->getRVal();
-            used_bb->deleteInstr(store_instr);
+            used_bb->eraseInstr(cur_iter);
         }
     }
-    ai->getParent()->deleteInstr(ai);
 }
 void Mem2Reg::calDefAndUse(AllocaInst*ai,::std::set<BasicBlock*>&def_bbs,::std::set<BasicBlock*>&use_bbs){
     assert(!ai->getUseList().empty() && "There are no uses of the alloca!");
@@ -88,7 +87,7 @@ void Mem2Reg::rmDeadPhi(Function*func){
             for(auto iter=instrs.begin();iter!=instrs.end();){
                 auto ins=iter++;
                 if((*ins)->isPhi()&&(*ins)->getUseList().empty()){
-                    b->deleteInstr(*ins);
+                    b->eraseInstr(ins);
                 }
             }
         }
@@ -109,8 +108,8 @@ void Mem2Reg::reName(BasicBlock*bb,BasicBlock*pred,::std::map<AllocaInst*,Value*
     visited.insert(bb);
     auto &instrs=bb->getInstructions();
     for(auto instr_iter=instrs.begin();instr_iter!=instrs.end();){
-        auto instr=*instr_iter;
-        instr_iter++;
+        auto cur_iter=instr_iter++;
+        auto instr=*cur_iter;
         
         if(LoadInst*load_instr=dynamic_cast<LoadInst*>(instr)){
             auto lval=load_instr->getLVal();
@@ -119,7 +118,7 @@ void Mem2Reg::reName(BasicBlock*bb,BasicBlock*pred,::std::map<AllocaInst*,Value*
                 if(it==incoming_vals.end()) continue;
                 Value* v=it->second;
                 load_instr->replaceAllUseWith(v);
-                bb->deleteInstr(load_instr);
+                bb->eraseInstr(cur_iter);
             }
         }else if(StoreInst*store_instr=dynamic_cast<StoreInst*>(instr)){
             auto lval=store_instr->getLVal();
@@ -127,7 +126,7 @@ void Mem2Reg::reName(BasicBlock*bb,BasicBlock*pred,::std::map<AllocaInst*,Value*
                 auto it=incoming_vals.find(ai_lval);
                 if(it==incoming_vals.end()) continue;
                 it->second=store_instr->getRVal();
-                bb->deleteInstr(store_instr);
+                bb->eraseInstr(cur_iter);
             }
         }
     }
