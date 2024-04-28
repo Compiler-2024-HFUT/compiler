@@ -6,11 +6,19 @@
 #include "midend/Instruction.hpp"
 #include "midend/Module.hpp"
 #include "midend/Type.hpp"
+#include <stack>
 Module* global_m_ptr;
 
 #define LOG(msg) assert(0 && msg);
 
 using namespace IRBuilder;
+
+enum class IfWhileEnum{
+    IN_IF=114,
+    IN_WHILE=514,
+};
+static bool real_ret=0;
+static std::stack<IfWhileEnum> if_while_stack;
 
 void IRGen::visit(ast::CompunitNode &node) {
     global_init_block = BasicBlock::create( module.get(), "init", dynamic_cast<Function*>(scope.findFunc("global_var_init")) );
@@ -23,6 +31,7 @@ void IRGen::visit(ast::CompunitNode &node) {
 }
 
 void IRGen::visit(ast::FuncDef &node) {
+    real_ret=false;
     Type *ret_type;
     FunctionType *fun_type;
     Function *fun;
@@ -182,7 +191,9 @@ void IRGen::visit(ast::BlockStmt &node) {
 
     for(auto &inst : node.block_items){
         inst->accept(*this);
-        if(dynamic_cast<ast::ContinueStmt*>(inst.get())||dynamic_cast<ast::BreakStmt*>(inst.get()))
+        if(real_ret)
+            break;
+        else if(dynamic_cast<ast::ContinueStmt*>(inst.get())||dynamic_cast<ast::BreakStmt*>(inst.get())||dynamic_cast<ast::RetStmt*>(inst.get()))
             break;
     }
 
@@ -1061,6 +1072,7 @@ void IRGen::visit(ast::LvalExpr &node){
     }
 }
 void IRGen::visit(ast::IfStmt &node) {
+    if_while_stack.push(IfWhileEnum::IN_IF);
     auto true_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
     auto false_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
     auto next_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
@@ -1142,9 +1154,10 @@ void IRGen::visit(ast::IfStmt &node) {
         cur_block_of_cur_fun = true_bb;
         next_bb->eraseFromParent();
     }
- 
+    if_while_stack.pop();
 }
 void IRGen::visit(ast::WhileStmt &node){
+    if_while_stack.push(IfWhileEnum::IN_WHILE);
     auto pred_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
     auto iter_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
     auto next_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
@@ -1186,8 +1199,7 @@ void IRGen::visit(ast::WhileStmt &node){
     cur_basic_block_list.push_back(next_bb);
     While_Stack.pop_back();
     
-
-
+    if_while_stack.pop();
 }
 void IRGen::visit(ast::CallExpr &node) {
     auto called_func = static_cast<Function*>(scope.findFunc(node.call_name));
@@ -1268,6 +1280,8 @@ void IRGen::visit(ast::RetStmt &node) {
         }
     }
     BranchInst::createBr(ret_BB, cur_block_of_cur_fun);
+    if(if_while_stack.empty())
+        real_ret=true;
 }
 void IRGen::visit(ast::ContinueStmt &node){
     BranchInst::createBr(While_Stack.back().trueBB,cur_block_of_cur_fun);
