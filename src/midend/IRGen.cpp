@@ -1223,10 +1223,9 @@ void IRGen::visit(ast::IfStmt &node) {
     if_while_stack.pop();
 }
 void IRGen::visit(ast::WhileStmt &node){
-    if_while_stack.push(IfWhileEnum::IN_WHILE);
-    auto pred_bb = BasicBlock::create( "", cur_fun);
-    auto iter_bb = BasicBlock::create("", cur_fun);
-    auto next_bb = BasicBlock::create("", cur_fun);
+    auto pred_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
+    auto iter_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
+    auto next_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
     
     if(cur_block_of_cur_fun->getTerminator()==nullptr)  BranchInst::createBr(pred_bb, cur_block_of_cur_fun);
     cur_basic_block_list.pop_back();
