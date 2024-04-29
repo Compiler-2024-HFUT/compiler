@@ -205,10 +205,10 @@ public:
 
     bool isBinary() {
         return isIntBinary() || isFloatBinary();
-
     }
 
     bool isTerminator() { return isBr() || isRet() || isCmpBr() || isFCmpBr(); }
+    bool isWriteMem(){return isStore() || isStoreOffset(); }
 
     void setId(int id) { id_ = id; }
     int getId() { return id_; }

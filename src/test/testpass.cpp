@@ -14,6 +14,7 @@
 #include "midend/IRGen.hpp"
 
 #include "analysis/Dominators.hpp"
+#include "optimization/ADCE.hpp"
 #include "optimization/DeadStoreEli.hpp"
 #include "optimization/Mem2Reg.hpp"
 #include "optimization/PassManager.hpp"
@@ -37,6 +38,7 @@ int main(int argc , char**argv){
     PassManager pm{m};
     pm.add_pass<DeadStoreEli>();
     pm.add_pass<Mem2Reg>();
+    pm.add_pass<ADCE>();
     pm.run();
     cout << irgen.getModule()->print();
 
