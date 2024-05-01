@@ -16,7 +16,7 @@ class Function;
 
 class Instruction : public User {
 public:
-    enum class OpID {
+    enum  OpID {
       //& Terminator Instructions
       ret,
       br,

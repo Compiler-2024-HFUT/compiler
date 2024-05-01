@@ -18,6 +18,10 @@
 #include "optimization/DeadStoreEli.hpp"
 #include "optimization/Mem2Reg.hpp"
 #include "optimization/PassManager.hpp"
+
+#include "backend/CodeGen.hpp"
+#include "backend/HAsmModule.hpp"
+
 using namespace std;
 
 int main(int argc , char**argv){
@@ -38,9 +42,9 @@ int main(int argc , char**argv){
     PassManager pm{m};
     pm.add_pass<DeadStoreEli>();
     pm.add_pass<Mem2Reg>();
-   // pm.add_pass<ADCE>();
+   //pm.add_pass<ADCE>();
     pm.run();
-    cout << irgen.getModule()->print();
+    //cout << irgen.getModule()->print();
 
     // for(auto f:m->getFunctions()){
     //     if(f->getBasicBlocks().size()>1){
@@ -48,6 +52,9 @@ int main(int argc , char**argv){
     //     }
     // }
 
+    CodeGen codegen(m);
+    codegen.module_gen();
+    std::cout<<codegen.get_module()->get_asm_code()<<std::endl;
 
     delete (p);
 
