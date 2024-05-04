@@ -40,7 +40,7 @@ target("passtest")
     add_files("src/frontend/*.cpp")
     add_files("src/midend/*.cpp")
     add_files("src/analysis/*.cpp")
-    add_files("src/optimization/Mem2Reg.cpp","src/optimization/DeadStoreEli.cpp")
+    add_files("src/optimization/*.cpp")
     add_files("src/test/testpass.cpp")
     set_optimize("none")
 --
