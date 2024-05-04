@@ -8,7 +8,7 @@ if [ $? -ne 0 ]
 then
     echo "`pwd`$name.sy error 1145141919810" >> "compiler wrong"
 else
-    riscv64-linux-gnu-gcc "$name.s"  ../lib/libsysy.a ../lib/memset.c -o "$name.o"
+    riscv64-linux-gnu-gcc "$name.s"  ../lib/libsysy.a ../lib/memset.c --static -o "$name.o"
 
     #run
     if [ -f "`pwd`/$name.in"  ] 
