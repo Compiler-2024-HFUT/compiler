@@ -30,6 +30,9 @@ struct InstVal {
     } state;        // 当前指令值的状态，半格（SemiLattice）的三个顺序
     Constant *val;  // 当state = undef 或 Nac 时，此值无效 
     InstVal() : state(undef), val(nullptr) {}
+
+    Constant *getConst() { return (state == constant) ? val : nullptr; }
+
     bool isUndef() { return (state == undef); }
     bool isConst() { return (state == constant); }
     bool isNaC() { return (state == NaC); }
@@ -74,8 +77,6 @@ class SCCP : public FunctionPass {
         }
     };
 
-
-
     std::vector<Edge> worklist;
     std::map<Edge, int> execFlag;           // 不能找到或为0等价于false
     std::map<Value*, InstVal> LattValue;    // vlaue对应的半格值，找不到等价于undef
@@ -88,7 +89,9 @@ class SCCP : public FunctionPass {
     void visitInst(Instruction *i);
     void visitPhi(PhiInst *phi);
 
-    bool replaceAllConst();
+    // 实现单条指令(仅包含二元运算和比较运算)的常量折叠
+    // 是否可以实现对Constant的运算符重载简化该函数实现？
+    Constant *foldConst(Instruction *inst);
 
     bool runOnFunction(Function *f);
 public:
