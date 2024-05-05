@@ -48,7 +48,7 @@ struct InstVal {
         }
         return false;
     }
-    bool markNac() {
+    bool markNaC() {
         if(state != NaC) {
             state = NaC;
             return true;
@@ -83,6 +83,7 @@ class SCCP : public FunctionPass {
 
     InstVal &getInstVal(Value *v);
     int getExecFlag(Edge e);
+    int getExecFlag(PhiInst *phi, BasicBlock *bb);  // FlowEdge = bb -> phi's block 
     void addFlowEdge(BasicBlock *from);
     void addSSAEdge(Value *def);
 

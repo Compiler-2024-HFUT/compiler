@@ -35,6 +35,15 @@ int main(int argc , char**argv){
     pm.run();
     cout << irgen.getModule()->print();
 
+<<<<<<< HEAD
+=======
+    // for(auto f:m->getFunctions()){
+    //     if(f->getBasicBlocks().size()>1){
+    //         cout<<f->printGra()<<endl;
+    //     }
+    // }
+
+>>>>>>> b3b9b5e (仅能完成二元运算的传播)
     delete (p);
 
 }

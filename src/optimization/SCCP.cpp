@@ -53,14 +53,21 @@ bool SCCP::runOnFunction(Function *f) {
 void SCCP::run() {
     // bool isChanged = false;
     for(auto func : moudle_->getFunctions()){
-        runOnFunction(func);
+        // 仅在有定义的函数上执行
+        if(func->getBasicBlocks().size() != 0)
+            runOnFunction(func);
     }
 }
 
-int SCCP::getExecFlag(Edge e){
+int SCCP::getExecFlag(Edge e) {
     if(execFlag.find(e) == execFlag.end())
         execFlag[e] = 0;
     return execFlag[e];
+}
+
+int SCCP::getExecFlag(PhiInst *phi, BasicBlock *bb) {
+    Edge e = Edge::makeFlowEdge(bb, phi->getParent());
+    return getExecFlag(e);
 }
 
 InstVal &SCCP::getInstVal(Value *v){
@@ -72,18 +79,19 @@ InstVal &SCCP::getInstVal(Value *v){
     if(Constant *c = dynamic_cast<Constant*>(v)) {
         LattValue[v].markConst(c);
     }else if(Argument *arg = dynamic_cast<Argument*>(v)) {
-        LattValue[v].markNac();
+        LattValue[v].markNaC();
     // 全局常量呢？这样无法处理进程间的传播
     }else if(GlobalVariable *gv = dynamic_cast<GlobalVariable*>(v)) {
-        LattValue[v].markNac();
+        LattValue[v].markNaC();
     }
 
     return LattValue[v];
 }
 
 void SCCP::addFlowEdge(BasicBlock *from){
-    BasicBlock *to = from->getSuccBasicBlocks().front();
-    worklist.push_back(Edge::makeFlowEdge(from, to));
+    for(auto to : from->getSuccBasicBlocks()) {
+        worklist.push_back(Edge::makeFlowEdge(from, to));
+    }
 }
 
 void SCCP::addSSAEdge(Value *def){
@@ -97,7 +105,7 @@ Constant *SCCP::foldConst(Instruction *inst) {
     Constant *result;
     Instruction::OpID id = inst->getInstrType();
 
-    Value *a = inst->getOperand(0), *b = inst->getOperand(1);
+    Value *a = getInstVal(inst->getOperand(0)).getConst() , *b = getInstVal(inst->getOperand(1)).getConst();
     ConstantInt *ia, *ib;
     int iav = 0, ibv = 0;
     ConstantFP *fa, *fb;
@@ -107,13 +115,13 @@ Constant *SCCP::foldConst(Instruction *inst) {
     if(inst->isIntBinary() || inst->isCmp()){
         ia = dynamic_cast<ConstantInt*>(a);
         ib = dynamic_cast<ConstantInt*>(b);
-        assert( (ia && ib) && "a, b can't be int!" );
+        assert( (ia && ib) && "a, b should be int!" );
         iav = ia->getValue();
         ibv = ib->getValue();
     }else if(inst->isFloatBinary() || inst->isFCmp()){
         fa = dynamic_cast<ConstantFP*>(a);
         fb = dynamic_cast<ConstantFP*>(b);
-        assert( (fa && fb) && "a, b can't be float!" );
+        assert( (fa && fb) && "a, b should be float!" );
         fav = fa->getValue();
         fbv = fb->getValue();
     }else{
@@ -146,7 +154,7 @@ Constant *SCCP::foldConst(Instruction *inst) {
 
         // cmp or fcmp
         case Instruction::OpID::cmp:
-        case Instruction::OpID::fcmp:
+        case Instruction::OpID::fcmp: {
             CmpOp cmpType = (dynamic_cast<CmpInst*>(inst)) ? dynamic_cast<CmpInst*>(inst)->getCmpOp() : dynamic_cast<FCmpInst*>(inst)->getCmpOp();
             float ca = iav + fav, cb = ibv + fbv;   // maybe bug??
             switch (cmpType) {
@@ -158,17 +166,77 @@ Constant *SCCP::foldConst(Instruction *inst) {
                 case CmpOp::LE: result = (Constant*)ConstantInt::get(ca <= cb); break;
             }
             break;
-
+        }
         default: assert(0 && "inst opid error!");
     }
-
     return result;
 }
 
+/* 暂不考虑以下情况：
+ * 函数返回值是固定常数，call指令都是NaC
+ * 常量数组元素 ？
+ */
 void SCCP::visitInst(Instruction *i) {
     
+    if(i->isBinary() || i->isCmp() || i->isFCmp()) {
+        InstVal &v1 = getInstVal(i->getOperand(0));
+        InstVal &v2 = getInstVal(i->getOperand(1));
+        if(v1.isNaC() || v2.isNaC()) {
+            getInstVal(i).markNaC();
+        }else if(v1.isConst() && v2.isConst()){
+            Constant *r = foldConst(i);
+            getInstVal(i).markConst(r);
+        }
+    // addon: 如果br是条件跳转，且条件是已知常数，那么这里就不应该添加全部FlowEdge
+    }else if(i->isBr()) {
+        addFlowEdge(i->getParent());
+    }else {
+        getInstVal(i).markNaC();
+    }
+
 }
 
 void SCCP::visitPhi(PhiInst *phi) {
+    Constant *c = getInstVal(phi).getConst();
+    if( getInstVal((Instruction*)phi).isNaC() ) return;     // phi's InstVal won't be changed
+    
+    int size = phi->getOperands().size() / 2;
+    for(int i = 0; i < size; ++i){
+        // phi的第i个值是undef，无论其是否可达，都不会影响phi的instVal
+        if( getInstVal( phi->getOperand(2*i) ).isUndef() )    continue;
 
+        // phi的第i条入边可达
+        if( getExecFlag( phi, (BasicBlock*)phi->getOperand(2*i + 1) ) ) {
+            // NaC
+            if( getInstVal( phi->getOperand(2*i) ).isNaC() ) {
+                getInstVal(phi).markNaC();
+                // phi's instVal has changed
+                addSSAEdge(phi);
+                return;
+            // constant
+            }else {
+                // phi is undef
+                if(c == nullptr) {
+                    c = getInstVal( phi->getOperand(2*i) ).getConst();
+                }else {
+                    ConstantInt *ic = dynamic_cast<ConstantInt*>(c);
+                    ConstantInt *iv = dynamic_cast<ConstantInt*>( getInstVal( phi->getOperand(2*i) ).getConst() );
+                    ConstantFP  *fc = dynamic_cast<ConstantFP*>(c);
+                    ConstantFP  *fv = dynamic_cast<ConstantFP*>( getInstVal( phi->getOperand(2*i) ).getConst() );
+                    if(ic->getValue() == iv->getValue() || fc->getValue() == fv->getValue())
+                        continue;
+                    else {
+                        getInstVal(phi).markNaC();
+                        addSSAEdge(phi);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    if(c) {
+        getInstVal(phi).markConst(c);
+        addSSAEdge(phi);
+    }
 }
