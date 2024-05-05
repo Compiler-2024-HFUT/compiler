@@ -7,17 +7,17 @@
 
 //& ConstantInt
 ConstantInt *ConstantInt::get(int val, Module *m) {
-    if (m->cached_int.find(std::make_pair(val, m)) != m->cached_int.end())
-        return m->cached_int[std::make_pair(val, m)].get();
-    return (m->cached_int[std::make_pair(val, m)] =
+    if (m->cached_int.find(val) != m->cached_int.end())
+        return m->cached_int[val].get();
+    return (m->cached_int[val] =
                 std::unique_ptr<ConstantInt>(new ConstantInt(Type::getInt32Type(m), val)))
         .get();
 }
 
 ConstantInt *ConstantInt::get(bool val, Module *m) {
-    if (m->cached_bool.find(std::make_pair(val, m)) != m->cached_bool.end())
-        return m->cached_bool[std::make_pair(val, m)].get();
-    return (m->cached_bool[std::make_pair(val, m)] =
+    if (m->cached_bool.find(val) != m->cached_bool.end())
+        return m->cached_bool[val].get();
+    return (m->cached_bool[val] =
                 std::unique_ptr<ConstantInt>(new ConstantInt(Type::getInt1Type(m), val ? 1 : 0)))
         .get();
 }
@@ -36,9 +36,9 @@ std::string ConstantInt::print() {
 
 //& ConstantFP
 ConstantFP *ConstantFP::get(float val, Module *m) {
-    if (m->cached_float.find(std::make_pair(val, m)) != m->cached_float.end())
-        return m->cached_float[std::make_pair(val, m)].get();
-    return (m->cached_float[std::make_pair(val, m)] =
+    if (m->cached_float.find(val) != m->cached_float.end())
+        return m->cached_float[val].get();
+    return (m->cached_float[val] =
                 std::unique_ptr<ConstantFP>(new ConstantFP(Type::getFloatType(m), val)))
         .get();
 }

@@ -18,15 +18,6 @@ class GlobalVariable;
 class Function;
 class Instruction;
 
-struct pair_hash {
-    template <typename T>
-    std::size_t operator()(const std::pair<T, Module *> val) const {
-        auto lhs = std::hash<T>()(val.first);
-        auto rhs = std::hash<uintptr_t>()(reinterpret_cast<uintptr_t>(val.second));
-        return lhs ^ rhs;
-    }
-};
-
 class Module {
 public:
     explicit Module(std::string name);
@@ -60,9 +51,9 @@ public:
     virtual std::string print();
 
 public:
-    std::unordered_map<std::pair<int, Module *>, std::unique_ptr<ConstantInt>, pair_hash> cached_int;
-    std::unordered_map<std::pair<bool, Module *>, std::unique_ptr<ConstantInt>, pair_hash> cached_bool;
-    std::unordered_map<std::pair<float, Module *>, std::unique_ptr<ConstantFP>, pair_hash> cached_float;
+    std::unordered_map<int,std::unique_ptr<ConstantInt>> cached_int;
+    std::unordered_map<bool, std::unique_ptr<ConstantInt>> cached_bool;
+    std::unordered_map<float, std::unique_ptr<ConstantFP>> cached_float;
     std::unordered_map<Type *, std::unique_ptr<ConstantZero>> cached_zero;
 
 private:
