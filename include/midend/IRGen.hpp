@@ -52,7 +52,7 @@ static BasicBlock *entry_block_of_cur_fun;
 static BasicBlock *cur_block_of_cur_fun;   //& used for add instruction 
 
 static bool has_global_init;
-static BasicBlock *global_init_block;
+// static BasicBlock *global_init_block;
 
 static bool is_init_const_array = false;
 static int arr_total_size = 1;
