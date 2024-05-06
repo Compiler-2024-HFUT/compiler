@@ -642,9 +642,11 @@ void CodeGen::callee_stack_epilogue(int stack_size) {
 }
 
 void CodeGen::ld_tmp_regs_for_inst(Instruction *inst) {
+    //函数忽略所有alloca或phi指令
     if(inst->isAlloca() || inst->isPhi())
         return ;
 
+    //创建一些集合来存储需要删除和需要加载的临时整数和浮点寄存器
     std::set<int> to_del_tmp_iregs_set;
     std::set<int> to_ld_tmp_iregs_set;
     std::set<int> to_del_tmp_fregs_set;
@@ -696,7 +698,8 @@ void CodeGen::ld_tmp_regs_for_inst(Instruction *inst) {
             }
         }
     }
-
+    
+    //下面三段都是创建需要寄存器的指令
     for(auto ld_reg: to_ld_tmp_iregs_set) {        
         RegBase* regbase = tmp_iregs_loc[ld_reg];
         to_ld_tmp_regs.push_back(std::make_pair(new RegLoc(ld_reg, false), regbase));
@@ -710,6 +713,7 @@ void CodeGen::ld_tmp_regs_for_inst(Instruction *inst) {
     if(! to_ld_tmp_regs.empty())
         cur_bb_->create_ld_tmp_regs(to_ld_tmp_regs);
 
+    //删除不再需要寄存器的标记
     for(auto del_reg: to_del_tmp_iregs_set) {
         auto del_loc = tmp_iregs_loc[del_reg];
         free_locs_for_tmp_regs_saved.insert(del_loc);
