@@ -126,14 +126,7 @@ void IRGen::visit(ast::FuncDef &node) {
         auto entryBB = BasicBlock::create( "entry", fun);
         cur_block_of_cur_fun = entryBB;
         cur_basic_block_list.push_back(entryBB);
-
-        BranchInst::createBr(entryBB, globalVarInitBB);
-    }else{
-        // create entry block, which alloc params
-        auto entryBB = BasicBlock::create(module.get(), "entry", fun);
-        cur_block_of_cur_fun = entryBB;
-        cur_basic_block_list.push_back(entryBB);
-    }
+    // }
 
     // alloc params, it should be in vist funcParams!!!!!
     vector<Value *> args;
@@ -1223,9 +1216,10 @@ void IRGen::visit(ast::IfStmt &node) {
     if_while_stack.pop();
 }
 void IRGen::visit(ast::WhileStmt &node){
-    auto pred_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
-    auto iter_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
-    auto next_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
+    if_while_stack.push(IfWhileEnum::IN_WHILE);
+    auto pred_bb = BasicBlock::create( "", cur_fun);
+    auto iter_bb = BasicBlock::create("", cur_fun);
+    auto next_bb = BasicBlock::create("", cur_fun);
     
     if(cur_block_of_cur_fun->getTerminator()==nullptr)  BranchInst::createBr(pred_bb, cur_block_of_cur_fun);
     cur_basic_block_list.pop_back();
