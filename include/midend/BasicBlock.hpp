@@ -16,7 +16,7 @@ class Module;
 
 class BasicBlock : public Value {
 public:
-    static BasicBlock *create(Module *m, const std::string &name, Function *parent);
+    static BasicBlock *create(const std::string &name, Function *parent);
 
     //// return parent or null(if none)
     Function *getParent() { return parent_; }
@@ -95,6 +95,7 @@ public:
 
     void deleteInstr(Instruction *instr);
     void eraseInstr(::std::list<Instruction*>::iterator instr_iter);
+    ::std::list<Instruction*>::iterator insertInstr(::std::list<Instruction*>::iterator instr_iter,Instruction*instr);
 
     std::list<Instruction *>::iterator findInstruction(Instruction *instr);
 
@@ -110,14 +111,14 @@ public:
 
     virtual std::string print() override;
 
-    ~BasicBlock(){
-        for(auto ins:dead){
-            delete ins;
-        }
-    }
+    // ~BasicBlock(){
+    //     for(auto ins:dead){
+    //         delete ins;
+    //     }
+    // }
 
 private:
-    explicit BasicBlock(Module *m, const std::string &name, Function *parent);
+    explicit BasicBlock(const std::string &name, Function *parent);
     
 private:  
     std::list<BasicBlock *> pre_bbs_;
@@ -135,6 +136,6 @@ private:
     int incoming_branch = 0;
     int loop_depth = 0;
 
-    std::unordered_set<Instruction*>dead;
+    // std::unordered_set<Instruction*>dead;
 };
 #endif

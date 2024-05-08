@@ -18,21 +18,12 @@ class GlobalVariable;
 class Function;
 class Instruction;
 
+
 class Module {
 public:
     explicit Module(std::string name);
     ~Module();
 
-    Type *getVoidType();
-    Type *getLabelType();
-    IntegerType *getInt1Type();
-    IntegerType *getInt32Type();
-    FloatType *getFloatType();
-    PointerType *getInt32PtrType();
-    PointerType *getFloatPtrType();
-    PointerType *getPointerType(Type *contained);
-    ArrayType *getArrayType(Type *contained, unsigned num_elements);
-    FunctionType *getFunctionType(Type *retty, std::vector<Type *>&args);
 
     void addFunction(Function *f);
     std::list<Function*> &getFunctions() { return functions_list_; }
@@ -50,11 +41,6 @@ public:
 
     virtual std::string print();
 
-public:
-    std::unordered_map<int,std::unique_ptr<ConstantInt>> cached_int;
-    std::unordered_map<bool, std::unique_ptr<ConstantInt>> cached_bool;
-    std::unordered_map<float, std::unique_ptr<ConstantFP>> cached_float;
-    std::unordered_map<Type *, std::unique_ptr<ConstantZero>> cached_zero;
 
 private:
     std::list<GlobalVariable *> globals_list_;                  //& The Global Variables in the module
@@ -66,15 +52,8 @@ private:
     std::string source_file_name_;                              //& Original source file name for module, for test and debug
 
 private:
-    Type *label_ty_;
-    Type *void_ty_;
-    IntegerType *int1_ty_;
-    IntegerType *int32_ty_;
-    FloatType *float32_ty_;
+    std::unique_ptr<IRBuilder> builder_;
 
-    std::map<Type *, PointerType *> pointer_map_;
-    std::map<std::pair<Type*, int>, ArrayType*> array_map_;
-    std::map<std::pair<Type*, std::vector<Type*>>, FunctionType*> function_map_;
 };
 
 #endif

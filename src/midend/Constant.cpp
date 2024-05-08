@@ -4,21 +4,21 @@
 
 #include "midend/Constant.hpp"
 #include "midend/Module.hpp"
-
 //& ConstantInt
-ConstantInt *ConstantInt::get(int val, Module *m) {
-    if (m->cached_int.find(val) != m->cached_int.end())
-        return m->cached_int[val].get();
-    return (m->cached_int[val] =
-                std::unique_ptr<ConstantInt>(new ConstantInt(Type::getInt32Type(m), val)))
+ConstManager *Constant::manager_{nullptr};
+ConstantInt *ConstantInt::get(int val) {
+    if (Constant::manager_->cached_int.find(val) != Constant::manager_->cached_int.end())
+        return Constant::manager_->cached_int[val].get();
+    return (Constant::manager_->cached_int[val] =
+                std::unique_ptr<ConstantInt>(new ConstantInt(Type::getInt32Type(), val)))
         .get();
 }
 
-ConstantInt *ConstantInt::get(bool val, Module *m) {
-    if (m->cached_bool.find(val) != m->cached_bool.end())
-        return m->cached_bool[val].get();
-    return (m->cached_bool[val] =
-                std::unique_ptr<ConstantInt>(new ConstantInt(Type::getInt1Type(m), val ? 1 : 0)))
+ConstantInt *ConstantInt::get(bool val) {
+    if (Constant::manager_->cached_bool.find(val) != Constant::manager_->cached_bool.end())
+        return Constant::manager_->cached_bool[val].get();
+    return (Constant::manager_->cached_bool[val] =
+                std::unique_ptr<ConstantInt>(new ConstantInt(Type::getInt1Type(), val ? 1 : 0)))
         .get();
 }
 
@@ -35,11 +35,11 @@ std::string ConstantInt::print() {
 }
 
 //& ConstantFP
-ConstantFP *ConstantFP::get(float val, Module *m) {
-    if (m->cached_float.find(val) != m->cached_float.end())
-        return m->cached_float[val].get();
-    return (m->cached_float[val] =
-                std::unique_ptr<ConstantFP>(new ConstantFP(Type::getFloatType(m), val)))
+ConstantFP *ConstantFP::get(float val) {
+    if (Constant::manager_->cached_float.find(val) != Constant::manager_->cached_float.end())
+        return Constant::manager_->cached_float[val].get();
+    return (Constant::manager_->cached_float[val] =
+                std::unique_ptr<ConstantFP>(new ConstantFP(Type::getFloatType(), val)))
         .get();
 }
 
@@ -53,10 +53,10 @@ std::string ConstantFP::print() {
 }
 
 //& ConstantZero
-ConstantZero *ConstantZero::get(Type *ty, Module *m) {
-    if (not m->cached_zero[ty])
-        m->cached_zero[ty] = std::unique_ptr<ConstantZero>(new ConstantZero(ty));
-    return m->cached_zero[ty].get();
+ConstantZero *ConstantZero::get(Type *ty) {
+    if (not Constant::manager_->cached_zero[ty])
+        Constant::manager_->cached_zero[ty] = std::unique_ptr<ConstantZero>(new ConstantZero(ty));
+    return Constant::manager_->cached_zero[ty].get();
 }
 
 std::string ConstantZero::print() { 

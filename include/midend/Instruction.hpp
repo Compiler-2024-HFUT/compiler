@@ -9,8 +9,7 @@
 #include "Type.hpp"
 #include "Constant.hpp"
 
-extern Module* global_m_ptr;
-
+class Module;
 class BasicBlock;
 class Function;
 
@@ -210,41 +209,45 @@ public:
     bool isTerminator() { return isBr() || isRet() || isCmpBr() || isFCmpBr(); }
     bool isWriteMem(){return isStore() || isStoreOffset(); }
 
-    void setId(int id) { id_ = id; }
-    int getId() { return id_; }
+    // void setId(int id) { id_ = id; }
+    // int getId() { return id_; }
 
     virtual Instruction *copyInst(BasicBlock *bb) = 0;
 
 private:
     OpID op_id_;
-    unsigned num_ops_;
+    // unsigned num_ops_;
     BasicBlock* parent_;
-    int id_;
+    //似乎没有用到
+    // int id_;
 };
 
 class BinaryInst : public Instruction {
 public:
-    static BinaryInst *createAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createSub(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createMul(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createMul64(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createSDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createSRem(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createFAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createFSub(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createFMul(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createFDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
 
-    static BinaryInst *createAnd(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createOr(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createXor(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *create(OpID id,Value *v1, Value *v2);
 
-    static BinaryInst *createAsr(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createLsl(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createLsr(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createAsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createLsl64(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
-    static BinaryInst *createLsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m = global_m_ptr);
+    static BinaryInst *createAdd(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createSub(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createMul(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createMul64(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createSDiv(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createSRem(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createFAdd(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createFSub(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createFMul(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createFDiv(Value *v1, Value *v2, BasicBlock *bb);
+
+    static BinaryInst *createAnd(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createOr(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createXor(Value *v1, Value *v2, BasicBlock *bb);
+
+    static BinaryInst *createAsr(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createLsl(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createLsr(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createAsr64(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createLsl64(Value *v1, Value *v2, BasicBlock *bb);
+    static BinaryInst *createLsr64(Value *v1, Value *v2, BasicBlock *bb);
 
     virtual std::string print() override;
 
@@ -252,8 +255,11 @@ public:
         return new BinaryInst(getType(), getInstrType(), getOperand(0), getOperand(1), bb);
     }
 
+    bool isNeg();
+
 private:
     BinaryInst(Type *ty, OpID id, Value *v1, Value *v2, BasicBlock *bb); 
+    BinaryInst(Type *ty, OpID id, Value *v1, Value *v2); 
 
     //~ void assert_valid();
 };
@@ -269,7 +275,7 @@ enum CmpOp {
 };
 class CmpInst : public Instruction {
 public:
-    static CmpInst *createCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb, Module *m=global_m_ptr);
+    static CmpInst *createCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb);
 
     CmpOp getCmpOp() { return cmp_op_; }
 
@@ -292,7 +298,7 @@ private:
 
 class FCmpInst : public Instruction {
   public:
-    static FCmpInst *createFCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb, Module *m=global_m_ptr);
+    static FCmpInst *createFCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb);
 
     CmpOp getCmpOp() { return cmp_op_; }
 
@@ -548,8 +554,8 @@ class PhiInst : public Instruction {
 public:
     static PhiInst *createPhi(Type *ty, BasicBlock *bb);
 
-    Value *getLVal() { return l_val_; }
-    void setLVal(Value *l_val) { l_val_ = l_val; }
+    // Value *getLVal() { return l_val_; }
+    // void setLVal(Value *l_val) { l_val_ = l_val; }
 
     void addPhiPairOperand(Value *val, Value *pre_bb) {
         this->addOperand(val);
@@ -568,14 +574,14 @@ public:
 private:
      PhiInst(OpID op, std::vector<Value *> vals, std::vector<BasicBlock *> val_bbs, Type *ty, BasicBlock *bb);
 
-private:
-    Value *l_val_;
+// private:
+    // Value *l_val_;
 };
 
 class CmpBrInst: public Instruction {
 
 public:
-    static CmpBrInst *createCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb, Module *m);
+    static CmpBrInst *createCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb);
 
     CmpOp getCmpOp() { return cmp_op_; }
 
@@ -601,7 +607,7 @@ private:
 
 class FCmpBrInst : public Instruction {
 public:
-    static FCmpBrInst *createFCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb, Module *m);
+    static FCmpBrInst *createFCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb);
 
     CmpOp getCmpOp() { return cmp_op_; }
 

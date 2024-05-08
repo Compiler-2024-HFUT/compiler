@@ -149,6 +149,8 @@ void Mem2Reg::generatePhi(AllocaInst*ai,::std::set<BasicBlock*>&define_bbs){
 }
 void Mem2Reg::run(){
     for (auto func : moudle_->getFunctions()){
+        allocas.clear();
+        new_phi.clear();
         auto &bb_list=func->getBasicBlocks();
         if(bb_list.empty())continue;
         ::std::unique_ptr<Dominators> dom=std::make_unique<Dominators>(func);
@@ -190,7 +192,7 @@ void Mem2Reg::run(){
         
         ::std::map<AllocaInst*,Value*> alloc_va;
         for(auto i:allocas){
-            alloc_va.insert({i,ConstantInt::get(114514,moudle_)});
+            alloc_va.insert({i,ConstantInt::get(114514)});
         }
         reName(func->getBasicBlocks().front(),nullptr,alloc_va);
         rmDeadPhi(func);

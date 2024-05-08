@@ -7,11 +7,63 @@
 #include "midend/Module.hpp"
 #include "midend/Type.hpp"
 #include <stack>
-Module* global_m_ptr;
 
 #define LOG(msg) assert(0 && msg);
 
-using namespace IRBuilder;
+using namespace IRgen;
+
+//& global variables
+
+static Value *tmp_val = nullptr;       //& store tmp value
+static Type  *cur_type = nullptr;      //& store current type
+static bool require_lvalue = false;    //& whether require lvalue
+static bool pre_enter_scope = false;   //& whether pre-enter scope
+
+static bool from_func = false;         // replace pre_enter_scope
+
+static Type *VOID_T;
+static Type *INT1_T;
+static Type *INT32_T;
+static Type *FLOAT_T;
+static Type *INT32PTR_T;
+static Type *FLOATPTR_T;               //& types used for IR builder
+
+struct true_false_BB {
+    BasicBlock *trueBB = nullptr;
+    BasicBlock *falseBB = nullptr;
+};                              //& used for backpatching
+
+static std::list<true_false_BB> IF_WHILE_Cond_Stack; //& used for Cond
+static std::list<true_false_BB> While_Stack;         //& used for break and continue
+
+
+
+static std::vector<BasicBlock*> cur_basic_block_list;
+
+static Function *cur_fun = nullptr;    //& function that is being built
+static BasicBlock *entry_block_of_cur_fun;
+static BasicBlock *cur_block_of_cur_fun;   //& used for add instruction 
+
+static bool has_global_init;
+static BasicBlock *global_init_block;
+
+static bool is_init_const_array = false;
+static int arr_total_size = 1;
+static std::vector<int> array_bounds;
+static std::vector<int> array_sizes;
+// static std::vector<int> array_sizes;
+// pair( the pos when into {, the offset bettween { and } )
+static std::vector< std::pair<int, int> > array_pos;
+static int cur_pos;
+static int cur_depth;     
+static std::map<int, Value*> init_val_map; 
+static std::vector<Constant*> init_val;    //& used for constant initializer
+
+static BasicBlock *ret_BB;
+static Value *ret_addr;   //& ret BB
+
+static bool is_inited_with_all_zero;
+
 
 enum class IfWhileEnum{
     IN_IF=114,
@@ -21,7 +73,7 @@ static bool real_ret=0;
 static std::stack<IfWhileEnum> if_while_stack;
 
 void IRGen::visit(ast::CompunitNode &node) {
-    global_init_block = BasicBlock::create( module.get(), "init", dynamic_cast<Function*>(scope.findFunc("global_var_init")) );
+    global_init_block = BasicBlock::create( "init", dynamic_cast<Function*>(scope.findFunc("global_var_init")) );
 
     for (auto &decl : node.global_defs) {
         decl->accept(*this);
@@ -60,18 +112,18 @@ void IRGen::visit(ast::FuncDef &node) {
     
     // call global_init in main func
     if(node.name == "main"){
-        auto globalVarInitBB = BasicBlock::create(module.get(), "global_init", fun);
+        auto globalVarInitBB = BasicBlock::create( "global_init", fun);
         CallInst::createCall( dynamic_cast<Function*>(scope.findFunc("global_var_init")), {}, globalVarInitBB);
         
         // create entry block, which alloc params
-        auto entryBB = BasicBlock::create(module.get(), "entry", fun);
+        auto entryBB = BasicBlock::create( "entry", fun);
         cur_block_of_cur_fun = entryBB;
         cur_basic_block_list.push_back(entryBB);
 
         BranchInst::createBr(entryBB, globalVarInitBB);
     }else{
         // create entry block, which alloc params
-        auto entryBB = BasicBlock::create(module.get(), "entry", fun);
+        auto entryBB = BasicBlock::create( "entry", fun);
         cur_block_of_cur_fun = entryBB;
         cur_basic_block_list.push_back(entryBB);
     }
@@ -135,7 +187,7 @@ void IRGen::visit(ast::FuncDef &node) {
    
 
     // build return BB    
-    ret_BB = BasicBlock::create(module.get(), "ret", fun);
+    ret_BB = BasicBlock::create( "ret", fun);
 
      // build func block
     node.body->accept(*this);
@@ -246,7 +298,7 @@ void IRGen::visit(ast::ValDefStmt &node) {
         // int <- const int or float <- const float
     }else{
         if(scope.inGlobal())
-            tmp_val = ConstantZero::get(cur_type, module.get());
+            tmp_val = ConstantZero::get(cur_type);
     }
 
     // alloc var
@@ -345,7 +397,7 @@ void IRGen::visit(ast::ArrDefStmt &node) {
 
     if(scope.inGlobal()) {
         // zeroinitializer, global array is inited in global_var_init
-        auto initializer = ConstantZero::get(array_type, module.get());
+        auto initializer = ConstantZero::get(array_type);
         auto var = GlobalVariable::create(node.name, module.get(), array_type, false, initializer);
         scope.push(node.name, var);
         scope.pushSize(node.name, array_sizes);
@@ -429,7 +481,7 @@ void IRGen::visit(ast::ConstArrDefStmt &node) {
 
     if(scope.inGlobal()) {
         if(init_val_map.size() == 1){
-            auto initializer = ConstantZero::get(array_type, module.get());
+            auto initializer = ConstantZero::get(array_type);
             auto var = GlobalVariable::create(node.name, module.get(), array_type, false, initializer);
             scope.push(node.name, var);
             scope.pushSize(node.name, array_sizes);
@@ -619,11 +671,11 @@ void IRGen::visit(ast::UnaryExpr &node) {
                     if(tmp_val->getType()->isFloatType()) {
                         Value* lhs = tmp_val;
                         Value* rhs = CONST_FP(0);
-                        tmp_val=FCmpInst::createFCmp(CmpOp::EQ,lhs, rhs,cur_block_of_cur_fun,module.get());
+                        tmp_val=FCmpInst::createFCmp(CmpOp::EQ,lhs, rhs,cur_block_of_cur_fun);
                     } else {
                         Value* lhs = tmp_val;
                         Value* rhs = CONST_INT(0);
-                        tmp_val=CmpInst::createCmp(CmpOp::EQ,lhs, rhs,cur_block_of_cur_fun,module.get());
+                        tmp_val=CmpInst::createCmp(CmpOp::EQ,lhs, rhs,cur_block_of_cur_fun);
                     }
                 }
             }
@@ -641,7 +693,7 @@ void IRGen::visit(ast::RelopExpr &node) {}
 void IRGen::visit(ast::EqExpr &node) {}
 void IRGen::visit(ast::AndExp &node) {
     require_lvalue = false;
-    auto true_BB = BasicBlock::create(module.get(), "", cur_fun);
+    auto true_BB = BasicBlock::create( "", cur_fun);
     node.lhs->accept(*this);
         
         Value *cond_val;
@@ -652,14 +704,14 @@ void IRGen::visit(ast::AndExp &node) {
             if(const_tmp_val) {
                 cond_val = CONST_INT(const_tmp_val->getValue() != 0);
             } else {
-                cond_val=CmpInst::createCmp(CmpOp::NE,tmp_val, CONST_INT(0),cur_block_of_cur_fun,module.get());
+                cond_val=CmpInst::createCmp(CmpOp::NE,tmp_val, CONST_INT(0),cur_block_of_cur_fun);
             }
         } else if(tmp_val->getType() == FLOAT_T) {
             auto const_tmp_val = dynamic_cast<ConstantFP*>(tmp_val);
             if(const_tmp_val) {
                 cond_val = CONST_INT(const_tmp_val->getValue() != 0);
             } else {
-                cond_val =FCmpInst::createFCmp(CmpOp::NE,tmp_val, CONST_FP(0),cur_block_of_cur_fun,module.get());
+                cond_val =FCmpInst::createFCmp(CmpOp::NE,tmp_val, CONST_FP(0),cur_block_of_cur_fun);
             }
         }
 
@@ -673,9 +725,9 @@ void IRGen::visit(ast::ORExp &node){
         true_BB = IF_WHILE_Cond_Stack.back().trueBB;
         false1_BB=IF_WHILE_Cond_Stack.back().falseBB;
     }else{
-        true_BB = BasicBlock::create(module.get(), "", cur_fun);
+        true_BB = BasicBlock::create( "", cur_fun);
     }
-    auto false_BB = BasicBlock::create(module.get(), "", cur_fun);
+    auto false_BB = BasicBlock::create( "", cur_fun);
     require_lvalue = false;
     IF_WHILE_Cond_Stack.push_back({true_BB,false_BB});
     node.lhs->accept(*this);
@@ -688,14 +740,14 @@ void IRGen::visit(ast::ORExp &node){
             if(const_tmp_val) {
                 cond_val = CONST_INT(const_tmp_val->getValue() != 0);
             } else {
-                cond_val=CmpInst::createCmp(CmpOp::NE,tmp_val, CONST_INT(0),cur_block_of_cur_fun,module.get());
+                cond_val=CmpInst::createCmp(CmpOp::NE,tmp_val, CONST_INT(0),cur_block_of_cur_fun);
             }
         } else if(tmp_val->getType() == FLOAT_T) {
             auto const_tmp_val = dynamic_cast<ConstantFP*>(tmp_val);
             if(const_tmp_val) {
                 cond_val = CONST_INT(const_tmp_val->getValue() != 0);
             } else {
-                cond_val =FCmpInst::createFCmp(CmpOp::NE,tmp_val, CONST_FP(0),cur_block_of_cur_fun,module.get());
+                cond_val =FCmpInst::createFCmp(CmpOp::NE,tmp_val, CONST_FP(0),cur_block_of_cur_fun);
             }
         }
 
@@ -723,37 +775,37 @@ void IRGen::visit(ast::BinopExpr &node) {
     const_l!=nullptr&&const_r!=nullptr){
         switch(node_op){
         case::ast::BinOp::PlUS:
-            tmp_val=ConstantInt::get(const_l->getValue()+const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()+const_r->getValue());
             break;
         case::ast::BinOp::MINUS:
-            tmp_val=ConstantInt::get(const_l->getValue()-const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()-const_r->getValue());
             break;
         case::ast::BinOp::MULTI:
-            tmp_val=ConstantInt::get(const_l->getValue()*const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()*const_r->getValue());
             break;
         case::ast::BinOp::SLASH:
-            tmp_val=ConstantInt::get(const_l->getValue()/const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()/const_r->getValue());
             break;
         case::ast::BinOp::MOD:
-            tmp_val=ConstantInt::get(const_l->getValue()%const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()%const_r->getValue());
             break;
         case::ast::BinOp::LT:
-            tmp_val=ConstantInt::get(const_l->getValue()<const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()<const_r->getValue());
             break;
         case::ast::BinOp::LE:
-            tmp_val=ConstantInt::get(const_l->getValue()<=const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()<=const_r->getValue());
             break;
         case::ast::BinOp::GT:
-            tmp_val=ConstantInt::get(const_l->getValue()>const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()>const_r->getValue());
             break;
         case::ast::BinOp::GE:
-            tmp_val=ConstantInt::get(const_l->getValue()>=const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()>=const_r->getValue());
             break;
         case::ast::BinOp::EQ:
-            tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue());
             break;
         case::ast::BinOp::NOT_EQ:
-            tmp_val=ConstantInt::get(const_l->getValue()!=const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()!=const_r->getValue());
             break;
         default:
             exit(151);
@@ -763,34 +815,34 @@ void IRGen::visit(ast::BinopExpr &node) {
     const_l!=nullptr&&const_r!=nullptr){
         switch(node_op){
         case::ast::BinOp::PlUS:
-            tmp_val=ConstantFP::get(const_l->getValue()+const_r->getValue(),module.get());
+            tmp_val=ConstantFP::get(const_l->getValue()+const_r->getValue());
             break;
         case::ast::BinOp::MINUS:
-            tmp_val=ConstantFP::get(const_l->getValue()-const_r->getValue(),module.get());
+            tmp_val=ConstantFP::get(const_l->getValue()-const_r->getValue());
             break;
         case::ast::BinOp::MULTI:
-            tmp_val=ConstantFP::get(const_l->getValue()*const_r->getValue(),module.get());
+            tmp_val=ConstantFP::get(const_l->getValue()*const_r->getValue());
             break;
         case::ast::BinOp::SLASH:
-            tmp_val=ConstantFP::get(const_l->getValue()/const_r->getValue(),module.get());
+            tmp_val=ConstantFP::get(const_l->getValue()/const_r->getValue());
             break;
         case::ast::BinOp::LT:
-            tmp_val=ConstantInt::get(const_l->getValue()<const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()<const_r->getValue());
             break;
         case::ast::BinOp::LE:
-            tmp_val=ConstantInt::get(const_l->getValue()<=const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()<=const_r->getValue());
             break;
         case::ast::BinOp::GT:
-            tmp_val=ConstantInt::get(const_l->getValue()>const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()>const_r->getValue());
             break;
         case::ast::BinOp::GE:
-            tmp_val=ConstantInt::get(const_l->getValue()>=const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()>=const_r->getValue());
             break;
         case::ast::BinOp::EQ:
-            tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue());
             break;
         case::ast::BinOp::NOT_EQ:
-            tmp_val=ConstantInt::get(const_l->getValue()!=const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()!=const_r->getValue());
             break;
         default:
             exit(151);
@@ -801,34 +853,34 @@ void IRGen::visit(ast::BinopExpr &node) {
         auto const_r=dynamic_cast<ConstantInt*>(rhs);
         switch(node_op){
         case::ast::BinOp::PlUS:
-            tmp_val=ConstantFP::get(const_l->getValue()+const_r->getValue(),module.get());
+            tmp_val=ConstantFP::get(const_l->getValue()+const_r->getValue());
             break;
         case::ast::BinOp::MINUS:
-            tmp_val=ConstantFP::get(const_l->getValue()-const_r->getValue(),module.get());
+            tmp_val=ConstantFP::get(const_l->getValue()-const_r->getValue());
             break;
         case::ast::BinOp::MULTI:
-            tmp_val=ConstantFP::get(const_l->getValue()*const_r->getValue(),module.get());
+            tmp_val=ConstantFP::get(const_l->getValue()*const_r->getValue());
             break;
         case::ast::BinOp::SLASH:
-            tmp_val=ConstantFP::get(const_l->getValue()/const_r->getValue(),module.get());
+            tmp_val=ConstantFP::get(const_l->getValue()/const_r->getValue());
             break;
         case::ast::BinOp::LT:
-            tmp_val=ConstantInt::get(const_l->getValue()<const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()<const_r->getValue());
             break;
         case::ast::BinOp::LE:
-            tmp_val=ConstantInt::get(const_l->getValue()<=const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()<=const_r->getValue());
             break;
         case::ast::BinOp::GT:
-            tmp_val=ConstantInt::get(const_l->getValue()>const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()>const_r->getValue());
             break;
         case::ast::BinOp::GE:
-            tmp_val=ConstantInt::get(const_l->getValue()>=const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()>=const_r->getValue());
             break;
         case::ast::BinOp::EQ:
-            tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue());
             break;
         case::ast::BinOp::NOT_EQ:
-            tmp_val=ConstantInt::get(const_l->getValue()!=const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()!=const_r->getValue());
             break;
         default:
             exit(151);
@@ -839,34 +891,34 @@ void IRGen::visit(ast::BinopExpr &node) {
         auto const_r=dynamic_cast<ConstantFP*>(rhs);
         switch(node_op){
         case::ast::BinOp::PlUS:
-            tmp_val=ConstantFP::get(const_l->getValue()+const_r->getValue(),module.get());
+            tmp_val=ConstantFP::get(const_l->getValue()+const_r->getValue());
             break;
         case::ast::BinOp::MINUS:
-            tmp_val=ConstantFP::get(const_l->getValue()-const_r->getValue(),module.get());
+            tmp_val=ConstantFP::get(const_l->getValue()-const_r->getValue());
             break;
         case::ast::BinOp::MULTI:
-            tmp_val=ConstantFP::get(const_l->getValue()*const_r->getValue(),module.get());
+            tmp_val=ConstantFP::get(const_l->getValue()*const_r->getValue());
             break;
         case::ast::BinOp::SLASH:
-            tmp_val=ConstantFP::get(const_l->getValue()/const_r->getValue(),module.get());
+            tmp_val=ConstantFP::get(const_l->getValue()/const_r->getValue());
             break;
         case::ast::BinOp::LT:
-            tmp_val=ConstantInt::get(const_l->getValue()<const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()<const_r->getValue());
             break;
         case::ast::BinOp::LE:
-            tmp_val=ConstantInt::get(const_l->getValue()<=const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()<=const_r->getValue());
             break;
         case::ast::BinOp::GT:
-            tmp_val=ConstantInt::get(const_l->getValue()>const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()>const_r->getValue());
             break;
         case::ast::BinOp::GE:
-            tmp_val=ConstantInt::get(const_l->getValue()>=const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()>=const_r->getValue());
             break;
         case::ast::BinOp::EQ:
-            tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()==const_r->getValue());
             break;
         case::ast::BinOp::NOT_EQ:
-            tmp_val=ConstantInt::get(const_l->getValue()!=const_r->getValue(),module.get());
+            tmp_val=ConstantInt::get(const_l->getValue()!=const_r->getValue());
             break;
         default:
             exit(151);
@@ -969,9 +1021,9 @@ void IRGen::visit(ast::BinopExpr &node) {
                     }
                 };
             if(is_float)
-                tmp_val =  FCmpInst::createFCmp(binop_to_cmpop(),l_instr,r_instr,cur_block_of_cur_fun,module.get());
+                tmp_val =  FCmpInst::createFCmp(binop_to_cmpop(),l_instr,r_instr,cur_block_of_cur_fun);
             else    
-                tmp_val  =  CmpInst::createCmp(binop_to_cmpop(),l_instr,r_instr,cur_block_of_cur_fun,module.get());
+                tmp_val  =  CmpInst::createCmp(binop_to_cmpop(),l_instr,r_instr,cur_block_of_cur_fun);
         }
     }
 }
@@ -1053,7 +1105,7 @@ void IRGen::visit(ast::LvalExpr &node){
                     if(dynamic_cast<ConstantInt*>(one_index)&&dynamic_cast<ConstantInt*>(var_index))
                         var_index=CONST_INT(((ConstantInt*)one_index)->getValue()+((ConstantInt*)var_index)->getValue());
                     else
-                        var_index=BinaryInst::createAdd(var_index, one_index,cur_block_of_cur_fun,module.get());
+                        var_index=BinaryInst::createAdd(var_index, one_index,cur_block_of_cur_fun);
                 }
             }
             if(const_array!=nullptr&&dynamic_cast<ConstantInt*>(var_index)){
@@ -1073,9 +1125,9 @@ void IRGen::visit(ast::LvalExpr &node){
 }
 void IRGen::visit(ast::IfStmt &node) {
     if_while_stack.push(IfWhileEnum::IN_IF);
-    auto true_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
-    auto false_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
-    auto next_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
+    auto true_bb = BasicBlock::create( "", cur_fun);
+    auto false_bb = BasicBlock::create( "", cur_fun);
+    auto next_bb = BasicBlock::create( "", cur_fun);
 
     IF_WHILE_Cond_Stack.push_back({nullptr, nullptr});
     IF_WHILE_Cond_Stack.back().trueBB = true_bb;
@@ -1158,9 +1210,9 @@ void IRGen::visit(ast::IfStmt &node) {
 }
 void IRGen::visit(ast::WhileStmt &node){
     if_while_stack.push(IfWhileEnum::IN_WHILE);
-    auto pred_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
-    auto iter_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
-    auto next_bb = BasicBlock::create(global_m_ptr, "", cur_fun);
+    auto pred_bb = BasicBlock::create( "", cur_fun);
+    auto iter_bb = BasicBlock::create("", cur_fun);
+    auto next_bb = BasicBlock::create("", cur_fun);
     
     if(cur_block_of_cur_fun->getTerminator()==nullptr)  BranchInst::createBr(pred_bb, cur_block_of_cur_fun);
     cur_basic_block_list.pop_back();
@@ -1294,14 +1346,13 @@ void IRGen::visit(ast::EmptyStmt &node) {}
 
 IRGen::IRGen() {
     module = std::make_unique<Module>("Sysy 2024");
-    global_m_ptr = module.get();
 
-    VOID_T = Type::getVoidType(module.get());
-    INT1_T = Type::getInt1Type(module.get());
-    INT32_T = Type::getInt32Type(module.get());
-    INT32PTR_T = Type::getInt32PtrType(module.get());
-    FLOAT_T = Type::getFloatType(module.get());
-    FLOATPTR_T = Type::getFloatPtrType(module.get());
+    VOID_T = Type::getVoidType();
+    INT1_T = Type::getInt1Type();
+    INT32_T = Type::getInt32Type();
+    INT32PTR_T = Type::getInt32PtrType();
+    FLOAT_T = Type::getFloatType();
+    FLOATPTR_T = Type::getFloatPtrType();
 
     auto input_type = FunctionType::get(INT32_T, {});
     auto get_int =

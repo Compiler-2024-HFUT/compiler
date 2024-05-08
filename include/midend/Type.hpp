@@ -5,7 +5,7 @@
 #include <vector>
 #include <iterator>
 
-class Module;
+class IRBuilder;
 class IntegerType;
 class FloatType;
 class FunctionType;
@@ -25,7 +25,7 @@ public:
     };
 
 public:
-    explicit Type(TypeID tid, Module *m): tid_(tid), m_(m) {};
+    explicit Type(TypeID tid): tid_(tid) {};
     ~Type() = default;
 
     TypeID getTypeId() const { return tid_; }
@@ -40,36 +40,33 @@ public:
 
     static bool isEqType(Type *ty1, Type *ty2) { return ty1 == ty2; };
 
-    static Type *getVoidType(Module *m);
-    static Type *getLabelType(Module *m);
-    static IntegerType *getInt1Type(Module *m);
-    static IntegerType *getInt32Type(Module *m);
-    static PointerType *getInt32PtrType(Module *m);
-    static FloatType *getFloatType(Module *m);
-    static PointerType *getFloatPtrType(Module *m);
+    static Type *getVoidType();
+    static Type *getLabelType();
+    static IntegerType *getInt1Type();
+    static IntegerType *getInt32Type();
+    static PointerType *getInt32PtrType();
+    static FloatType *getFloatType();
+    static PointerType *getFloatPtrType();
     static PointerType *getPointerType(Type *contained);
     static ArrayType *getArrayType(Type *contained, unsigned num_elements);
-    
+    static IRBuilder *builder;
     Type *getPointerElementType();
     Type *getArrayElementType();
 
     int getSize();
 
-    Module *getModule() { return m_; }
-
     std::string print();
 
 private:
     TypeID tid_;
-    Module *m_;
 };
 
 
 class IntegerType : public Type {
 public:
-    explicit IntegerType(unsigned num_bits, Module *m): Type(Type::IntegerTyID, m), num_bits_(num_bits) {}
+    explicit IntegerType(unsigned num_bits): Type(Type::IntegerTyID), num_bits_(num_bits) {}
     
-    static IntegerType *get(unsigned num_bits, Module *m);
+    static IntegerType *get(unsigned num_bits);
 
     unsigned getNumBits();
 
@@ -79,15 +76,15 @@ private:
 
 class FloatType : public Type {
 public:
-    FloatType(Module *m) : Type(Type::FloatTyID, m) {}
-    static FloatType *get(Module *m);
+    FloatType() : Type(Type::FloatTyID) {}
+    static FloatType *get();
 
 private:
 };
 
 class PointerType : public Type {
 public:
-    PointerType(Type *contained): Type(Type::PointerTyID, contained->getModule()), contained_(contained) {}
+    PointerType(Type *contained): Type(Type::PointerTyID), contained_(contained) {}
 
     static PointerType *get(Type *contained); 
     

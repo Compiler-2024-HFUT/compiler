@@ -1,5 +1,6 @@
 #include "midend/BasicBlock.hpp"
 #include "midend/Function.hpp"
+#include "midend/Instruction.hpp"
 #include "midend/Module.hpp"
 #include "frontend/parser.hpp"
 #include <bitset>
@@ -27,7 +28,7 @@ int main(int argc , char**argv){
     }
     Parser *p=new Parser(argv[1]);
     p->parserComp();
-    IRBuilder::IRGen irgen;
+    IRgen::IRGen irgen;
     p->comp->accept(irgen);
     auto m=irgen.getModule();
  
@@ -41,13 +42,6 @@ int main(int argc , char**argv){
     pm.add_pass<ADCE>();
     pm.run();
     cout << irgen.getModule()->print();
-
-    // for(auto f:m->getFunctions()){
-    //     if(f->getBasicBlocks().size()>1){
-    //         cout<<f->printGra()<<endl;
-    //     }
-    // }
-
 
     delete (p);
 

@@ -1,34 +1,34 @@
 #include <cassert>
 
 #include "midend/Type.hpp"
-#include "midend/Module.hpp"
-
-Type *Type::getVoidType(Module *m) {
-    return m->getVoidType();
+#include "midend/IRBuilder.hpp"
+IRBuilder* Type::builder=nullptr;
+Type *Type::getVoidType() {
+    return Type::builder->getVoidType();
 }
 
-Type *Type::getLabelType(Module *m) {
-    return m->getLabelType();
+Type *Type::getLabelType() {
+    return Type::builder->getLabelType();
 }
 
-IntegerType *Type::getInt1Type(Module *m) {
-    return m->getInt1Type();
+IntegerType *Type::getInt1Type() {
+    return Type::builder->getInt1Type();
 }
 
-IntegerType *Type::getInt32Type(Module *m) {
-    return m->getInt32Type();
+IntegerType *Type::getInt32Type() {
+    return Type::builder->getInt32Type();
 }
 
-PointerType *Type::getInt32PtrType(Module *m) {
-    return m->getInt32PtrType();
+PointerType *Type::getInt32PtrType() {
+    return Type::builder->getInt32PtrType();
 }
 
-FloatType *Type::getFloatType(Module *m) {
-    return m->getFloatType();
+FloatType *Type::getFloatType() {
+    return Type::builder->getFloatType();
 }
 
-PointerType *Type::getFloatPtrType(Module *m) {
-    return m->getFloatPtrType();
+PointerType *Type::getFloatPtrType() {
+    return Type::builder->getFloatPtrType();
 }
 
 PointerType *Type::getPointerType(Type *contained) {
@@ -112,11 +112,11 @@ std::string Type::print() {
 
 //& IntegerType 
 
-IntegerType *IntegerType::get(unsigned num_bits, Module *m) {
+IntegerType *IntegerType::get(unsigned num_bits) {
     if (num_bits == 1) {
-        return m->getInt1Type();
+        return Type::builder->getInt1Type();
     } else if (num_bits == 32) {
-        return m->getInt32Type();
+        return Type::builder->getInt32Type();
     } else {
         assert(false and "IntegerType::get has error num_bits");
         return nullptr;
@@ -129,24 +129,24 @@ unsigned IntegerType::getNumBits() {
 
 //& FloatType
 
-FloatType *FloatType::get(Module *m) {
-    return m->getFloatType();
+FloatType *FloatType::get() {
+    return Type::builder->getFloatType();
 }
 
 //& PointerType 
 PointerType *PointerType::get(Type *contained) {
-    return contained->getModule()->getPointerType(contained);
+    return Type::builder->getPointerType(contained);
 }
 
 //& ArrayType
 ArrayType::ArrayType(Type *contained, unsigned num_elements)
-    : Type(Type::ArrayTyID, contained->getModule()), num_elements_(num_elements) {
+    : Type(Type::ArrayTyID), num_elements_(num_elements) {
     assert(isValidElementType(contained) && "Not a valid type for array element!");
     contained_ = contained;
 }
 
 ArrayType *ArrayType::get(Type *contained, unsigned num_elements) {
-    return contained->getModule()->getArrayType(contained, num_elements);
+    return Type::builder->getArrayType(contained, num_elements);
 }
 
 bool ArrayType::isValidElementType(Type *ty) {
@@ -155,7 +155,7 @@ bool ArrayType::isValidElementType(Type *ty) {
 
 //& FunctionType
 
-FunctionType::FunctionType(Type *result, std::vector<Type *> params) : Type(Type::FunctionTyID, nullptr) {
+FunctionType::FunctionType(Type *result, std::vector<Type *> params) : Type(Type::FunctionTyID) {
     assert(isValidReturnType(result) && "Invalid return type for function!");
     result_ = result;
 
@@ -166,7 +166,7 @@ FunctionType::FunctionType(Type *result, std::vector<Type *> params) : Type(Type
 }
 
 FunctionType *FunctionType::get(Type *result, std::vector<Type *> params) {
-    return result->getModule()->getFunctionType(result, params);
+    return Type::builder->getFunctionType(result, params);
 }
 
 bool FunctionType::isValidReturnType(Type *ty) {

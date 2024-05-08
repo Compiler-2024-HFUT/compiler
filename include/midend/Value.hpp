@@ -58,6 +58,8 @@ public:
     void replaceUseWithWhen(Value *new_val, std::function<bool(User *)> pred); //& replace `value` with `new_val` when the user of value satisfies predicate `pred`
     void removeUse(Value *val);
 
+    __attribute__((always_inline))  bool useOne(){return use_list_.size()==1;}
+    __attribute__((always_inline))  bool useEmpty(){return use_list_.empty();}    
     virtual std::string print() = 0;
 
 private:

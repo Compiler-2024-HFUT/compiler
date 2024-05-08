@@ -4,20 +4,21 @@
 #include "midend/BasicBlock.hpp"
 #include "midend/Function.hpp"
 #include "midend/IRprint.hpp"
+#include "midend/Instruction.hpp"
 
-BasicBlock::BasicBlock(Module *m, const std::string &name = "", Function *parent = nullptr)
-    : Value(Type::getLabelType(m), name), parent_(parent) {
+BasicBlock::BasicBlock(const std::string &name, Function *parent = nullptr)
+    : Value(Type::getLabelType(), name), parent_(parent) {
     assert(parent && "currently parent should not be nullptr");
     parent_->addBasicBlock(this);
 }
 
-BasicBlock *BasicBlock::create(Module *m, const std::string &name, Function *parent) {
+BasicBlock *BasicBlock::create( const std::string &name, Function *parent) {
     auto prefix = name.empty() ? "" : "label_";
-    return new BasicBlock(m, prefix + name, parent);
+    return new BasicBlock(prefix + name, parent);
 }
 
 Module *BasicBlock::getModule() {
-    return getParent()->getParent();
+    return parent_->getParent();
 }
 
 const Instruction *BasicBlock::getTerminator() const {
@@ -52,15 +53,18 @@ void BasicBlock::addInstrBegin(Instruction *instr) {
 void BasicBlock::deleteInstr(Instruction *instr) {
     instr_list_.remove(instr);
     instr->removeUseOfOps();
-    dead.insert(instr);
+    // dead.insert(instr);
 }
 void BasicBlock::eraseInstr(::std::list<Instruction*>::iterator instr_iter) {
     auto instr=*instr_iter;
     instr_list_.erase(instr_iter);
     instr->removeUseOfOps();
-    dead.insert(instr);
+    // dead.insert(instr);
 }
 
+::std::list<Instruction*>::iterator BasicBlock::insertInstr(::std::list<Instruction*>::iterator instr_iter,Instruction* instr) {
+    return instr_list_.insert(instr_iter,instr);
+}
 std::list<Instruction*>::iterator BasicBlock::findInstruction(Instruction *instr) {
     return std::find(instr_list_.begin(), instr_list_.end(), instr);
 }

@@ -12,65 +12,11 @@
 #include "frontend/node.hpp"
 #include "midend/Module.hpp"
 
-extern Module *global_m_ptr;
 
-namespace IRBuilder {
+namespace IRgen {
 
-#define CONST_INT(num)  ConstantInt::get(num, module.get())
-#define CONST_FP(num)   ConstantFP::get(num, module.get())
-
-//& global variables
-
-static Value *tmp_val = nullptr;       //& store tmp value
-static Type  *cur_type = nullptr;      //& store current type
-static bool require_lvalue = false;    //& whether require lvalue
-static bool pre_enter_scope = false;   //& whether pre-enter scope
-
-static bool from_func = false;         // replace pre_enter_scope
-
-static Type *VOID_T;
-static Type *INT1_T;
-static Type *INT32_T;
-static Type *FLOAT_T;
-static Type *INT32PTR_T;
-static Type *FLOATPTR_T;               //& types used for IR builder
-
-struct true_false_BB {
-    BasicBlock *trueBB = nullptr;
-    BasicBlock *falseBB = nullptr;
-};                              //& used for backpatching
-
-static std::list<true_false_BB> IF_WHILE_Cond_Stack; //& used for Cond
-static std::list<true_false_BB> While_Stack;         //& used for break and continue
-
-
-
-static std::vector<BasicBlock*> cur_basic_block_list;
-
-static Function *cur_fun = nullptr;    //& function that is being built
-static BasicBlock *entry_block_of_cur_fun;
-static BasicBlock *cur_block_of_cur_fun;   //& used for add instruction 
-
-static bool has_global_init;
-static BasicBlock *global_init_block;
-
-static bool is_init_const_array = false;
-static int arr_total_size = 1;
-static std::vector<int> array_bounds;
-static std::vector<int> array_sizes;
-// static std::vector<int> array_sizes;
-// pair( the pos when into {, the offset bettween { and } )
-static std::vector< std::pair<int, int> > array_pos;
-static int cur_pos;
-static int cur_depth;     
-static std::map<int, Value*> init_val_map; 
-static std::vector<Constant*> init_val;    //& used for constant initializer
-
-static BasicBlock *ret_BB;
-static Value *ret_addr;   //& ret BB
-
-static bool is_inited_with_all_zero;
-
+#define CONST_INT(num)  ConstantInt::get(num)
+#define CONST_FP(num)   ConstantFP::get(num)
 
 
 class Scope {

@@ -2,17 +2,18 @@
 
 #include "midend/IRprint.hpp"
 #include "midend/Function.hpp"
+#include "midend/Instruction.hpp"
 #include "midend/Module.hpp"
 
 
 //& Instruction
 Instruction::Instruction(Type *ty, OpID id, unsigned num_ops, BasicBlock *parent)
-    : User(ty, "", num_ops), op_id_(id), num_ops_(num_ops), parent_(parent) {
+    : User(ty, "", num_ops), op_id_(id), parent_(parent) {
     parent_->addInstruction(this);
 }
 
 Instruction::Instruction(Type *ty, OpID id, unsigned num_ops)
-    : User(ty, "", num_ops), op_id_(id), num_ops_(num_ops), parent_(nullptr) {}
+    : User(ty, "", num_ops), op_id_(id), parent_(nullptr) {}
 
 
 Function *Instruction::getFunction() { 
@@ -20,91 +21,100 @@ Function *Instruction::getFunction() {
 }
 
 Module *Instruction::getModule() { 
-    return parent_->getModule();
+    return parent_->getParent()->getParent();
 }
 
 //& BinaryInst
+
+BinaryInst::BinaryInst(Type *ty, OpID id, Value *v1, Value *v2)
+    : Instruction(ty, id, 2) {
+        setOperand(0, v1);
+        setOperand(1, v2);
+}
 
 BinaryInst::BinaryInst(Type *ty, OpID id, Value *v1, Value *v2, BasicBlock *bb)
     : Instruction(ty, id, 2, bb) {
         setOperand(0, v1);
         setOperand(1, v2);
 }
-
-BinaryInst *BinaryInst::createAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(v1->getType()->isPointerType() ? v1->getType() : v2->getType(), Instruction::OpID::add, v1, v2, bb);
+BinaryInst *BinaryInst::create( OpID id,Value *v1, Value *v2) {
+    return new BinaryInst(v1->getType(), id, v1, v2);
 }
 
-BinaryInst *BinaryInst::createSub(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getInt32Type(m), Instruction::OpID::sub, v1, v2, bb);
+BinaryInst *BinaryInst::createAdd(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::add, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createMul(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getInt32Type(m), Instruction::OpID::mul, v1, v2, bb);
+BinaryInst *BinaryInst::createSub(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::sub, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createMul64(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getInt32Type(m), Instruction::OpID::mul64, v1, v2, bb);
+BinaryInst *BinaryInst::createMul(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::mul, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createSDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getInt32Type(m), Instruction::OpID::sdiv, v1, v2, bb);
+BinaryInst *BinaryInst::createMul64(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::mul64, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createSRem(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getInt32Type(m), Instruction::OpID::srem, v1, v2, bb);
+BinaryInst *BinaryInst::createSDiv(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::sdiv, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createFAdd(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getFloatType(m), Instruction::OpID::fadd, v1, v2, bb);
+BinaryInst *BinaryInst::createSRem(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::srem, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createFSub(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getFloatType(m), Instruction::OpID::fsub, v1, v2, bb);
+BinaryInst *BinaryInst::createFAdd(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getFloatType(), Instruction::OpID::fadd, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createFMul(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getFloatType(m), Instruction::OpID::fmul, v1, v2, bb);
+BinaryInst *BinaryInst::createFSub(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getFloatType(), Instruction::OpID::fsub, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createFDiv(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getFloatType(m), Instruction::OpID::fdiv, v1, v2, bb);
+BinaryInst *BinaryInst::createFMul(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getFloatType(), Instruction::OpID::fmul, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createAnd(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getInt32Type(m), Instruction::OpID::land, v1, v2, bb);
+BinaryInst *BinaryInst::createFDiv(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getFloatType(), Instruction::OpID::fdiv, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createOr(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getInt32Type(m), Instruction::OpID::lor, v1, v2, bb);
+BinaryInst *BinaryInst::createAnd(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::land, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createXor(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getInt32Type(m), Instruction::OpID::lxor, v1, v2, bb);
+BinaryInst *BinaryInst::createOr(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::lor, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createAsr(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getInt32Type(m), Instruction::OpID::asr, v1, v2, bb);
+BinaryInst *BinaryInst::createXor(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::lxor, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createLsl(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getInt32Type(m), Instruction::OpID::shl, v1, v2, bb);
+BinaryInst *BinaryInst::createAsr(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::asr, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createLsr(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getInt32Type(m), Instruction::OpID::lsr, v1, v2, bb);
+BinaryInst *BinaryInst::createLsl(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::shl, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createAsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getInt32Type(m), Instruction::OpID::asr64, v1, v2, bb);
+BinaryInst *BinaryInst::createLsr(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::lsr, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createLsl64(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getInt32Type(m), Instruction::OpID::shl64, v1, v2, bb);
+BinaryInst *BinaryInst::createAsr64(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::asr64, v1, v2, bb);
 }
 
-BinaryInst *BinaryInst::createLsr64(Value *v1, Value *v2, BasicBlock *bb, Module *m) {
-    return new BinaryInst(Type::getInt32Type(m), Instruction::OpID::lsr64, v1, v2, bb);
+BinaryInst *BinaryInst::createLsl64(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::shl64, v1, v2, bb);
+}
+
+BinaryInst *BinaryInst::createLsr64(Value *v1, Value *v2, BasicBlock *bb) {
+    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::lsr64, v1, v2, bb);
 }
 
 
@@ -135,8 +145,8 @@ CmpInst::CmpInst(Type *ty, CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb)
     setOperand(1, rhs); 
 }
 
-CmpInst *CmpInst::createCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb, Module *m) {
-    return new CmpInst(m->getInt1Type(), op, lhs, rhs, bb);
+CmpInst *CmpInst::createCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb) {
+    return new CmpInst(Type::getInt1Type(), op, lhs, rhs, bb);
 }
 
 void CmpInst::negation() {
@@ -195,8 +205,8 @@ FCmpInst::FCmpInst(Type *ty, CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb)
     setOperand(1, rhs);
 }
 
-FCmpInst *FCmpInst::createFCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb, Module *m) {
-    return new FCmpInst(m->getInt1Type(), op, lhs, rhs, bb);
+FCmpInst *FCmpInst::createFCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb) {
+    return new FCmpInst(Type::getInt1Type(), op, lhs, rhs, bb);
 }
 
 void FCmpInst::negation() {
@@ -297,24 +307,24 @@ std::string CallInst::print() {
 
 //& BranchInst
 BranchInst::BranchInst(Value *cond, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb) 
-    : Instruction(Type::getVoidType(if_true->getModule()), Instruction::OpID::br, 3, bb) { 
+    : Instruction(Type::getVoidType(), Instruction::OpID::br, 3, bb) { 
     setOperand(0, cond);
     setOperand(1, if_true);
     setOperand(2, if_false); 
 }
 
 BranchInst::BranchInst(BasicBlock *if_true, BasicBlock *bb)
-    : Instruction(Type::getVoidType(if_true->getModule()), Instruction::OpID::br, 1, bb) {
+    : Instruction(Type::getVoidType(), Instruction::OpID::br, 1, bb) {
     setOperand(0, if_true);
 }
 
 BranchInst::BranchInst(Value *cond, BasicBlock *bb)
-    : Instruction(Type::getVoidType(bb->getModule()), Instruction::OpID::br, 3, bb) {
+    : Instruction(Type::getVoidType(), Instruction::OpID::br, 3, bb) {
     setOperand(0, cond);
 }
 
 BranchInst::BranchInst(BasicBlock *bb)
-    : Instruction(Type::getVoidType(bb->getModule()), Instruction::OpID::br, 1, bb) {
+    : Instruction(Type::getVoidType(), Instruction::OpID::br, 1, bb) {
     //nothing to do
 }
 
@@ -352,12 +362,12 @@ std::string BranchInst::print() {
 //& ReturnInst
 
 ReturnInst::ReturnInst(Value *val, BasicBlock *bb) 
-    : Instruction(Type::getVoidType(bb->getModule()), Instruction::OpID::ret, 1, bb) {
+    : Instruction(Type::getVoidType(), Instruction::OpID::ret, 1, bb) {
     setOperand(0, val);
 }
 
 ReturnInst::ReturnInst(BasicBlock *bb) 
-    : Instruction(Type::getVoidType(bb->getModule()), Instruction::OpID::ret, 0, bb) {
+    : Instruction(Type::getVoidType(), Instruction::OpID::ret, 0, bb) {
 
 }
 
@@ -439,7 +449,7 @@ std::string GetElementPtrInst::print() {
 
 //& StoreInst
 StoreInst::StoreInst(Value *val, Value *ptr, BasicBlock *bb)
-    : Instruction(Type::getVoidType(bb->getModule()), Instruction::OpID::store, 2, bb) {
+    : Instruction(Type::getVoidType(), Instruction::OpID::store, 2, bb) {
     setOperand(0, val);
     setOperand(1, ptr);
 }
@@ -462,7 +472,7 @@ std::string StoreInst::print() {
 
 //& MemsetInst
 MemsetInst::MemsetInst(Value *ptr, BasicBlock *bb)
-    : Instruction(Type::getVoidType(bb->getModule()), Instruction::OpID::memset, 1, bb) {
+    : Instruction(Type::getVoidType(), Instruction::OpID::memset, 1, bb) {
     setOperand(0, ptr);
 }
 
@@ -648,7 +658,7 @@ std::string PhiInst::print() {
 }
 
 CmpBrInst::CmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb) 
-        :Instruction(Type::getVoidType(if_true->getModule()), Instruction::OpID::cmpbr, 4, bb), cmp_op_(op) {
+        :Instruction(Type::getVoidType(), Instruction::OpID::cmpbr, 4, bb), cmp_op_(op) {
     setOperand(0, lhs);
     setOperand(1, rhs);
     setOperand(2, if_true);
@@ -658,12 +668,12 @@ CmpBrInst::CmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, Basi
 
 CmpBrInst::CmpBrInst(CmpOp op, Value *lhs, Value *rhs, 
             BasicBlock *bb)
-    : Instruction(Type::getVoidType(bb->getModule()), Instruction::OpID::cmpbr, 4, bb), cmp_op_(op) {
+    : Instruction(Type::getVoidType(), Instruction::OpID::cmpbr, 4, bb), cmp_op_(op) {
     setOperand(0, lhs);
     setOperand(1, rhs);
 }
 
-CmpBrInst *CmpBrInst::createCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb, Module *m) {
+CmpBrInst *CmpBrInst::createCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb) {
     if_true->addPreBasicBlock(bb);
     if_false->addPreBasicBlock(bb);
     bb->addSuccBasicBlock(if_false);
@@ -697,7 +707,7 @@ std::string CmpBrInst::print() {
 }
 
 FCmpBrInst::FCmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb) 
-        :Instruction(Type::getVoidType(if_true->getModule()), Instruction::OpID::fcmpbr, 4, bb), cmp_op_(op) {
+        :Instruction(Type::getVoidType(), Instruction::OpID::fcmpbr, 4, bb), cmp_op_(op) {
     setOperand(0, lhs);
     setOperand(1, rhs);
     setOperand(2, if_true);
@@ -706,12 +716,12 @@ FCmpBrInst::FCmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, Ba
 
 FCmpBrInst::FCmpBrInst(CmpOp op, Value *lhs, Value *rhs, 
             BasicBlock *bb)
-    : Instruction(Type::getVoidType(bb->getModule()), Instruction::OpID::fcmpbr, 4, bb), cmp_op_(op) {
+    : Instruction(Type::getVoidType(), Instruction::OpID::fcmpbr, 4, bb), cmp_op_(op) {
     setOperand(0, lhs);
     setOperand(1, rhs);
 }
 
-FCmpBrInst *FCmpBrInst::createFCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb, Module *m) {
+FCmpBrInst *FCmpBrInst::createFCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb) {
     if_true->addPreBasicBlock(bb);
     if_false->addPreBasicBlock(bb);
     bb->addSuccBasicBlock(if_false);
@@ -780,14 +790,14 @@ std::string LoadOffsetInst::print() {
 }
 
 StoreOffsetInst::StoreOffsetInst(Value *val, Value *ptr, Value *offset, BasicBlock *bb)
-    : Instruction(Type::getVoidType(bb->getModule()), Instruction::OpID::storeoffset, 3, bb) {
+    : Instruction(Type::getVoidType(), Instruction::OpID::storeoffset, 3, bb) {
     setOperand(0, val);
     setOperand(1, ptr);
     setOperand(2, offset);
 }
 
 StoreOffsetInst::StoreOffsetInst(Value *val, Value *ptr, BasicBlock *bb)
-    : Instruction(Type::getVoidType(bb->getModule()), Instruction::OpID::storeoffset, 3, bb) {
+    : Instruction(Type::getVoidType(), Instruction::OpID::storeoffset, 3, bb) {
     setOperand(0, val);
     setOperand(1, ptr);
 }
@@ -812,4 +822,17 @@ std::string StoreOffsetInst::print() {
     instr_ir += ", ";
     instr_ir += printAsOp(this->getOperand(2), true);
     return instr_ir;
+}
+
+
+bool BinaryInst::isNeg(){
+    bool ret=false;
+    if(getInstrType()==Instruction::OpID::sub){
+        if(auto co=dynamic_cast<ConstantInt*>(this->getOperand(0)))
+            if(co->getValue()==0)ret=true;
+    }else if(getInstrType()==Instruction::OpID::fsub){
+        if(auto co=dynamic_cast<ConstantFP*>(this->getOperand(0)))
+            if(co->getValue()==0.0f)ret=true;
+    }
+    return ret;
 }

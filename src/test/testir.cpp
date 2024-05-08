@@ -15,7 +15,7 @@ int main(int argc , char**argv){
     }
     Parser *p=new Parser(argv[1]);
     p->parserComp();
-    IRBuilder::IRGen irgen;
+    IRgen::IRGen irgen;
     p->comp->accept(irgen);
     auto m=irgen.getModule();
  
