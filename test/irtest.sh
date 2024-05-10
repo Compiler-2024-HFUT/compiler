@@ -1,6 +1,6 @@
 #!/bin/bash 
 source import.sh
-f=$(ls testcase/*.sy)
+f=$(ls testcase/performance/*.sy)
 names=""
 
 if [ -f error ]

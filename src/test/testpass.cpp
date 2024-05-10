@@ -39,7 +39,7 @@ int main(int argc , char**argv){
     PassManager pm{m};
     pm.add_pass<DeadStoreEli>();
     pm.add_pass<Mem2Reg>();
-    pm.add_pass<ADCE>();
+   // pm.add_pass<ADCE>();
     pm.run();
     cout << irgen.getModule()->print();
 
