@@ -398,7 +398,7 @@ void IRGen::visit(ast::ArrDefStmt &node) {
 
     if(scope.inGlobal()) {
         // zeroinitializer, global array is inited in global_var_init
-        Constant* initializer = ConstantZero::get(array_type, module.get());
+        Constant* initializer = ConstantZero::get(array_type);
         if(node.initializers){
             node.initializers->accept(*this);
             initializer = ConstantArray::get(array_type, init_val_map, arr_total_size);
