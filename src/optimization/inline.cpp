@@ -1,16 +1,12 @@
 #include "optimization/inline.hpp"
 #include "midend/BasicBlock.hpp"
-#include "midend/Constant.hpp"
 #include "midend/Function.hpp"
 #include "midend/GlobalVariable.hpp"
 #include "midend/Instruction.hpp"
 #include "midend/Module.hpp"
 #include "midend/Value.hpp"
-#include <iostream>
 #include <list>
-#include <queue>
 #include <sys/cdefs.h>
-#include <unordered_map>
 using ::std::list,::std::map;
 ::std::set<CallInst *> FuncInline::getCallInfo(Module* m){
 ::std::set<CallInst *>  call_info;
@@ -98,6 +94,7 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
                 instr->replaceOperand(2,false_bb);
                 false_bb->addPreBasicBlock(new_bb);
             }else if(instr->isRet()){
+                call->removeOperands(0,0);
                 if (instr->getNumOperands()==1){
                     if(old_new[instr->getOperand(0)]!=nullptr)
                         call->replaceAllUseWith(old_new[instr->getOperand(0)]);
@@ -161,6 +158,15 @@ void FuncInline::run(){
         if(isEmpty((Function*)call->getOperand(0)))continue;
         insertFunc(call,{call->getParent()->getParent()});
     }
+
+    // auto &fs=moudle_->getFunctions();
+    // for(auto iter_f=fs.begin();iter_f!=fs.end();){
+    //     auto cf=iter_f++;
+    //     auto f=*cf;
+    //     if(f->useEmpty()&&f!=moudle_->getMainFunction()){
+    //         moudle_->deleteFunction(f);
+    //     }
+    // }
 
 }
 
