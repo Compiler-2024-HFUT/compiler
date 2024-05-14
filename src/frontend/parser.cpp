@@ -75,21 +75,21 @@ type::ValType Parser::parserDefType(){
     type::ValType val_type{};//=curTok->type;
     bool hasdef=false;
     while(!hasdef){
-        if(curTokIs(tokenType::CONST)){
+        if(curTokIs(tokenType::KW_CONST)){
             if(val_type.t&TYPE_CONST){
                 exit(114);
             }
             // val_type.t.is_const=true;
             val_type.t=val_type.t|TYPE_CONST;
-        }else if(curTokIs(tokenType::DEFINT)){
+        }else if(curTokIs(tokenType::KW_INT)){
             val_type.t=val_type.t|TYPE_INT;
             val_type.size=INT_SIZE;
             hasdef=true;
-        }else if(curTokIs(tokenType::DEFFLOAT)){
+        }else if(curTokIs(tokenType::KW_FLOAT)){
             val_type.t=val_type.t|TYPE_FLOAT;
             val_type.size=FLOAT_SIZE;
             hasdef=true;
-        }else if(curTokIs(tokenType::VOID)){
+        }else if(curTokIs(tokenType::KW_VOID)){
             if((IS_CONST(val_type.t))) 
                 exit(12);
             hasdef=true;
@@ -108,22 +108,22 @@ type::ValType Parser::parserDefType(){
 }
 std::unique_ptr<ast::Statement> Parser::parserStmts(){
     std::unique_ptr<ast::Statement> ret;
-    if(curTokIs(tokenType::RETURN)){
+    if(curTokIs(tokenType::KW_RETURN)){
         ret=parserRetStmt();
-    }else if(curTokIs(tokenType::DEFFLOAT)||curTokIs(tokenType::DEFINT)||curTokIs(tokenType::CONST)){
+    }else if(curTokIs(tokenType::KW_FLOAT)||curTokIs(tokenType::KW_INT)||curTokIs(tokenType::KW_CONST)){
         type::ValType type=parserDefType();
         ret=parserValDeclStmt(type);
-    }else if(curTokIs(tokenType::IF)){
+    }else if(curTokIs(tokenType::KW_IF)){
         ret=parserIfStmt();
-    }else if(curTokIs(tokenType::WHILE)){
+    }else if(curTokIs(tokenType::KW_WHILE)){
         ret=parserWhileStmt();
     }else if(curTokIs(tokenType::LBRACE)){
         ret=parserBlock();
-    }else if(curTokIs(tokenType::CONTINUE)){
+    }else if(curTokIs(tokenType::KW_CONTINUE)){
         ret=make_unique<ast::ContinueStmt>(curTok->tok_pos);
         nextToken();
         skipIfCurIs(tokenType::SEMICOLON);
-    }else if(curTokIs(tokenType::BREAK)){
+    }else if(curTokIs(tokenType::KW_BREAK)){
         ret=make_unique<ast::BreakStmt>(curTok->tok_pos);
         nextToken();
         skipIfCurIs(tokenType::SEMICOLON);
@@ -276,7 +276,7 @@ unique_ptr<ast::FuncDef> Parser::parserFuncStmt(type::ValType val_type){
 unique_ptr<ast::RetStmt>  Parser::parserRetStmt( ){
     std::unique_ptr<ast::RetStmt> ret;
     ret=make_unique<ast::RetStmt>(curTok->tok_pos);
-    skipIfCurIs(tokenType::RETURN);
+    skipIfCurIs(tokenType::KW_RETURN);
     if(!curTokIs(tokenType::SEMICOLON))
         ret->expr=parserExpr();
     skipIfCurIs(tokenType::SEMICOLON);
@@ -304,7 +304,7 @@ void Parser::parserArg(std::vector<unique_ptr<ast::FuncFParam>> &argv){
         if(curTokIs(tokenType::COMMA)){
             nextToken();
             if(curTokIs(tokenType::RPAREM)){
-                skipIfCurIs(tokenType::DEFINT);
+                skipIfCurIs(tokenType::KW_INT);
             }
         }else if(curTokIs(tokenType::RPAREM)){
             break;
@@ -315,13 +315,13 @@ void Parser::parserArg(std::vector<unique_ptr<ast::FuncFParam>> &argv){
 }
 unique_ptr<ast::IfStmt> Parser::parserIfStmt(){
     unique_ptr<ast::IfStmt> ret=make_unique<ast::IfStmt>(curTok->tok_pos);
-    skipIfCurIs(tokenType::IF);
+    skipIfCurIs(tokenType::KW_IF);
     skipIfCurIs(tokenType::LPAREM);
     ret->pred=parserExpr();
     skipIfCurIs(tokenType::RPAREM);
     //parserBlockItems(if_state->if_body);
     ret->then_stmt=parserStmts();
-    if(curTokIs(tokenType::ELSE)){
+    if(curTokIs(tokenType::KW_ELSE)){
         nextToken();
         //parserBlockItems(if_state->else_body);
         ret->else_stmt=parserStmts();
@@ -330,7 +330,7 @@ unique_ptr<ast::IfStmt> Parser::parserIfStmt(){
 }
 unique_ptr<ast::WhileStmt> Parser::parserWhileStmt(){
     unique_ptr<ast::WhileStmt> ret=make_unique<ast::WhileStmt>(curTok->tok_pos);
-    skipIfCurIs(tokenType::WHILE);
+    skipIfCurIs(tokenType::KW_WHILE);
     skipIfCurIs(tokenType::LPAREM);
     ret->pred=parserExpr();
     skipIfCurIs(tokenType::RPAREM);
@@ -552,8 +552,8 @@ void Parser::skipIfCurIs(tokenType type){
             {tokenType::ASSIGN,"assign"},
             {tokenType::SEMICOLON,";"},
             {tokenType::COMMA,","},
-            {tokenType::DEFINT,"int"},
-            {tokenType::DEFFLOAT,"float"},
+            {tokenType::KW_INT,"int"},
+            {tokenType::KW_FLOAT,"float"},
             {tokenType::LBRACE,"{"},
             {tokenType::RBRACE,"}"},
             {tokenType::LPAREM,"("},

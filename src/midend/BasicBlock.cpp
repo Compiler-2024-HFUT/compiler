@@ -51,7 +51,7 @@ void BasicBlock::addInstrBegin(Instruction *instr) {
 }
 
 void BasicBlock::deleteInstr(Instruction *instr) {
-    instr_list_.remove(instr);
+    instr_list_.erase(findInstruction(instr));
     instr->removeUseOfOps();
     // dead.insert(instr);
 }
