@@ -47,7 +47,7 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
     BasicBlock *ret_bb;
     std::map<Value *, Value *> old_new;
     std::list<BasicBlock *> new_bbs;
-    std::list<CallInst*> _incall;
+    std::set<CallInst*> _incall;
 
     auto iter_inster=++(cur_bb->findInstruction(call));
     ::std::list<decltype(iter_inster)> _list;
@@ -113,10 +113,9 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
                 for (int i = 0; i < instr->getNumOperands(); i++){
                     if(old_new[instr->getOperand(i)]!=nullptr)
                         instr->replaceOperand(i,old_new[instr->getOperand(i)]);
-                    if(instr->isCall()){
-                        _incall.push_back(static_cast<CallInst*>(instr));
-                    }
                 }
+                if(instr->isCall())
+                    _incall.insert(static_cast<CallInst*>(instr));
             }
         }
     }
@@ -147,11 +146,11 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
     
     }
 
-    // calleds.push_back(call_func);
-    // for(auto incall:_incall){
-    //     if(isEmpty((Function*)incall->getOperand(0)))continue;
-    //     insertFunc(incall,calleds);
-    // }
+    calleds.push_back(call_func);
+    for(auto incall:_incall){
+        if(isEmpty((Function*)incall->getOperand(0)))continue;
+        insertFunc(incall,calleds);
+    }
 
     call->getParent()->deleteInstr(call);
     delete call;
