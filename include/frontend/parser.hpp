@@ -1,6 +1,7 @@
 #include "node.hpp"
 #include <memory>
 #include <vector>
+#include <map>
 //FuncDef f{"1",Pos{1,1}};
 #ifndef PARSER__AST
 #define PARSER__AST

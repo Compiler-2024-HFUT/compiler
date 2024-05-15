@@ -4,7 +4,6 @@
 #include "midend/Function.hpp"
 #include "midend/Module.hpp"
 #include <vector>
-#include <memory>
 #include "iostream"
 
 class Pass{

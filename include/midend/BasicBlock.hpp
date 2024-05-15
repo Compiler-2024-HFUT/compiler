@@ -2,12 +2,9 @@
 #define BASICBLOCK_HPP
 
 #include <list>
-#include <iterator>
 #include <set>
-#include <unordered_set>
 
 #include "Value.hpp"
-#include "Instruction.hpp"
 
 
 class Function;

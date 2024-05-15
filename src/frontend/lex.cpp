@@ -1,9 +1,7 @@
 #include "frontend/lex.hpp"
 #include <cctype>
-#include <cstdio>
 #include <iostream>
 #include <memory>
-#include <string>
 Pos::Pos(int _x,int _y):line(_x),column(_y){
 }
 Pos::Pos():line(0),column(0){
@@ -53,7 +51,7 @@ enum::tokenType Token::lookupIdent(){
     return ret;
 }
 
-Lexer::Lexer(string input) :input(input),readPosition(1),position(0),ch(input[0]),line(1),column(1) {}
+Lexer::Lexer(string input) :input(input),position(0),readPosition(1),ch(input[0]),line(1),column(1) {}
 int Lexer::readChar(){
     ch=peekChar();
     this->position++;
@@ -170,7 +168,7 @@ std::unique_ptr<Token>   Lexer::nextToken(/*std::unique_ptr<Lexer> l*/){
         if(isalpha(this->ch)||this->ch=='_'){
             tok=std::make_unique<Token>(readIdentifier(),line,column);
             // flagRead=false;
-            return std::move(tok);
+            return tok;
         }else if(isdigit(this->ch)||ch=='.'){
             tokenType type;
             string s{readNumber(type)};
@@ -182,7 +180,7 @@ std::unique_ptr<Token>   Lexer::nextToken(/*std::unique_ptr<Lexer> l*/){
             // }else if(tok->literal[0]=='0'){
             //     tok->type=INT_OCTAL;
             // }
-            return std::move(tok);
+            return tok;
         }
         else{
             tok=std::make_unique<Token>(this->ch,tokenType::ILLEGAL);
@@ -197,7 +195,7 @@ std::unique_ptr<Token>   Lexer::nextToken(/*std::unique_ptr<Lexer> l*/){
     tok->tok_pos.column=column;
     this->readChar();
 
-    return std::move(tok);
+    return tok;
 
 }
 string Lexer::readIdentifier(){

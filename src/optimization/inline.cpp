@@ -24,7 +24,7 @@ using ::std::list,::std::map;
                 //     ins_call->second.push_back({call,(Function*)call->getOperand(0)});
                 // }
             }
-    return std::move(call_info);
+    return call_info;
 }
 void insertFunc(CallInst* call,std::list<Function*> calleds){
     auto call_func=static_cast<Function*>(call->getOperand(0));
@@ -143,11 +143,11 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
     
     }
 
-    calleds.push_back(call_func);
-    for(auto incall:_incall){
-        if(isEmpty((Function*)incall->getOperand(0)))continue;
-        insertFunc(incall,calleds);
-    }
+    // calleds.push_back(call_func);
+    // for(auto incall:_incall){
+    //     if(isEmpty((Function*)incall->getOperand(0)))continue;
+    //     insertFunc(incall,calleds);
+    // }
 
     call->getParent()->deleteInstr(call);
     delete call;

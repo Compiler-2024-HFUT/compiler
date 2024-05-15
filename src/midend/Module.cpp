@@ -57,7 +57,9 @@ Module::Module(std::string name) : module_name_(name) ,builder_(std::make_unique
 Function* Module::getMainFunction() {
     return *(functions_list_.rbegin());
 }
- 
+void Module::deleteFunction(Function*f) {
+    functions_list_.remove(f);
+}
 
 Module::~Module() {
 }

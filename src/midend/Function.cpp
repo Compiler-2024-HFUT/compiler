@@ -1,5 +1,8 @@
+#include <map>
+#include "midend/Module.hpp"
 #include "midend/Function.hpp"
 #include "midend/IRprint.hpp"
+#include "midend/BasicBlock.hpp"
 
 void Function::buildArgs() {
     auto *func_ty = getFunctionType();

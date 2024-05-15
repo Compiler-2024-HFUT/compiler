@@ -2,17 +2,14 @@
 #define MODULE_HPP
 
 #include <list>
-#include <vector>
 #include <map>
 #include <string>
 #include <memory>
-#include <unordered_map>
 
 #include "Type.hpp"
 #include "GlobalVariable.hpp"
 #include "Value.hpp"
-#include "Function.hpp"
-
+#include "Instruction.hpp"
 
 class GlobalVariable;
 class Function;
@@ -29,6 +26,8 @@ public:
     std::list<Function*> &getFunctions() { return functions_list_; }
 
     Function *getMainFunction();
+
+    void deleteFunction(Function*f);
 
     void addGlobalVariable(GlobalVariable *g);
     std::list<GlobalVariable*> &getGlobalVariables() { return globals_list_; }

@@ -27,7 +27,6 @@ void Dominators::sFastIDomAlg(){
     reverse_post_order_.clear();
     post();
     auto entry=fun_->getEntryBlock();
-    auto ret_bb=*reverse_post_order_.begin();
     bool changed=true;
     for (auto bb : this->reverse_post_order_) {
         if (bb == entry)
@@ -53,17 +52,14 @@ void Dominators::sFastIDomAlg(){
     while (changed) {
         changed = false;
         for (auto bb : this->reverse_post_order_) {
-            if (bb == entry) {
-                continue;
-            }
+            if (bb == entry) continue;
             auto &pre_l=bb->getPreBasicBlocks(); 
             auto new_idom=*pre_l.begin();
             if(pre_l.size()>1){
                 auto b_it=pre_l.begin();
                 b_it++;
-                for(;b_it!=pre_l.end();b_it++){
+                for(;b_it!=pre_l.end();b_it++)
                     new_idom=intersect(new_idom,*b_it);
-                }
             }
             if(getIDom(bb)!=new_idom){
                 setIDom(bb,new_idom);
@@ -172,8 +168,9 @@ Dominators::Dominators(Function* fun):fun_(fun){
     }
     sFastIDomAlg();
     domFrontierAlg();
-    domAlg();
-    domTreeAlg();
+    // 没有用到，而且当前算法非常影响性能，之后可能要改
+    // domAlg();
+    // domTreeAlg();
     // printDomFront();
     // printDomSet();
 }

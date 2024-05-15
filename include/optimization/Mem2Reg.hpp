@@ -1,11 +1,6 @@
 #ifndef MEM2REG_HPP
 #define MEM2REG_HPP
 
-#include "midend/Module.hpp"
-#include "midend/Function.hpp"
-#include "midend/IRGen.hpp"
-#include "midend/BasicBlock.hpp"
-#include "midend/Instruction.hpp"
 #include "PassManager.hpp"
 #include "analysis/Dominators.hpp"
 #include <list>

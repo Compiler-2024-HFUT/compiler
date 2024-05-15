@@ -4,10 +4,7 @@
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include "midend/Value.hpp"
-#include <algorithm>
 #include <cassert>
-#include <cerrno>
-#include <iostream>
 #include <map>
 #include <memory>
 #include <set>

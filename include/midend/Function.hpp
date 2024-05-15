@@ -2,13 +2,11 @@
 #define FUNCTION_HPP
 
 #include <cassert>
-#include <iterator>
 #include <list>
 #include <vector>
 
-#include "User.hpp"
-#include "BasicBlock.hpp"
 #include "Type.hpp"
+#include "Value.hpp"
 
 class Module;
 class Argument;

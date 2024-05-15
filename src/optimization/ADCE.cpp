@@ -3,8 +3,6 @@
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include "midend/Value.hpp"
-#include <iostream>
-#include <memory>
 
 void ADCE::run(){
     for (auto func : moudle_->getFunctions()){

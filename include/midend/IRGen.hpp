@@ -5,18 +5,11 @@
 #include <memory>
 #include <vector>
 
-#include "BasicBlock.hpp"
-#include "Value.hpp"
-#include "Constant.hpp"
 #include "Function.hpp"
 #include "frontend/node.hpp"
-#include "midend/Module.hpp"
 
-
+class ConstantArray;
 namespace IRgen {
-
-#define CONST_INT(num)  ConstantInt::get(num)
-#define CONST_FP(num)   ConstantFP::get(num)
 
 
 class Scope {

@@ -3,10 +3,7 @@
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include "midend/Value.hpp"
-#include <iostream>
-#include <memory>
 #include <unordered_map>
-#include <unordered_set>
 
 void DeadStoreEli::run(){
     for (auto func : moudle_->getFunctions()){

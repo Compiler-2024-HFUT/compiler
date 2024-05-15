@@ -1,10 +1,6 @@
 #ifndef NODE_H
 #define NODE_H
 
-#include <iostream>
-#include <map>
-#include <string>
-#include <utility>
 #include <vector>
 #include <memory>
 #include "lex.hpp"
@@ -41,6 +37,7 @@ struct SyntaxNode {
     // virtual int getType()=0;
     virtual void print(int level=0)=0;
     virtual void accept(ASTVisitor &visitor)=0 ;
+    virtual ~SyntaxNode()=default;
 };
 struct ExprNode: SyntaxNode {
 //   public:

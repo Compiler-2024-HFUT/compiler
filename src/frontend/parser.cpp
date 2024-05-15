@@ -1,7 +1,6 @@
 #include "frontend/lex.hpp"
 #include "frontend/parser.hpp"
 #include "frontend/node.hpp"
-#include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <iterator>
@@ -35,7 +34,7 @@
         return i->second;
     return ast::BinOp::ILLEGAL;
 }
-Parser::Parser(std::string filename):file_name(filename),comp(make_unique<ast::CompunitNode>()),cur_pos(0,0){
+Parser::Parser(std::string filename):comp(make_unique<ast::CompunitNode>()),cur_pos(0,0),file_name(filename){
     std::ifstream sysy_file;
     sysy_file.open(filename,std::ios::in);
     if (!sysy_file.is_open()){
@@ -334,7 +333,7 @@ unique_ptr<ast::WhileStmt> Parser::parserWhileStmt(){
     skipIfCurIs(tokenType::LPAREM);
     ret->pred=parserExpr();
     skipIfCurIs(tokenType::RPAREM);
-    ret->loop_stmt=std::move(parserStmts());
+    ret->loop_stmt=parserStmts();
     return ret;
 }
 unique_ptr<ast::ExprNode> Parser::parserConst(){
@@ -399,7 +398,7 @@ void  Parser::AddLvalIndex(ast::LvalExpr* lval ){
     while(curTokIs(tokenType::LSQ_BRACE)){
         skipIfCurIs(tokenType::LSQ_BRACE);
         if(!curTokIs(tokenType::RSQ_BRACE))
-            lval->index_num.push_back(std::move(parserExpr()));
+            lval->index_num.push_back(parserExpr());
         else
             lval->index_num.push_back(nullptr);
         skipIfCurIs(tokenType::RSQ_BRACE);
@@ -415,7 +414,7 @@ unique_ptr<ast::CallExpr> Parser::parserCall(unique_ptr<ast::ExprNode> name){
     unique_ptr<ast::CallExpr> ret=make_unique<ast::CallExpr>(curTok->tok_pos,dynamic_cast<ast::LvalExpr*>(name.get())->name);
     skipIfCurIs(tokenType::LPAREM);
     while(!curTokIs(tokenType::RPAREM)){
-        ret->func_r_params.push_back(std::move(parserExpr()));
+        ret->func_r_params.push_back(parserExpr());
         if(curTokIs(tokenType::RPAREM)){
             continue;
         }else if(curTokIs(tokenType::COMMA))
@@ -448,7 +447,7 @@ unique_ptr<ast::ExprNode> Parser::parserLval(){
         while(curTokIs(tokenType::LSQ_BRACE)){
             skipIfCurIs(tokenType::LSQ_BRACE);
             if(!curTokIs(tokenType::RSQ_BRACE))
-                ret->index_num.push_back(std::move(parserExpr()));
+                ret->index_num.push_back(parserExpr());
             else
                 exit(114);
                 // ret->index_num.push_back(nullptr);

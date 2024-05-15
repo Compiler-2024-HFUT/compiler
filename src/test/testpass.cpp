@@ -1,24 +1,13 @@
-#include "midend/BasicBlock.hpp"
-#include "midend/Function.hpp"
-#include "midend/Instruction.hpp"
-#include "midend/Module.hpp"
 #include "frontend/parser.hpp"
-#include <bitset>
-#include <fstream>
-#include <ios>
 #include <iostream>
-#include <map>
 #include <memory>
-#include <set>
 #include <string>
-#include <vector>
 #include "midend/IRGen.hpp"
 
-#include "analysis/Dominators.hpp"
-#include "optimization/ADCE.hpp"
 #include "optimization/DeadStoreEli.hpp"
 #include "optimization/Mem2Reg.hpp"
 #include "optimization/PassManager.hpp"
+#include "optimization/inline.hpp"
 using namespace std;
 
 int main(int argc , char**argv){
@@ -39,7 +28,8 @@ int main(int argc , char**argv){
     PassManager pm{m};
     pm.add_pass<DeadStoreEli>();
     pm.add_pass<Mem2Reg>();
-    pm.add_pass<ADCE>();
+    // pm.add_pass<ADCE>();
+    // pm.add_pass<FuncInline>();
     pm.run();
     cout << irgen.getModule()->print();
 
