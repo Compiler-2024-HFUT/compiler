@@ -39,6 +39,7 @@ Parser::Parser(std::string filename):comp(make_unique<ast::CompunitNode>()),cur_
     sysy_file.open(filename,std::ios::in);
     if (!sysy_file.is_open()){
         std::cerr << "read fail." << endl;
+        exit(1);
     }
 	string content( (std::istreambuf_iterator<char>(sysy_file) ),
 					 (std::istreambuf_iterator<char>() ) );
@@ -348,13 +349,13 @@ unique_ptr<ast::ExprNode> Parser::parserConst(){
 
     try{
         if(curTokIs(tokenType::INT_BIN))
-            Value.i=std::stol( s,0,2);
+            Value.i=std::stoi( s,0,2);
         else if(curTokIs(tokenType::INT_OCTAL))
-            Value.i=std::stol( s,0,8);
+            Value.i=std::stoi( s,0,8);
         else if(curTokIs(tokenType::INT_HEX))
-            Value.i=std::stol( s,0,16);
+            Value.i=std::stoi( s,0,16);
         else if(curTokIs(tokenType::INT))
-            Value.i=std::stol( s);
+            Value.i=std::stoi( s);
         else 
             Value.f=std::stof( s);
     }

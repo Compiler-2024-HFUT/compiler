@@ -2,6 +2,7 @@
 #define DEAD_STORE_ELI_HPP
 
 
+#include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include "PassManager.hpp"
 #include <set>
@@ -16,7 +17,7 @@ private:
 public:
     DeadStoreEli(Module *m) : FunctionPass(m){}
     ~DeadStoreEli(){};
-    void run() override;
+    void runOnFunc(Function*func) override;
 };
 
 #endif

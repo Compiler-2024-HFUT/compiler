@@ -2,6 +2,7 @@
 #define ADCE_HPP
 
 
+#include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include "PassManager.hpp"
 #include <list>
@@ -19,7 +20,7 @@ private:
 public:
     ADCE(Module *m) : FunctionPass(m){}
     ~ADCE(){};
-    void run() override;
+    void runOnFunc(Function*func) override;
 };
 
 #endif

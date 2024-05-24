@@ -5,14 +5,12 @@
 #include "midend/Value.hpp"
 #include <unordered_map>
 
-void DeadStoreEli::run(){
-    for (auto func : moudle_->getFunctions()){
-        auto &bb_list=func->getBasicBlocks();
-        if(bb_list.empty())continue;
-        cur_func_=func;
-        rmStore();
+void DeadStoreEli::runOnFunc(Function*func){
+    auto &bb_list=func->getBasicBlocks();
+    if(bb_list.empty())return;
+    cur_func_=func;
+    rmStore();
 
-    }
 }
 bool DeadStoreEli::isAllocVar(Instruction *instr){
     if(instr->isAlloca()){

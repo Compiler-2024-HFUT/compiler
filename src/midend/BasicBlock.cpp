@@ -55,11 +55,13 @@ void BasicBlock::deleteInstr(Instruction *instr) {
     instr->removeUseOfOps();
     // dead.insert(instr);
 }
-void BasicBlock::eraseInstr(::std::list<Instruction*>::iterator instr_iter) {
+::std::list<Instruction*>::iterator BasicBlock::eraseInstr(::std::list<Instruction*>::iterator instr_iter) {
     auto instr=*instr_iter;
-    instr_list_.erase(instr_iter);
+    //new iter
+    auto ret=instr_list_.erase(instr_iter);
     instr->removeUseOfOps();
     // dead.insert(instr);
+    return ret;
 }
 
 ::std::list<Instruction*>::iterator BasicBlock::insertInstr(::std::list<Instruction*>::iterator instr_iter,Instruction* instr) {

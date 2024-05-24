@@ -26,14 +26,14 @@ private:
     bool queuePhi(BasicBlock*bb,AllocaInst*ai,::std::set<PhiInst*>&phi_set);
     void rmDeadPhi(Function*func);
     void reName(BasicBlock*bb,BasicBlock*pred,::std::map<AllocaInst*,Value*> incoming_vals);
-    void generatePhi(AllocaInst*ai,::std::set<BasicBlock*>&define_bbs);
-
+    void generatePhi(AllocaInst*ai,::std::set<BasicBlock*>&define_bbs,::std::set<PhiInst*> &phi_set);
     bool isAllocVar(Instruction *instr);
 
 public:
     Mem2Reg(Module *m) : FunctionPass(m){}
     ~Mem2Reg(){};
-    void run() override;
+    // void run()=default;
+    void runOnFunc(Function*func)override;
 };
 
 #endif

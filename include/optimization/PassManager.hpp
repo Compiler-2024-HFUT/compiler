@@ -8,33 +8,37 @@
 
 class Pass{
 public:
-    Pass(Module* m) : moudle_(m){
+    Pass(Module* m) : module_(m){
     }
 
     virtual void run()=0;
 
 protected:
-    
-    Module* moudle_;
+
+    Module* module_;
 };
 class FunctionPass:public Pass{
 public:
     FunctionPass(Module* m) : Pass(m){
     }
-    virtual void run()=0;
+    virtual void run()final{
+        for(auto f:module_->getFunctions())
+            runOnFunc(f);
+    }
+    virtual void runOnFunc(Function*func)=0;
 
 };
 class PassManager{
     public:
-        PassManager(Module* m) : moudle_(m){}
+        PassManager(Module* m) : module_(m){}
         template<typename PassType> void add_pass(bool print_ir=false){
-            passes_.push_back(std::pair<Pass*,bool>(new PassType(moudle_),print_ir));
+            passes_.push_back(std::pair<Pass*,bool>(new PassType(module_),print_ir));
         }
         void run(){
             for(auto pass : passes_){
                 pass.first->run();
                 if(pass.second){
-                    std::cout<<moudle_->print();
+                    std::cout<<module_->print();
                 }
             }
         }
@@ -43,7 +47,7 @@ class PassManager{
     private:
         std::vector<std::pair<Pass*,bool>> passes_;
         // std::unique_ptr<Module> m_;
-        Module* moudle_;
+        Module* module_;
 
 };
 

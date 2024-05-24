@@ -37,6 +37,7 @@ public:
     Type *getType() const { return type_; } 
 
     std::list<Use> &getUseList() { return use_list_; }
+    int getUseNum() { return use_list_.size(); }
     void addUse(Value* val, unsigned arg_no = 0);
 
     bool setName(std::string name) {

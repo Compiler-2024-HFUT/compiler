@@ -91,7 +91,7 @@ public:
     void addInstrBegin(Instruction *instr);
 
     void deleteInstr(Instruction *instr);
-    void eraseInstr(::std::list<Instruction*>::iterator instr_iter);
+    ::std::list<Instruction*>::iterator eraseInstr(::std::list<Instruction*>::iterator instr_iter);
     ::std::list<Instruction*>::iterator insertInstr(::std::list<Instruction*>::iterator instr_iter,Instruction*instr);
 
     std::list<Instruction *>::iterator findInstruction(Instruction *instr);

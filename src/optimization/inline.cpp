@@ -10,7 +10,7 @@
 using ::std::list,::std::map;
 ::std::set<CallInst *> FuncInline::getCallInfo(Module* m){
 ::std::set<CallInst *>  call_info;
-    for(auto f:moudle_->getFunctions())
+    for(auto f:module_->getFunctions())
         for(auto b:f->getBasicBlocks())
             for(auto ins:b->getInstructions() ){
                 if(!ins->isCall()) continue;
@@ -153,18 +153,18 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
     delete call;
 }
 void FuncInline::run(){
-    func_call_=getCallInfo(moudle_);
+    func_call_=getCallInfo(module_);
     for(auto call:func_call_){
         if(isEmpty((Function*)call->getOperand(0)))continue;
         insertFunc(call,{call->getParent()->getParent()});
     }
 
-    // auto &fs=moudle_->getFunctions();
+    // auto &fs=module_->getFunctions();
     // for(auto iter_f=fs.begin();iter_f!=fs.end();){
     //     auto cf=iter_f++;
     //     auto f=*cf;
-    //     if(f->useEmpty()&&f!=moudle_->getMainFunction()){
-    //         moudle_->deleteFunction(f);
+    //     if(f->useEmpty()&&f!=module_->getMainFunction()){
+    //         module_->deleteFunction(f);
     //     }
     // }
 

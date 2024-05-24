@@ -1,6 +1,7 @@
 #ifndef NODE_H
 #define NODE_H
 
+#include <cstdint>
 #include <vector>
 #include <memory>
 #include "lex.hpp"
@@ -116,7 +117,7 @@ struct BinopExpr:public InfixExpr{
 ///////中缀表达式/////
 union valUnion{
     float f;
-    int   i;
+    int32_t   i;
 };
 struct Literal:public ExprNode{
     valUnion Value;
