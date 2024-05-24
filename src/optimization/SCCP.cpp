@@ -174,7 +174,7 @@ Constant *SCCP::foldConst(Instruction *inst) {
 
 /* 暂不考虑以下情况：
  * 函数返回值是固定常数，call指令都是NaC
- * 常量数组元素 ？
+ * 常量数组元素 全局变量
  */
 void SCCP::visitInst(Instruction *i) {
     
@@ -215,28 +215,25 @@ void SCCP::visitPhi(PhiInst *phi) {
                 return;
             // constant
             }else {
-                // phi is undef
+                // phi[i] is undef
                 if(c == nullptr) {
                     c = getInstVal( phi->getOperand(2*i) ).getConst();
+                // phi[i] is const, if phi[i].const == c, phi[i] = c; else phi[i] = NaC
                 }else {
                     ConstantInt *ic = dynamic_cast<ConstantInt*>(c);
                     ConstantInt *iv = dynamic_cast<ConstantInt*>( getInstVal( phi->getOperand(2*i) ).getConst() );
                     ConstantFP  *fc = dynamic_cast<ConstantFP*>(c);
                     ConstantFP  *fv = dynamic_cast<ConstantFP*>( getInstVal( phi->getOperand(2*i) ).getConst() );
-                    if(ic->getValue() == iv->getValue() || fc->getValue() == fv->getValue())
+                    if( ( ic && iv && ic->getValue() == iv->getValue() ) || ( fc && fv && fc->getValue() == fv->getValue() ) )
                         continue;
                     else {
                         getInstVal(phi).markNaC();
+                        // phi's instVal has changed
                         addSSAEdge(phi);
                         return;
                     }
                 }
             }
         }
-    }
-
-    if(c) {
-        getInstVal(phi).markConst(c);
-        addSSAEdge(phi);
     }
 }
