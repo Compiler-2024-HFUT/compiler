@@ -1,4 +1,5 @@
 #include "optimization/SCCP.hpp"
+#include "midend/Function.hpp"
 
 bool SCCP::runOnFunction(Function *f) {
     worklist.clear();
@@ -50,15 +51,19 @@ bool SCCP::runOnFunction(Function *f) {
     return isChanged;
 }
 
-void SCCP::run() {
-    // bool isChanged = false;
-    for(auto func : moudle_->getFunctions()){
-        // 仅在有定义的函数上执行
-        if(func->getBasicBlocks().size() != 0)
-            runOnFunction(func);
-    }
+// void SCCP::run() {
+//     // bool isChanged = false;
+//     for(auto func : moudle_->getFunctions()){
+//         // 仅在有定义的函数上执行
+//         if(func->getBasicBlocks().size() != 0)
+//             runOnFunction(func);
+//     }
+// }
+void SCCP::runOnFunc(Function*func){
+    // 仅在有定义的函数上执行
+    if(func->getBasicBlocks().size() != 0)
+        runOnFunction(func);
 }
-
 int SCCP::getExecFlag(Edge e) {
     if(execFlag.find(e) == execFlag.end())
         execFlag[e] = 0;

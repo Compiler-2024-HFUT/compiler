@@ -6,6 +6,7 @@
 
 #include "analysis/Dominators.hpp"
 // #include "optimization/ADCE.hpp"
+#include "optimization/DeadPHIEli.hpp"
 #include "optimization/DeadStoreEli.hpp"
 #include "optimization/Mem2Reg.hpp"
 #include "optimization/PassManager.hpp"
@@ -30,20 +31,18 @@ int main(int argc , char**argv){
     PassManager pm{m};
     pm.add_pass<DeadStoreEli>();
     pm.add_pass<Mem2Reg>();
+    pm.add_pass<DeadPHIEli>();
     pm.add_pass<SCCP>();
     // pm.add_pass<ADCE>();
     pm.run();
     cout << irgen.getModule()->print();
 
-<<<<<<< HEAD
-=======
     // for(auto f:m->getFunctions()){
     //     if(f->getBasicBlocks().size()>1){
     //         cout<<f->printGra()<<endl;
     //     }
     // }
 
->>>>>>> b3b9b5e (仅能完成二元运算的传播)
     delete (p);
 
 }

@@ -9,6 +9,7 @@
 #ifndef CONST_PROP_HPP
 #define CONST_PROP_HPP
 
+#include "midend/BasicBlock.hpp"
 #include "midend/Module.hpp"
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
@@ -67,7 +68,7 @@ class SCCP : public FunctionPass {
             SSA     // edge is a use-def chain(use_list_ in Value), pair(value,value)
         } type;
 
-        static Edge makeFlowEdge(BasicBlock* from, BasicBlock* to) { return Edge{std::pair<Value*, Value*>(from, to), Flow}; }
+        static Edge makeFlowEdge(BasicBlock* from, BasicBlock* to) { return Edge{std::pair<BasicBlock*, BasicBlock*>(from, to), Flow}; }
         static Edge makeSSAEdge(Value* def, Value* use) { return Edge{std::pair<Value*, Value*>(def, use), SSA}; }
         bool isFlowEdge() { return type == Flow; }
         bool isSSAEdge()  { return type == SSA; }
@@ -99,7 +100,8 @@ public:
     SCCP(Module *m) : FunctionPass(m) {}
     ~SCCP() {}
     
-    void run() override;
+    // void run() override;
+    void runOnFunc(Function*func) override;
 };
 
 #endif
