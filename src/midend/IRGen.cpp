@@ -73,7 +73,6 @@ enum class IfWhileEnum{
 };
 static bool real_ret=0;
 static std::stack<IfWhileEnum> if_while_stack;
-
 void IRGen::visit(ast::CompunitNode &node) {
     global_init_block = BasicBlock::create( "init", dynamic_cast<Function*>(scope.findFunc("global_var_init")) );
 
@@ -695,7 +694,7 @@ void IRGen::visit(ast::RelopExpr &node) {}
 void IRGen::visit(ast::EqExpr &node) {}
 void IRGen::visit(ast::AndExp &node) {
     require_lvalue = false;
-    auto true_BB = BasicBlock::create( "", cur_fun);
+    BasicBlock* true_BB = BasicBlock::create( "", cur_fun);
     node.lhs->accept(*this);
         
         Value *cond_val;
@@ -717,14 +716,27 @@ void IRGen::visit(ast::AndExp &node) {
             }
         }else
             assert(0&&"illgeal type");
-
-    BranchInst::createCondBr(cond_val, true_BB, IF_WHILE_Cond_Stack.back().falseBB, cur_block_of_cur_fun);
+    BasicBlock*false_bb;
+    if(IF_WHILE_Cond_Stack.empty())
+        false_bb=BasicBlock::create( "", cur_fun);
+    else
+        false_bb=IF_WHILE_Cond_Stack.back().falseBB;
+    BasicBlock* cur_bb=cur_block_of_cur_fun;
+    // BranchInst::createCondBr(cond_val, true_BB, false_bb, cur_block_of_cur_fun);
+    
     cur_block_of_cur_fun=true_BB;
+    // IF_WHILE_Cond_Stack.push_back({true_BB,IF_WHILE_Cond_Stack.back().falseBB});
     node.rhs->accept(*this);
+    // IF_WHILE_Cond_Stack.pop_back();
+    if(false_bb->getInstructions().empty()&&IF_WHILE_Cond_Stack.empty()){
+        BranchInst::createBr(true_BB,  cur_bb);
+        false_bb->eraseFromParent();
+    }else
+        BranchInst::createCondBr(cond_val, true_BB, false_bb, cur_bb);
 }
 void IRGen::visit(ast::ORExp &node){
     BasicBlock* true_BB;
-    if(IF_WHILE_Cond_Stack.size()>0){
+    if(!IF_WHILE_Cond_Stack.empty()){
         true_BB = IF_WHILE_Cond_Stack.back().trueBB;
         //false1_BB=IF_WHILE_Cond_Stack.back().falseBB;
     }else{
@@ -755,7 +767,9 @@ void IRGen::visit(ast::ORExp &node){
         }else
             assert(0&&"illgeal type");
 
-    BranchInst::createCondBr(cond_val, true_BB, false_BB, cur_block_of_cur_fun);
+    // BranchInst::createCondBr(cond_val, true_BB, false_BB, cur_block_of_cur_fun);
+    BasicBlock* cur_bb=cur_block_of_cur_fun;
+    
     cur_block_of_cur_fun=false_BB;
     IF_WHILE_Cond_Stack.pop_back();
     
@@ -763,9 +777,14 @@ void IRGen::visit(ast::ORExp &node){
     // IF_WHILE_Cond_Stack.push_back({true_BB,false1_BB});
     // BranchInst::createCondBr(cond_val, true_BB, false1_BB, cur_block_of_cur_fun);
     // cur_block_of_cur_fun=true_BB
-    if(IF_WHILE_Cond_Stack.size()==0){
-        cur_block_of_cur_fun=false_BB;
+    if(IF_WHILE_Cond_Stack.empty()){
+        cur_block_of_cur_fun=true_BB;
     }
+    if(false_BB->getInstructions().empty()&&IF_WHILE_Cond_Stack.empty()){
+        BranchInst::createBr(true_BB,  cur_bb);
+        false_BB->eraseFromParent();
+    }else
+        BranchInst::createCondBr(cond_val, true_BB, false_BB, cur_bb);
 }
 void IRGen::visit(ast::BinopExpr &node) {
     require_lvalue = false;
@@ -1192,7 +1211,7 @@ void IRGen::visit(ast::IfStmt &node) {
     cur_basic_block_list.pop_back();
     if(node.else_stmt==nullptr) false_bb->eraseFromParent();
     else{
-         cur_block_of_cur_fun=false_bb;
+        cur_block_of_cur_fun=false_bb;
         cur_basic_block_list.push_back(false_bb);
         if(dynamic_cast<ast::BlockStmt*>(node.else_stmt.get())) 
             node.else_stmt->accept(*this);
