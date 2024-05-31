@@ -17,14 +17,11 @@ private:
     ::std::list<AllocaInst*>allocas;
 
 
-    void reName(BasicBlock *bb);
-    void removeAlloca();
     BasicBlock* isOnlyInOneBB(AllocaInst*ai);
     void calDefAndUse(AllocaInst*ai,::std::set<BasicBlock*>&def,::std::set<BasicBlock*>&use);
     void rmLocallyAlloc(AllocaInst* ai,BasicBlock* used_bb);
 
     bool queuePhi(BasicBlock*bb,AllocaInst*ai,::std::set<PhiInst*>&phi_set);
-    void rmDeadPhi(Function*func);
     void reName(BasicBlock*bb,BasicBlock*pred,::std::map<AllocaInst*,Value*> incoming_vals);
     void generatePhi(AllocaInst*ai,::std::set<BasicBlock*>&define_bbs,::std::set<PhiInst*> &phi_set);
     bool isAllocVar(Instruction *instr);

@@ -80,29 +80,6 @@ bool Mem2Reg::queuePhi(BasicBlock*bb,AllocaInst*ai,::std::set<PhiInst*>&phi_set)
     
     return true;
 }
-void Mem2Reg::rmDeadPhi(Function*func){
-    ::std::list<std::pair<PhiInst*,std::list<Instruction*>::iterator>>phi_set;
-        for(auto b:func->getBasicBlocks()){
-            auto &instrs=b->getInstructions();
-            for(auto iter=instrs.begin();iter!=instrs.end();){
-                auto ins=iter++;
-                if((*ins)->isPhi())
-                    phi_set.push_back({(PhiInst*)(*ins),ins});
-            }
-        }
-    bool change=true;
-    while(change){
-        change=false;
-        for(auto iter=phi_set.begin();iter!=phi_set.end();){
-            auto cur_iter=iter++;
-            if(cur_iter->first->getUseList().empty()){
-                cur_iter->first->getParent()->eraseInstr(cur_iter->second);
-                phi_set.erase(cur_iter);
-                change=true;
-            }
-        }
-    }
-}
 
 void Mem2Reg::reName(BasicBlock*bb,BasicBlock*pred,::std::map<AllocaInst*,Value*> incoming_vals){
     if(auto bb_alloc_phi=new_phi.find(bb);bb_alloc_phi!=new_phi.end()){
@@ -209,7 +186,6 @@ void Mem2Reg::runOnFunc(Function*func){
         }
         visited.clear();
         reName(func->getBasicBlocks().front(),nullptr,alloc_va);
-        rmDeadPhi(func);
 
         for(auto ai_iter=allocas.begin();ai_iter!=allocas.end();){
             auto ai=*ai_iter;ai_iter++;

@@ -36,11 +36,11 @@ bool is_phi_cycle(PhiInst*phi,::std::set<PhiInst*>&phi_set){
 void DeadPHIEli::runOnFunc(Function*func){
     auto &bb_list=func->getBasicBlocks();
     if(bb_list.size()<2)return;
-    std::set<PhiInst*> phi_set;
+    std::list<PhiInst*> phi_set;
     for(auto b:bb_list){
         for(auto ins:b->getInstructions()){
             if(auto phi=dynamic_cast<PhiInst*>(ins))
-            phi_set.insert(phi);
+            phi_set.push_back(phi);
         }
     }
     bool change=true;
@@ -66,6 +66,7 @@ void DeadPHIEli::runOnFunc(Function*func){
             if(phi->useEmpty()){
                 phi_set.erase(iter);
                 phi->getParent()->deleteInstr(phi);
+                delete  phi;
                 change=true;
             }else if(phi->useOne()&&dynamic_cast<PhiInst*>(phi->getUseList().back().val_)){
                 std::set<PhiInst*> visited{};
@@ -76,6 +77,7 @@ void DeadPHIEli::runOnFunc(Function*func){
                     phi_set.erase(iter);
                     visited.erase(phi);
                     phi->getParent()->deleteInstr(phi);
+                    delete  phi;
                     change=true;
                 }
             }
