@@ -5,17 +5,18 @@
 #include "midend/Module.hpp"
 #include <vector>
 #include "iostream"
-
+#include "analysis/InfoManager.hpp"
 class Pass{
 public:
-    Pass(Module* m) : module_(m){
+    Pass(Module* m) : module_(m),info_man_(m->getInfoMan()){
     }
 
     virtual void run()=0;
 
 protected:
 
-    Module* module_;
+    Module* const module_;
+    InfoManager* const info_man_;
 };
 class FunctionPass:public Pass{
 public:
@@ -35,6 +36,7 @@ class PassManager{
             passes_.push_back(std::pair<Pass*,bool>(new PassType(module_),print_ir));
         }
         void run(){
+            module_->getInfoMan()->run();
             for(auto pass : passes_){
                 pass.first->run();
                 if(pass.second){

@@ -1,9 +1,10 @@
 #include <memory>
 
+#include "analysis/InfoManager.hpp"
 #include "midend/IRBuilder.hpp"
 #include "midend/Module.hpp"
 
-Module::Module(std::string name) : module_name_(name) ,builder_(std::make_unique<IRBuilder>()){
+Module::Module(std::string name) : module_name_(name) ,builder_(std::make_unique<IRBuilder>()),info_man_(std::make_unique<InfoManager>(this)){
 
 
     //& init instr_id2string 
@@ -91,3 +92,4 @@ std::string Module::print() {
     }
     return module_ir;
 }
+__attribute__((always_inline)) InfoManager *Module::getInfoMan(){return info_man_.get();}

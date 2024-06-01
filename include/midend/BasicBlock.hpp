@@ -51,16 +51,16 @@ public:
     //& dominate tree api end
 
     //& dominates frontier api begin
-    void setIdom(BasicBlock* bb){idom_ = bb;}
-    BasicBlock* getIdom(){return idom_;}
-    void addDomFrontier(BasicBlock* bb){dom_frontier_.insert(bb);}
-    void addRDomFrontier(BasicBlock* bb){rdom_frontier_.insert(bb);}
-    void clearRDomFrontier(){rdom_frontier_.clear();}
-    std::set<BasicBlock *> &getDomFrontier(){return dom_frontier_;}
-    std::set<BasicBlock *> &getRDomFrontier(){return rdom_frontier_;}
-    std::set<BasicBlock *> &getRDoms(){return rdoms_;}
-    auto addRDom(BasicBlock* bb){return rdoms_.insert(bb);}
-    void clearRDom(){rdoms_.clear();}
+    // void setIdom(BasicBlock* bb){idom_ = bb;}
+    // BasicBlock* getIdom(){return idom_;}
+    // void addDomFrontier(BasicBlock* bb){dom_frontier_.insert(bb);}
+//    void addRDomFrontier(BasicBlock* bb){rdom_frontier_.insert(bb);}
+//    void clearRDomFrontier(){rdom_frontier_.clear();}
+    // std::set<BasicBlock *> &getDomFrontier(){return dom_frontier_;}
+//    std::set<BasicBlock *> &getRDomFrontier(){return rdom_frontier_;}
+//    std::set<BasicBlock *> &getRDoms(){return rdoms_;}
+//    auto addRDom(BasicBlock* bb){return rdoms_.insert(bb);}
+//    void clearRDom(){rdoms_.clear();}
     //& dominates frontier api end
 
     //// Returns the terminator instruction if the block is well formed or null
@@ -102,9 +102,9 @@ public:
 
     void eraseFromParent();
 
-    void domFrontierReset() {
-        dom_frontier_.clear();
-    }
+    // void domFrontierReset() {
+    //     dom_frontier_.clear();
+    // }
 
     virtual std::string print() override;
 
@@ -121,10 +121,10 @@ private:
     std::list<BasicBlock *> pre_bbs_;
     std::list<BasicBlock *> succ_bbs_;
     std::list<Instruction *> instr_list_;
-    BasicBlock* idom_ = nullptr;
-    std::set<BasicBlock *> dom_frontier_;   //& dom_tree
-    std::set<BasicBlock*> rdom_frontier_;
-    std::set<BasicBlock*> rdoms_;
+//    BasicBlock* idom_ = nullptr;
+//    std::set<BasicBlock *> dom_frontier_;   //& dom_tree
+//    std::set<BasicBlock*> rdom_frontier_;
+ //   std::set<BasicBlock*> rdoms_;
     Function *parent_;
     std::set<Value*> ilive_in;
     std::set<Value*> ilive_out;

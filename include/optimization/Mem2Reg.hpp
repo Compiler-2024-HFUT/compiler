@@ -4,15 +4,11 @@
 #include "PassManager.hpp"
 #include "analysis/Dominators.hpp"
 #include <list>
-#include <memory>
 #include <set>
-#include <utility>
 using ::std::map,::std::set,::std::vector;
 class Mem2Reg : public FunctionPass{
 private:
-    ::std::_Rb_tree_iterator<std::pair<Function *const, std::unique_ptr<Dominators>>> cur_fun_dom;
-    ::std::map<Function*, ::std::unique_ptr<Dominators>> func_dom_;
-
+    Dominators*cur_dom_;
     ::std::map<BasicBlock*, ::std::map<AllocaInst*,PhiInst*>> new_phi;
     ::std::list<AllocaInst*>allocas;
 

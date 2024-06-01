@@ -10,12 +10,10 @@
 #include "GlobalVariable.hpp"
 #include "Value.hpp"
 #include "Instruction.hpp"
-
+#include "analysis/InfoManager.hpp"
 class GlobalVariable;
 class Function;
 class Instruction;
-
-
 class Module {
 public:
     explicit Module(std::string name);
@@ -40,6 +38,7 @@ public:
 
     virtual std::string print();
 
+    InfoManager *getInfoMan();
 
 private:
     std::list<GlobalVariable *> globals_list_;                  //& The Global Variables in the module
@@ -52,7 +51,7 @@ private:
 
 private:
     std::unique_ptr<IRBuilder> builder_;
-
+    std::unique_ptr<InfoManager> info_man_;
 };
 
 #endif

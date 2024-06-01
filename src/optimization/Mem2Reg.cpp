@@ -6,7 +6,6 @@
 #include "midend/Value.hpp"
 #include <cassert>
 #include <map>
-#include <memory>
 #include <set>
 
 static ::std::set<BasicBlock*>visited;
@@ -128,8 +127,8 @@ void Mem2Reg::generatePhi(AllocaInst*ai,::std::set<BasicBlock*>&define_bbs,::std
     while(!define_bbs.empty()){
         auto b=*define_bbs.rbegin();
         define_bbs.erase(b);
-        if(b->getDomFrontier().empty())continue;
-        auto &df_set=b->getDomFrontier();
+        if(cur_dom_->getDomFrontier(b).empty())continue;
+        auto &df_set=cur_dom_->getDomFrontier(b);
         for(auto df:df_set)
             if (queuePhi(df, ai,phi_set))
                 define_bbs.insert(df);
@@ -141,8 +140,9 @@ void Mem2Reg::runOnFunc(Function*func){
         new_phi.clear();
         auto &bb_list=func->getBasicBlocks();
         if(bb_list.empty())return;
-        ::std::unique_ptr<Dominators> dom=std::make_unique<Dominators>(func);
-        cur_fun_dom=func_dom_.insert({func,std::move(dom)}).first;
+        cur_dom_=info_man_->getFuncDom(func);
+        // ::std::unique_ptr<Dominators> dom=std::make_unique<Dominators>(func);
+        // cur_fun_dom=func_dom_.insert({func,std::move(dom)}).first;
 
         for(auto bb:func->getBasicBlocks()){
             for(auto instr:bb->getInstructions()){
