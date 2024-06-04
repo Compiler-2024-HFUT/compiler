@@ -134,11 +134,11 @@ void LIR::breakGEP(::std::vector<BasicBlock*> BBs){
         auto & inst_list = getInstList(bb);
         for(auto iter=inst_list.begin(); iter!=inst_list.end(); iter++){
             if((*iter)->isGep()){
-                auto element_size = ConstantInt::get((*iter)->getType()->getPointerElementType()->getSize());
+                auto size = ConstantInt::get(1);
                 auto offset = (*iter)->getOperand(2);   //取偏移量
                 (*iter)->removeOperands(2,2);   //删除偏移量
                 (*iter)->addOperand(ConstantInt::get(0));   //追加 
-                auto inst_mul_offset = BinaryInst::createMul(offset, element_size, bb); //计算偏移量的指令（offset*element_size）
+                auto inst_mul_offset = BinaryInst::createMul(offset, size, bb); //计算偏移量的指令（offset*element_size）
                 inst_list.pop_back();   //消除createMul函数的副作用
                 auto inst_gep = (*iter);
                 bb->addInstruction(++iter, inst_mul_offset);
