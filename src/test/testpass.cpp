@@ -19,6 +19,7 @@
 #include "optimization/DeadStoreEli.hpp"
 #include "optimization/Mem2Reg.hpp"
 #include "optimization/PassManager.hpp"
+#include "backend/LIR.hpp"
 using namespace std;
 
 int main(int argc , char**argv){
@@ -40,6 +41,7 @@ int main(int argc , char**argv){
     pm.add_pass<DeadStoreEli>();
     pm.add_pass<Mem2Reg>();
    // pm.add_pass<ADCE>();
+   pm.add_pass<LIR>();
     pm.run();
     cout << irgen.getModule()->print();
 
