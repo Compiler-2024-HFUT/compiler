@@ -24,7 +24,7 @@ private:
     set<Value*>stored;
     map<BasicBlock*, PhiInst*> new_phi;
     bool needStore(Value*incoming);
-    void reName(BasicBlock*bb,BasicBlock*pred,Value* incoming_val,bool _stored);
+    void reName(BasicBlock*bb,BasicBlock*pred,Value* incoming_val);
     void generatePhi(::std::set<BasicBlock*>&define_bbs,::std::set<PhiInst*> &phi_set);
     bool queuePhi(BasicBlock*bb,::std::set<PhiInst*>&phi_set);
     void calDefAndUse(Function*cur_func,::std::set<BasicBlock*>&def_bbs,::std::set<BasicBlock*>&use_bbs);

@@ -169,7 +169,7 @@ bool G2L::needStore(Value* incoming){
     // }
     return true;
 }
-void G2L::reName(BasicBlock*bb,BasicBlock*pred,Value* incoming_val,bool rm_stored){
+void G2L::reName(BasicBlock*bb,BasicBlock*pred,Value* incoming_val){
     if(auto bb_phi=new_phi.find(bb);bb_phi!=new_phi.end()){
         auto&_phi=bb_phi->second;
         if(incoming_val!=nullptr)
@@ -197,7 +197,6 @@ void G2L::reName(BasicBlock*bb,BasicBlock*pred,Value* incoming_val,bool rm_store
             if(lval!=cur_global)continue;
                 incoming_val=store_instr->getRVal();
             bb->eraseInstr(cur_iter);
-            rm_stored=true;
         }else if(CallInst*call=dynamic_cast<CallInst*>(*cur_iter)){
             auto call_func=call->getOperand(0);
             if(use_list_.count((Function*)call_func)&&needStore(incoming_val)&&incoming_val!=nullptr){
@@ -207,7 +206,6 @@ void G2L::reName(BasicBlock*bb,BasicBlock*pred,Value* incoming_val,bool rm_store
                 // final_store=incoming_val;
                 stored.insert(incoming_val);
                 to_delete.insert(s);
-                rm_stored=false;
             }
             if(def_list_.count((Function*)call_func)){
                 incoming_val=LoadInst::createLoad(cur_global->getType()->getPointerElementType(),cur_global,bb);
@@ -215,7 +213,6 @@ void G2L::reName(BasicBlock*bb,BasicBlock*pred,Value* incoming_val,bool rm_store
                 bb->getInstructions().insert(instr_iter,(Instruction*)incoming_val);
                 // to_delete.insert((Instruction*)incoming_val);
                 stored.insert(incoming_val);
-                rm_stored=false;
             }
         }
         // std::cout<<"112"<<std::endl;
@@ -229,19 +226,19 @@ void G2L::reName(BasicBlock*bb,BasicBlock*pred,Value* incoming_val,bool rm_store
     }
     // std::cout<<"113"<<std::endl;
     for(auto succ_bb:bb->getSuccBasicBlocks())
-        reName(succ_bb, bb, incoming_val,rm_stored);
+        reName(succ_bb, bb, incoming_val);
 }
 
 void G2L::runGlobal(){
     for(auto func:module_->getFunctions()){
         if(func->getBasicBlocks().empty())continue;
         if(!global_instrs_.count(func))continue;
-        cur_dom_=info_man_->getFuncDom(func);
-
         if(auto bb=isOnlyInOneBB(cur_global)){
             rmLocallyGlob(cur_global,bb);
             continue;
         }
+
+        cur_dom_=info_man_->getFuncDom(func);
         funcClear();
         visited.clear();
 
@@ -251,18 +248,24 @@ void G2L::runGlobal(){
         calDefAndUse(func,define_bbs,use_bbs);
         generatePhi(define_bbs,phi_set);
 
-        auto entry_bb=func->getEntryBlock();
-        auto load=LoadInst::createLoad(cur_global->getType()->getPointerElementType(),cur_global,entry_bb);
-        entry_bb->getInstructions().pop_back();
-        
-        func->getEntryBlock()->addInstrBegin(load);
-        reName(func->getEntryBlock(),nullptr,nullptr,0);
-
-        if(load->useEmpty()){
-            entry_bb->deleteInstr(load);
-            delete load;
+        Value* incoming=nullptr;
+        BasicBlock* entry_bb;
+        LoadInst* load;
+        if(func!=module_->getMainFunction()){
+            entry_bb=func->getEntryBlock();
+            load=LoadInst::createLoad(cur_global->getType()->getPointerElementType(),cur_global,entry_bb);
+            entry_bb->getInstructions().pop_back();
+            entry_bb->addInstrBegin(load);
+        }else {
+            incoming=cur_global->getInit();
+            stored.insert(incoming);
         }
-        // use_bbs.clear();
+        reName(func->getEntryBlock(),nullptr,incoming);
+        if(func!=module_->getMainFunction())
+            if(load->useEmpty()){
+                entry_bb->deleteInstr(load);
+                delete load;
+            }
     }
 }
 void G2L::run(){
