@@ -160,16 +160,16 @@ bool G2L::queuePhi(BasicBlock*bb,::std::set<PhiInst*>&phi_set){
     phi_set.insert(phi);
     return true;
 }
-bool G2L::needStore(Value* incoming){
+bool G2L::needStore(Value* incoming,Value*last_store){
     // if(incoming==nullptr)return false;
-    if(stored.count(incoming))
+    if(incoming==last_store)
         return false;
     // if(auto phi=dynamic_cast<PhiInst*>(incoming)){
     
     // }
     return true;
 }
-void G2L::reName(BasicBlock*bb,BasicBlock*pred,Value* incoming_val){
+void G2L::reName(BasicBlock*bb,BasicBlock*pred,Value* incoming_val,Value*last_store){
     if(auto bb_phi=new_phi.find(bb);bb_phi!=new_phi.end()){
         auto&_phi=bb_phi->second;
         if(incoming_val!=nullptr)
@@ -199,12 +199,13 @@ void G2L::reName(BasicBlock*bb,BasicBlock*pred,Value* incoming_val){
             bb->eraseInstr(cur_iter);
         }else if(CallInst*call=dynamic_cast<CallInst*>(*cur_iter)){
             auto call_func=call->getOperand(0);
-            if(use_list_.count((Function*)call_func)&&needStore(incoming_val)&&incoming_val!=nullptr){
+            if(use_list_.count((Function*)call_func)&&needStore(incoming_val,last_store)){
                 auto s=StoreInst::createStore(incoming_val,cur_global,bb);
                 bb->getInstructions().pop_back();
                 bb->getInstructions().insert(cur_iter,s);
                 // final_store=incoming_val;
-                stored.insert(incoming_val);
+                // stored.insert(incoming_val);
+                last_store=incoming_val;
                 to_delete.insert(s);
             }
             if(def_list_.count((Function*)call_func)){
@@ -212,13 +213,14 @@ void G2L::reName(BasicBlock*bb,BasicBlock*pred,Value* incoming_val){
                 bb->getInstructions().pop_back();
                 bb->getInstructions().insert(instr_iter,(Instruction*)incoming_val);
                 // to_delete.insert((Instruction*)incoming_val);
-                stored.insert(incoming_val);
+                // stored.insert(incoming_val);
+                last_store=incoming_val;
             }
         }
         // std::cout<<"112"<<std::endl;
         
     }
-    if(bb->getSuccBasicBlocks().empty()&&needStore(incoming_val)&&incoming_val!=nullptr){
+    if(bb->getSuccBasicBlocks().empty()&&needStore(incoming_val,last_store)){
         auto ret=bb->getInstructions().back();
         bb->getInstructions().pop_back();
         to_delete.insert(StoreInst::createStore(incoming_val,cur_global,bb));
@@ -226,13 +228,15 @@ void G2L::reName(BasicBlock*bb,BasicBlock*pred,Value* incoming_val){
     }
     // std::cout<<"113"<<std::endl;
     for(auto succ_bb:bb->getSuccBasicBlocks())
-        reName(succ_bb, bb, incoming_val);
+        reName(succ_bb, bb, incoming_val,last_store);
 }
 
 void G2L::runGlobal(){
     for(auto func:module_->getFunctions()){
         if(func->getBasicBlocks().empty())continue;
         if(!global_instrs_.count(func))continue;
+        //only def continue;
+        if(!use_list_.count(func))continue;
         if(auto bb=isOnlyInOneBB(cur_global)){
             rmLocallyGlob(cur_global,bb);
             continue;
@@ -249,18 +253,20 @@ void G2L::runGlobal(){
         generatePhi(define_bbs,phi_set);
 
         Value* incoming=nullptr;
-        BasicBlock* entry_bb;
-        LoadInst* load;
+        BasicBlock* entry_bb=nullptr;
+        LoadInst* load=nullptr;
+        Value*last_store=nullptr;
         if(func!=module_->getMainFunction()){
             entry_bb=func->getEntryBlock();
             load=LoadInst::createLoad(cur_global->getType()->getPointerElementType(),cur_global,entry_bb);
             entry_bb->getInstructions().pop_back();
             entry_bb->addInstrBegin(load);
+            last_store=load;
         }else {
             incoming=cur_global->getInit();
-            stored.insert(incoming);
+            last_store=incoming;
         }
-        reName(func->getEntryBlock(),nullptr,incoming);
+        reName(func->getEntryBlock(),nullptr,incoming,last_store);
         if(func!=module_->getMainFunction())
             if(load->useEmpty()){
                 entry_bb->deleteInstr(load);
