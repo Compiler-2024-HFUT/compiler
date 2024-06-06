@@ -3,13 +3,10 @@
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include "midend/Value.hpp"
-#include <iostream>
-#include <memory>
 
-void ADCE::run(){
-    for (auto func : moudle_->getFunctions()){
+void ADCE::runOnFunc(Function*func){
         auto &bb_list=func->getBasicBlocks();
-        if(bb_list.empty())continue;
+        if(bb_list.empty())return;
         cur_func_=func;
         for(auto bb:func->getBasicBlocks()){
             auto &instr_list=bb->getInstructions();
@@ -55,5 +52,5 @@ void ADCE::run(){
                 }
             }
         }
-    }
+
 }

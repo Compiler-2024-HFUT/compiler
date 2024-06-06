@@ -12,12 +12,14 @@
 
 using namespace IRgen;
 
+#define CONST_INT(num)  ConstantInt::get(num)
+#define CONST_FP(num)   ConstantFP::get(num)
 //& global variables
 
 static Value *tmp_val = nullptr;       //& store tmp value
 static Type  *cur_type = nullptr;      //& store current type
 static bool require_lvalue = false;    //& whether require lvalue
-static bool pre_enter_scope = false;   //& whether pre-enter scope
+// static bool pre_enter_scope = false;   //& whether pre-enter scope
 
 static bool from_func = false;         // replace pre_enter_scope
 
@@ -41,10 +43,10 @@ static std::list<true_false_BB> While_Stack;         //& used for break and cont
 static std::vector<BasicBlock*> cur_basic_block_list;
 
 static Function *cur_fun = nullptr;    //& function that is being built
-static BasicBlock *entry_block_of_cur_fun;
+// static BasicBlock *entry_block_of_cur_fun;
 static BasicBlock *cur_block_of_cur_fun;   //& used for add instruction 
 
-static bool has_global_init;
+// static bool has_global_init;
 static BasicBlock *global_init_block;
 
 static bool is_init_const_array = false;
@@ -62,7 +64,7 @@ static std::vector<Constant*> init_val;    //& used for constant initializer
 static BasicBlock *ret_BB;
 static Value *ret_addr;   //& ret BB
 
-static bool is_inited_with_all_zero;
+// static bool is_inited_with_all_zero;
 
 
 enum class IfWhileEnum{
@@ -71,7 +73,6 @@ enum class IfWhileEnum{
 };
 static bool real_ret=0;
 static std::stack<IfWhileEnum> if_while_stack;
-
 void IRGen::visit(ast::CompunitNode &node) {
     // global_init_block = BasicBlock::create( module.get(), "init", dynamic_cast<Function*>(scope.findFunc("global_var_init")) );
 
@@ -145,7 +146,7 @@ void IRGen::visit(ast::FuncDef &node) {
             scope.push(node.func_f_params[i]->name, alloc);
         } else {
             Value* alloc_array;
-            int total_size = 1;
+            // int total_size = 1;
 
             alloc_array = AllocaInst::createAlloca(param_types[i], cur_block_of_cur_fun);
             StoreInst::createStore(args[i], alloc_array, cur_block_of_cur_fun);
@@ -164,7 +165,7 @@ void IRGen::visit(ast::FuncDef &node) {
                         LOG( "Array bounds must be const int var or literal" )
                     }
                     array_bounds.push_back(bound->getValue());
-                    total_size *= bound->getValue();
+                    // total_size *= bound->getValue();
                 }
             }
             array_bounds.push_back(1);
@@ -700,7 +701,7 @@ void IRGen::visit(ast::RelopExpr &node) {}
 void IRGen::visit(ast::EqExpr &node) {}
 void IRGen::visit(ast::AndExp &node) {
     require_lvalue = false;
-    auto true_BB = BasicBlock::create( "", cur_fun);
+    BasicBlock* true_BB = BasicBlock::create( "", cur_fun);
     node.lhs->accept(*this);
         
         Value *cond_val;
@@ -720,17 +721,31 @@ void IRGen::visit(ast::AndExp &node) {
             } else {
                 cond_val =FCmpInst::createFCmp(CmpOp::NE,tmp_val, CONST_FP(0),cur_block_of_cur_fun);
             }
-        }
-
-    BranchInst::createCondBr(cond_val, true_BB, IF_WHILE_Cond_Stack.back().falseBB, cur_block_of_cur_fun);
+        }else
+            assert(0&&"illgeal type");
+    BasicBlock*false_bb;
+    if(IF_WHILE_Cond_Stack.empty())
+        false_bb=BasicBlock::create( "", cur_fun);
+    else
+        false_bb=IF_WHILE_Cond_Stack.back().falseBB;
+    BasicBlock* cur_bb=cur_block_of_cur_fun;
+    // BranchInst::createCondBr(cond_val, true_BB, false_bb, cur_block_of_cur_fun);
+    
     cur_block_of_cur_fun=true_BB;
+    // IF_WHILE_Cond_Stack.push_back({true_BB,IF_WHILE_Cond_Stack.back().falseBB});
     node.rhs->accept(*this);
+    // IF_WHILE_Cond_Stack.pop_back();
+    if(false_bb->getInstructions().empty()&&IF_WHILE_Cond_Stack.empty()){
+        BranchInst::createBr(true_BB,  cur_bb);
+        false_bb->eraseFromParent();
+    }else
+        BranchInst::createCondBr(cond_val, true_BB, false_bb, cur_bb);
 }
 void IRGen::visit(ast::ORExp &node){
-    BasicBlock* true_BB,*false1_BB;
-    if(IF_WHILE_Cond_Stack.size()>0){
+    BasicBlock* true_BB;
+    if(!IF_WHILE_Cond_Stack.empty()){
         true_BB = IF_WHILE_Cond_Stack.back().trueBB;
-        false1_BB=IF_WHILE_Cond_Stack.back().falseBB;
+        //false1_BB=IF_WHILE_Cond_Stack.back().falseBB;
     }else{
         true_BB = BasicBlock::create( "", cur_fun);
     }
@@ -756,9 +771,12 @@ void IRGen::visit(ast::ORExp &node){
             } else {
                 cond_val =FCmpInst::createFCmp(CmpOp::NE,tmp_val, CONST_FP(0),cur_block_of_cur_fun);
             }
-        }
+        }else
+            assert(0&&"illgeal type");
 
-    BranchInst::createCondBr(cond_val, true_BB, false_BB, cur_block_of_cur_fun);
+    // BranchInst::createCondBr(cond_val, true_BB, false_BB, cur_block_of_cur_fun);
+    BasicBlock* cur_bb=cur_block_of_cur_fun;
+    
     cur_block_of_cur_fun=false_BB;
     IF_WHILE_Cond_Stack.pop_back();
     
@@ -766,9 +784,14 @@ void IRGen::visit(ast::ORExp &node){
     // IF_WHILE_Cond_Stack.push_back({true_BB,false1_BB});
     // BranchInst::createCondBr(cond_val, true_BB, false1_BB, cur_block_of_cur_fun);
     // cur_block_of_cur_fun=true_BB
-    if(IF_WHILE_Cond_Stack.size()==0){
-        cur_block_of_cur_fun=false_BB;
+    if(IF_WHILE_Cond_Stack.empty()){
+        cur_block_of_cur_fun=true_BB;
     }
+    if(false_BB->getInstructions().empty()&&IF_WHILE_Cond_Stack.empty()){
+        BranchInst::createBr(true_BB,  cur_bb);
+        false_BB->eraseFromParent();
+    }else
+        BranchInst::createCondBr(cond_val, true_BB, false_BB, cur_bb);
 }
 void IRGen::visit(ast::BinopExpr &node) {
     require_lvalue = false;
@@ -1087,7 +1110,7 @@ void IRGen::visit(ast::LvalExpr &node){
         auto size = scope.findSize(node.name);
         std::vector<Value*> var_indexs;
         Value *var_index = nullptr;
-        int index_const = 0;
+        // int index_const = 0;
         auto const_array = scope.findConst(node.name);
         {
             /*
@@ -1147,7 +1170,7 @@ void IRGen::visit(ast::IfStmt &node) {
     }
 
    // is_init_val = false;
-   int size=IF_WHILE_Cond_Stack.size();
+//    int size=IF_WHILE_Cond_Stack.size();
     node.pred->accept(*this);
 
     // tmp_val=CmpInst::createCmp(CmpOp::NE,CONST_INT(0),tmp_val,cur_block_of_cur_fun);
@@ -1195,7 +1218,7 @@ void IRGen::visit(ast::IfStmt &node) {
     cur_basic_block_list.pop_back();
     if(node.else_stmt==nullptr) false_bb->eraseFromParent();
     else{
-         cur_block_of_cur_fun=false_bb;
+        cur_block_of_cur_fun=false_bb;
         cur_basic_block_list.push_back(false_bb);
         if(dynamic_cast<ast::BlockStmt*>(node.else_stmt.get())) 
             node.else_stmt->accept(*this);
@@ -1240,7 +1263,8 @@ void IRGen::visit(ast::WhileStmt &node){
         auto tmp_val_const = dynamic_cast<ConstantFP*>(tmp_val);
         if(tmp_val_const)   inst_cmp = ConstantInt::get(tmp_val_const->getValue()!=0);
         else    inst_cmp = FCmpInst::createFCmp(NE, tmp_val, ConstantFP::get(0), cur_block_of_cur_fun);
-    }
+    }else
+            assert(0&&"illgeal type");
 
     BranchInst::createCondBr(inst_cmp, iter_bb, next_bb, cur_block_of_cur_fun);
     cur_block_of_cur_fun = iter_bb;

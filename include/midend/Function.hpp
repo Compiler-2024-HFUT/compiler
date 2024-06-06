@@ -2,13 +2,11 @@
 #define FUNCTION_HPP
 
 #include <cassert>
-#include <iterator>
 #include <list>
 #include <vector>
 
-#include "User.hpp"
-#include "BasicBlock.hpp"
 #include "Type.hpp"
+#include "Value.hpp"
 
 class Module;
 class Argument;
@@ -39,6 +37,7 @@ public:
     void addBasicBlock(BasicBlock *bb);
     unsigned getNumBasicBlocks() const { return basic_blocks_.size(); }
     BasicBlock *getEntryBlock() const { return *basic_blocks_.begin(); }
+    BasicBlock *getRetBlock() const;
     std::list<BasicBlock *>&getBasicBlocks() { return basic_blocks_; }
     void removeBasicBlock(BasicBlock *bb);
 

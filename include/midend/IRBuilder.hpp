@@ -1,15 +1,10 @@
 #ifndef BUILDER_HPP
 #define BUILDER_HPP
 
-#include <list>
 #include <vector>
 #include <map>
-#include <string>
-#include <memory>
-#include <unordered_map>
 
 #include "Type.hpp"
-#include "GlobalVariable.hpp"
 #include "Value.hpp"
 #include "Function.hpp"
 #include "midend/Constant.hpp"

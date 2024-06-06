@@ -1,10 +1,7 @@
 #ifndef NODE_H
 #define NODE_H
 
-#include <iostream>
-#include <map>
-#include <string>
-#include <utility>
+#include <cstdint>
 #include <vector>
 #include <memory>
 #include "lex.hpp"
@@ -41,6 +38,7 @@ struct SyntaxNode {
     // virtual int getType()=0;
     virtual void print(int level=0)=0;
     virtual void accept(ASTVisitor &visitor)=0 ;
+    virtual ~SyntaxNode()=default;
 };
 struct ExprNode: SyntaxNode {
 //   public:
@@ -119,7 +117,7 @@ struct BinopExpr:public InfixExpr{
 ///////中缀表达式/////
 union valUnion{
     float f;
-    int   i;
+    int32_t   i;
 };
 struct Literal:public ExprNode{
     valUnion Value;

@@ -42,17 +42,17 @@ enum class tokenType{
     RBRACE,//}
     FUNCTION,//function
     // LET,//let
-    IF,
-    ELSE,
-    WHILE,
-    FOR,
-    RETURN,
-    CONST,
-    DEFINT,
-    DEFFLOAT,
-    VOID,
-    CONTINUE,
-    BREAK,
+    KW_IF,
+    KW_ELSE,
+    KW_WHILE,
+    KW_FOR,
+    KW_RETURN,
+    KW_CONST,
+    KW_INT,
+    KW_FLOAT,
+    KW_VOID,
+    KW_CONTINUE,
+    KW_BREAK,
 };
 struct Pos{
     int line;

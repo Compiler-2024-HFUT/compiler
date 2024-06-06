@@ -3,7 +3,6 @@
 
 #include <string>
 #include <vector>
-#include <iterator>
 
 class IRBuilder;
 class IntegerType;

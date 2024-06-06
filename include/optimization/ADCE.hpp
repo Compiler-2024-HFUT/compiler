@@ -1,18 +1,13 @@
 #ifndef ADCE_HPP
 #define ADCE_HPP
 
-#include "midend/Module.hpp"
+
 #include "midend/Function.hpp"
-#include "midend/IRGen.hpp"
-#include "midend/BasicBlock.hpp"
 #include "midend/Instruction.hpp"
 #include "PassManager.hpp"
-#include "analysis/Dominators.hpp"
 #include <list>
-#include <memory>
 #include <set>
 #include <unordered_set>
-#include <utility>
 #include <vector>
 using ::std::map,::std::set,::std::vector;
 class ADCE : public FunctionPass{
@@ -25,7 +20,7 @@ private:
 public:
     ADCE(Module *m) : FunctionPass(m){}
     ~ADCE(){};
-    void run() override;
+    void runOnFunc(Function*func) override;
 };
 
 #endif

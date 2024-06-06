@@ -1,5 +1,3 @@
-#include <memory>
-
 #include "midend/Constant.hpp"
 #include "midend/IRBuilder.hpp"
 #include "midend/Type.hpp"

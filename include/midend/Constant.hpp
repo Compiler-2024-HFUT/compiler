@@ -5,9 +5,10 @@
 
 #include "User.hpp"
 #include "Value.hpp"
-#include "Type.hpp"
 #include <memory>
 
+class Type;
+class ArrayType;
 class ConstantInt;
 class ConstantFP;
 class ConstantZero;

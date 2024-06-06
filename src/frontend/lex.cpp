@@ -1,9 +1,7 @@
 #include "frontend/lex.hpp"
 #include <cctype>
-#include <cstdio>
 #include <iostream>
 #include <memory>
-#include <string>
 Pos::Pos(int _x,int _y):line(_x),column(_y){
 }
 Pos::Pos():line(0),column(0){
@@ -27,33 +25,33 @@ enum::tokenType Token::lookupIdent(){
         // ret=tokenType::FUNCTION;
     // }else 
     if(literal=="if"){
-        ret=tokenType::IF;
+        ret=tokenType::KW_IF;
     }else if(literal=="else"){
-        ret=tokenType::ELSE;
+        ret=tokenType::KW_ELSE;
     }else if(literal=="while"){
-        ret=tokenType::WHILE;
+        ret=tokenType::KW_WHILE;
     }else if(literal=="for"){
-        ret=tokenType::FOR;
+        ret=tokenType::KW_FOR;
     }else if(literal=="return"){
-        ret=tokenType::RETURN;
+        ret=tokenType::KW_RETURN;
     }else if(literal=="const"){
-        ret=tokenType::CONST;
+        ret=tokenType::KW_CONST;
     }else if(literal=="int"){
-        ret=tokenType::DEFINT;
+        ret=tokenType::KW_INT;
     }else if(literal=="float"){
-        ret=tokenType::DEFFLOAT;
+        ret=tokenType::KW_FLOAT;
     }else if(literal=="void"){
-        ret=tokenType::VOID;
+        ret=tokenType::KW_VOID;
     }else if(literal=="break"){
-        ret=tokenType::BREAK;
+        ret=tokenType::KW_BREAK;
     }else if(literal=="continue"){
-        ret=tokenType::CONTINUE;
+        ret=tokenType::KW_CONTINUE;
     }
     else ret=tokenType::IDENT;
     return ret;
 }
 
-Lexer::Lexer(string input) :input(input),readPosition(1),position(0),ch(input[0]),line(1),column(1) {}
+Lexer::Lexer(string input) :input(input),position(0),readPosition(1),ch(input[0]),line(1),column(1) {}
 int Lexer::readChar(){
     ch=peekChar();
     this->position++;
@@ -170,7 +168,7 @@ std::unique_ptr<Token>   Lexer::nextToken(/*std::unique_ptr<Lexer> l*/){
         if(isalpha(this->ch)||this->ch=='_'){
             tok=std::make_unique<Token>(readIdentifier(),line,column);
             // flagRead=false;
-            return std::move(tok);
+            return tok;
         }else if(isdigit(this->ch)||ch=='.'){
             tokenType type;
             string s{readNumber(type)};
@@ -182,7 +180,7 @@ std::unique_ptr<Token>   Lexer::nextToken(/*std::unique_ptr<Lexer> l*/){
             // }else if(tok->literal[0]=='0'){
             //     tok->type=INT_OCTAL;
             // }
-            return std::move(tok);
+            return tok;
         }
         else{
             tok=std::make_unique<Token>(this->ch,tokenType::ILLEGAL);
@@ -197,7 +195,7 @@ std::unique_ptr<Token>   Lexer::nextToken(/*std::unique_ptr<Lexer> l*/){
     tok->tok_pos.column=column;
     this->readChar();
 
-    return std::move(tok);
+    return tok;
 
 }
 string Lexer::readIdentifier(){

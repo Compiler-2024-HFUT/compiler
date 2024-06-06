@@ -1,6 +1,15 @@
 #!/bin/bash 
 #参数是文件名字不带后缀
-
+function rm_file(){
+    if [ -f error ]
+    then
+        rm error
+    fi
+    if [ -f "compiler wrong" ]
+    then
+        rm "compiler wrong"
+    fi
+}
 function compare_out(){
     name=$1
     outputfile="`pwd`/$name.output";

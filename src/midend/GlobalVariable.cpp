@@ -1,3 +1,4 @@
+#include "midend/Module.hpp"
 #include "midend/GlobalVariable.hpp"
 #include "midend/IRprint.hpp"
 

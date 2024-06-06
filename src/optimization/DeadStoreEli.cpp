@@ -3,19 +3,14 @@
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include "midend/Value.hpp"
-#include <iostream>
-#include <memory>
 #include <unordered_map>
-#include <unordered_set>
 
-void DeadStoreEli::run(){
-    for (auto func : moudle_->getFunctions()){
-        auto &bb_list=func->getBasicBlocks();
-        if(bb_list.empty())continue;
-        cur_func_=func;
-        rmStore();
+void DeadStoreEli::runOnFunc(Function*func){
+    auto &bb_list=func->getBasicBlocks();
+    if(bb_list.empty())return;
+    cur_func_=func;
+    rmStore();
 
-    }
 }
 bool DeadStoreEli::isAllocVar(Instruction *instr){
     if(instr->isAlloca()){

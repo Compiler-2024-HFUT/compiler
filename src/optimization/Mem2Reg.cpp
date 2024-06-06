@@ -4,13 +4,11 @@
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include "midend/Value.hpp"
-#include <algorithm>
 #include <cassert>
-#include <cerrno>
-#include <iostream>
 #include <map>
-#include <memory>
 #include <set>
+
+static ::std::set<BasicBlock*>visited;
 
 BasicBlock* Mem2Reg::isOnlyInOneBB(AllocaInst*ai){
     assert(!ai->getUseList().empty() && "There are no uses of the alloca!");
@@ -81,25 +79,16 @@ bool Mem2Reg::queuePhi(BasicBlock*bb,AllocaInst*ai,::std::set<PhiInst*>&phi_set)
     
     return true;
 }
-void Mem2Reg::rmDeadPhi(Function*func){
-        for(auto b:func->getBasicBlocks()){
-            auto &instrs=b->getInstructions();
-            for(auto iter=instrs.begin();iter!=instrs.end();){
-                auto ins=iter++;
-                if((*ins)->isPhi()&&(*ins)->getUseList().empty()){
-                    b->eraseInstr(ins);
-                }
-            }
-        }
 
-}
 void Mem2Reg::reName(BasicBlock*bb,BasicBlock*pred,::std::map<AllocaInst*,Value*> incoming_vals){
-    static ::std::set<BasicBlock*>visited;
     if(auto bb_alloc_phi=new_phi.find(bb);bb_alloc_phi!=new_phi.end()){
         auto&alloc_phi=bb_alloc_phi->second;
         for(auto &[ai ,phi]:alloc_phi){
-            phi->addPhiPairOperand(incoming_vals.find(ai)->second,pred);
+            auto val=incoming_vals.find(ai)->second;
+            if(val!=nullptr)
+                phi->addPhiPairOperand(val,pred);
             incoming_vals[ai]=phi;
+            
         }
     }
     
@@ -134,27 +123,26 @@ void Mem2Reg::reName(BasicBlock*bb,BasicBlock*pred,::std::map<AllocaInst*,Value*
     for(auto succ_bb:bb->getSuccBasicBlocks())
         reName(succ_bb, bb, incoming_vals);
 }
-void Mem2Reg::generatePhi(AllocaInst*ai,::std::set<BasicBlock*>&define_bbs){
-    static ::std::set<PhiInst*> phi_set;
+void Mem2Reg::generatePhi(AllocaInst*ai,::std::set<BasicBlock*>&define_bbs,::std::set<PhiInst*> &phi_set){
     while(!define_bbs.empty()){
         auto b=*define_bbs.rbegin();
         define_bbs.erase(b);
-        if(b->getDomFrontier().empty())continue;
-        auto &df_set=b->getDomFrontier();
+        if(cur_dom_->getDomFrontier(b).empty())continue;
+        auto &df_set=cur_dom_->getDomFrontier(b);
         for(auto df:df_set)
             if (queuePhi(df, ai,phi_set))
                 define_bbs.insert(df);
     }
 
 }
-void Mem2Reg::run(){
-    for (auto func : moudle_->getFunctions()){
+void Mem2Reg::runOnFunc(Function*func){
         allocas.clear();
         new_phi.clear();
         auto &bb_list=func->getBasicBlocks();
-        if(bb_list.empty())continue;
-        ::std::unique_ptr<Dominators> dom=std::make_unique<Dominators>(func);
-        cur_fun_dom=func_dom_.insert({func,std::move(dom)}).first;
+        if(bb_list.empty())return;
+        cur_dom_=info_man_->getFuncDom(func);
+        // ::std::unique_ptr<Dominators> dom=std::make_unique<Dominators>(func);
+        // cur_fun_dom=func_dom_.insert({func,std::move(dom)}).first;
 
         for(auto bb:func->getBasicBlocks()){
             for(auto instr:bb->getInstructions()){
@@ -163,7 +151,7 @@ void Mem2Reg::run(){
                 }
             }
         }
-        if(allocas.empty())continue;
+        if(allocas.empty())return;
         for(auto iter=allocas.begin();iter!=allocas.end() ;){
             auto i=iter++;
             auto ai=*i;
@@ -182,20 +170,22 @@ void Mem2Reg::run(){
             else{
                 ::std::set<BasicBlock*>define_bbs;
                 ::std::set<BasicBlock*>use_bbs;
+                std::set<PhiInst*> phi_set{};
                 calDefAndUse(ai,define_bbs,use_bbs);
-                generatePhi(ai,define_bbs);
+                generatePhi(ai,define_bbs,phi_set);
+                use_bbs.clear();
             }
         }
 
         if(allocas.empty())
-            continue;
+            return;
         
         ::std::map<AllocaInst*,Value*> alloc_va;
         for(auto i:allocas){
-            alloc_va.insert({i,ConstantInt::get(114514)});
+            alloc_va.insert({i,nullptr});
         }
+        visited.clear();
         reName(func->getBasicBlocks().front(),nullptr,alloc_va);
-        rmDeadPhi(func);
 
         for(auto ai_iter=allocas.begin();ai_iter!=allocas.end();){
             auto ai=*ai_iter;ai_iter++;
@@ -204,9 +194,7 @@ void Mem2Reg::run(){
             }
             ai->getParent()->deleteInstr(ai);
         }
-    }
 }
-
 bool Mem2Reg::isAllocVar(Instruction *instr){
     if(instr->isAlloca()){
         AllocaInst *alloc=static_cast<AllocaInst*>(instr);

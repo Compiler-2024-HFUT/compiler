@@ -1,5 +1,8 @@
+#include <map>
+#include "midend/Module.hpp"
 #include "midend/Function.hpp"
 #include "midend/IRprint.hpp"
+#include "midend/BasicBlock.hpp"
 
 void Function::buildArgs() {
     auto *func_ty = getFunctionType();
@@ -43,7 +46,12 @@ void Function::removeBasicBlock(BasicBlock *bb) {
         succ->removePreBasicBlock(bb);
     }
 }
-
+BasicBlock *Function::getRetBlock() const { 
+    for(auto b:basic_blocks_) 
+        if(b->getSuccBasicBlocks().empty())
+            return b;
+    return nullptr;    
+}
 void Function::setInstrName() {
     std::map<Value *, int> seq;
     for (const auto &arg : this->getArgs()) {

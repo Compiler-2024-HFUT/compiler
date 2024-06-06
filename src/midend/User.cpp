@@ -12,6 +12,13 @@ Value *User::getOperand(unsigned i) const {
     return operands_[i];
 }
 
+void User::replaceOperand(unsigned i,Value*v) {
+    operands_[i]->removeUse(this);
+    assert(i < num_ops_ && "set_operand out of index");
+    operands_[i] = v;
+    v->addUse(this, i);
+}
+
 void User::setOperand(unsigned i, Value *v) {
     assert(i < num_ops_ && "set_operand out of index");
     operands_[i] = v;

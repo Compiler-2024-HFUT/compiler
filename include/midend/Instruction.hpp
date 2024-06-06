@@ -3,11 +3,9 @@
 
 #include <string>
 #include <vector>
-#include <memory>
 
 #include "User.hpp"
 #include "Type.hpp"
-#include "Constant.hpp"
 
 class Module;
 class BasicBlock;

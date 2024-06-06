@@ -1,5 +1,6 @@
 #include "midend/IRprint.hpp"
-
+#include "midend/GlobalVariable.hpp"
+#include "midend/Function.hpp"
 std::string printAsOp(Value *v, bool print_ty) {
     std::string op_ir;
     if (print_ty) {

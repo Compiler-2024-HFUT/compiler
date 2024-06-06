@@ -3,7 +3,7 @@
 #include <sstream>
 
 #include "midend/Constant.hpp"
-#include "midend/Module.hpp"
+#include "midend/Type.hpp"
 //& ConstantInt
 ConstManager *Constant::manager_{nullptr};
 ConstantInt *ConstantInt::get(int val) {
