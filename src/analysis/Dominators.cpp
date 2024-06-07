@@ -154,15 +154,34 @@ void Dominators::domFrontierAlg(){
 //    }
 
 }
-void Dominators::analyse(){
+void Dominators::clear(){
+    reverse_post_order_.clear();
+    post_order_id_.clear();
+    idom_.clear();
     dom_set_.clear();
+    dom_tree_.clear();
     dom_frontier_.clear();
+}
+void Dominators::analyse(){
+    this->clear();
     for(auto bb:func_->getBasicBlocks()){
         dom_set_.insert({bb,{bb}});
         dom_frontier_.insert({bb,{}});
     }
     sFastIDomAlg();
     domFrontierAlg();
+    domTreeAlg();
+    // domAlg();
+}
+void Dominators::reAnalyse(){
+    this->clear();
+    for(auto bb:func_->getBasicBlocks()){
+        dom_set_.insert({bb,{bb}});
+        dom_frontier_.insert({bb,{}});
+    }
+    sFastIDomAlg();
+    domFrontierAlg();
+    domTreeAlg();
     // domAlg();
 }
 void Dominators::printDomFront(){
