@@ -44,9 +44,10 @@ private:
     void domFrontierAlg();
 public:
     Dominators(Function* fun);
+    virtual ~Dominators(){}
     void clear();
-    void analyse() override;
-    void reAnalyse() override;
+    virtual void analyse() override;
+    virtual void reAnalyse() override;
     void printDomFront();
     void printDomSet();
     void printDomTree();
