@@ -7,8 +7,11 @@
 #include "optimization/DeadStoreEli.hpp"
 #include "optimization/Mem2Reg.hpp"
 #include "optimization/PassManager.hpp"
-#include "backend/LIR.hpp"
+#include "optimization/LIR.hpp"
 #include "optimization/inline.hpp"
+#include "analysis/CIDBB.hpp"
+#include "analysis/CLND.hpp"
+
 using namespace std;
 
 int main(int argc , char**argv){
@@ -31,6 +34,9 @@ int main(int argc , char**argv){
     pm.add_pass<Mem2Reg>();
    // // pm.add_pass<ADCE>();
    pm.add_pass<LIR>();
+  // pm.add_pass<CIDBB>();
+  // pm.add_pass<CLND>();
+
     // pm.add_pass<FuncInline>();
     pm.run();
     cout << irgen.getModule()->print();
