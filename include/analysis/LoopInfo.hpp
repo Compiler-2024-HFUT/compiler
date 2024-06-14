@@ -1,9 +1,11 @@
 #ifndef LOOPINFO_HPP
 #define LOOPINFO_HPP
 
+#include "midend/Module.hpp"
 #include "midend/Function.hpp"
 #include "midend/BasicBlock.hpp"
 #include "analysis/Info.hpp"
+#include "analysis/InfoManager.hpp"
 
 #include <vector>
 #include <map>
@@ -35,7 +37,7 @@ public:
 };
 
 class LoopInfo: public FunctionInfo {
-    vector<Loop*> loops;
+    umap<Function*, vector<Loop*> > loops;
     umap<BB*, int> BBlevel;    
     vector< pair<BB*, BB*> > retreatEdges;       // 由低层次指向高层次的边
     vector< pair<BB*, BB*> > backEdges;
@@ -46,11 +48,15 @@ class LoopInfo: public FunctionInfo {
     void DFS_CFG( BB* rootBB, int level ); 
     void DFS_CFG( BB* tail, BB* head, Loop *loop);
 public:
-    LoopInfo(Function* func): FunctionInfo(func) { }
+    LoopInfo(Module *m, InfoManager *im): FunctionInfo(m, im) { }
     virtual ~LoopInfo() { }
 
     virtual void analyse() override;
     virtual void reAnalyse() override;
+    virtual void analyseOnFunc() override;
+
+    vector<Loop*> getLoops(Function* func) { return loops[func]; }
+
 };
 
 #endif

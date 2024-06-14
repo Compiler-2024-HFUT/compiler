@@ -1,7 +1,7 @@
 #ifndef INFO_MAN_HPP
 #define INFO_MAN_HPP
 #include "midend/Function.hpp"
-#include "Dominators.hpp"
+// #include "Dominators.hpp"
 #include "analysis/Info.hpp"
 // #include "optimization/PassManager.hpp"
 #include <map>
@@ -10,7 +10,7 @@
 
 class InfoManager{
     Module*module_;
-    std::map<Function*,std::unique_ptr<Dominators> >func_doms_;
+    // std::map<Function*,std::unique_ptr<Dominators> >func_doms_;
     std::vector<Info*> infos;
 
 public:
@@ -27,10 +27,10 @@ public:
 
     template<class InfoContainer, class InfoType>
     void addInfo(InfoContainer *ic) {
-        infos.push_back( new InfoType(ic) );
+        infos.push_back( new InfoType(ic, this) );
     }
 
-    Dominators* getFuncDom(Function*f);
+    // Dominators* getFuncDom(Function*f);
     void run();
 
     explicit InfoManager(Module*m):module_(m){}

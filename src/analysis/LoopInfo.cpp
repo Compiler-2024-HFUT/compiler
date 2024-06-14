@@ -6,11 +6,19 @@
 template<typename key, typename value>
 using umap = std::unordered_map<key, value>;
 
-void LoopInfo::analyse() {
+void LoopInfo::analyseOnFunc() {
     DFS_CFG(func_->getEntryBlock(), 0);
     findRetreatEdges();
     findBackEdges();
     findLoops();
+}
+
+void LoopInfo::analyse() {
+    for (Function* f : module_->getFunctions()) {
+        func_ = f;
+        analyseOnFunc();
+    }
+    invalid = false;    // validate
 }
 
 void LoopInfo::reAnalyse() {
@@ -89,6 +97,6 @@ void LoopInfo::findLoops() {
         Loop *tmp = new Loop(be.first, be.second);
         DFS_CFG( be.first, be.second, tmp );
         tmp->addBlock(be.second);
-        loops.push_back(tmp);
+        loops[func_].push_back(tmp);
     }
 }

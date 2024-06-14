@@ -39,8 +39,9 @@ public:
 
     virtual void analyse() override;
     virtual void reAnalyse() override;
+    virtual void analyseOnFunc() override;
 
-    LiveVar(Function*func): FunctionInfo(func) {}
+    LiveVar(Module *m, InfoManager *im): FunctionInfo(m, im) {}
     ~LiveVar() {}
 };
 
@@ -62,8 +63,9 @@ public:
 
     virtual void analyse() override;
     virtual void reAnalyse() override;
+    virtual void analyseOnFunc() override;
 
-    ReachDef(Function*func): FunctionInfo(func) {}
+    ReachDef(Module *m, InfoManager *im): FunctionInfo(m, im) {}
     ~ReachDef() {}
 };
 
