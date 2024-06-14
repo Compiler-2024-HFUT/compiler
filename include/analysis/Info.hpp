@@ -1,36 +1,42 @@
 #ifndef INFO_HPP
 #define INFO_HPP
 
-#include <string>
-using std::string;
+class InfoManager;
 
 class Function;
 class Module;
-class ModuleInfo{
+
+#include <string>
+using std::string;
+
+class Info {
 protected:
-    Module*const module_;
-    bool invalid = true;         // 如果当前info无效，从其获取数据前需要reanalyze，并设为true
+    bool invalid = true;                    // 如果当前info无效，从其获取数据前需要reanalyze，分析完成设为true
+    InfoManager *infoManager;
 public:
     bool isInvalid() { return invalid; }
     void invalidate() { invalid = true; }
-    virtual void analyse()=0;
+    virtual void analyse()=0;               // run on module
     virtual void reAnalyse()=0;
     virtual string print() { return ""; }   // debug
-    virtual ~ModuleInfo(){}
-    ModuleInfo(Module*_module):module_(_module){}
+    virtual ~Info(){}
+    Info(){}
 };
 
-class FunctionInfo{
+class ModuleInfo: public Info {      
+protected:
+    Module*const module_;
+public:
+    virtual ~ModuleInfo(){}
+    ModuleInfo(Module*module): Info(), module_(module) {}
+};
+
+class FunctionInfo: public Info {
 protected:
     Function *const func_;
-    bool invalid = true;
 public:
-    bool isInvalid() { return invalid; }
-    void invalidate() { invalid = true; }
-    virtual void analyse()=0;
-    virtual void reAnalyse()=0;
-    virtual string print() { return ""; }
     virtual ~FunctionInfo(){}
-    FunctionInfo(Function*func):func_(func){}
+    FunctionInfo(Function*func):Info(), func_(func) {}
+    // virtual void analyseOnFunc(Function *func)=0; 
 };
 #endif
