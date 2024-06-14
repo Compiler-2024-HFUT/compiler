@@ -8,7 +8,7 @@
 #include "analysis/InfoManager.hpp"
 class Pass{
 public:
-    Pass(Module* m) : module_(m),info_man_(m->getInfoMan()){
+    Pass(Module* m) : module_(m),info_man_( InfoManager::createInfoManager(m) ){
     }
 
     virtual void run()=0;
@@ -36,7 +36,7 @@ class PassManager{
             passes_.push_back(std::pair<Pass*,bool>(new PassType(module_),print_ir));
         }
         void run(){
-            module_->getInfoMan()->run();
+            // module_->getInfoMan()->run();    info pass 应该在需要它时再进行分析，而非从一开始将其全部执行
             for(auto pass : passes_){
                 pass.first->run();
                 if(pass.second){

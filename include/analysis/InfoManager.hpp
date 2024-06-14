@@ -30,6 +30,8 @@ public:
         infos.push_back( new InfoType(ic, this) );
     }
 
+    static InfoManager *createInfoManager(Module *m) { return new InfoManager(m); }
+
     // Dominators* getFuncDom(Function*f);
     void run();
 
