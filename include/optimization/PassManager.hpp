@@ -1,40 +1,79 @@
+/*
+ * 
+ * 
+ * 
+ */
+
+
 #ifndef PASSMANAGER_HPP
 #define PASSMANAGER_HPP
 
 #include "midend/Function.hpp"
 #include "midend/Module.hpp"
-#include <vector>
-#include "iostream"
+
 #include "analysis/InfoManager.hpp"
+#include "analysis/Info.hpp"
+
+#include <vector>
+#include <iostream>
+#include <type_traits>
+
 class Pass{
 public:
-    Pass(Module* m) : module_(m),info_man_( InfoManager::createInfoManager(m) ){
-    }
+    Pass(Module* m, InfoManager *im) : module_(m), info_man_(im) { }
+    Pass(Module *m): module_(m), info_man_(nullptr) { }     // delete after
 
     virtual void run()=0;
-
 protected:
-
     Module* const module_;
     InfoManager* const info_man_;
 };
-class FunctionPass:public Pass{
+
+class ModulePass: public Pass {
 public:
-    FunctionPass(Module* m) : Pass(m){
+    ModulePass(Module* m, InfoManager *im) : Pass(m, im){ }
+
+    virtual void run() final {
+        runOnModule(module_);
     }
+    virtual void runOnModule(Module* m)=0;
+};
+
+class FunctionPass: public Pass {
+public:
+    FunctionPass(Module* m, InfoManager *im) : Pass(m, im){ }
+    FunctionPass(Module* m): Pass(m) { }    // delete after
+
     virtual void run()final{
         for(auto f:module_->getFunctions())
             runOnFunc(f);
     }
     virtual void runOnFunc(Function*func)=0;
-
 };
+
 class PassManager{
     public:
-        PassManager(Module* m) : module_(m){}
-        template<typename PassType> void add_pass(bool print_ir=false){
-            passes_.push_back(std::pair<Pass*,bool>(new PassType(module_),print_ir));
+        PassManager(Module* m) : module_(m){
+            infoManager = new InfoManager(m);
         }
+        
+        template<typename PassType> 
+        void addPass(bool print_ir=false){
+            if(std::is_base_of<Info, PassType>::value) {            // Info Pass
+                infoManager->addInfo<PassType>();
+            } else if(std::is_base_of<Pass, PassType>::value) {     // Opt Pass
+                passes_.push_back(std::pair<Pass*,bool>(new PassType(module_, infoManager), print_ir));
+            } else {
+                // assert
+            }
+        }
+
+        template<typename InfoType>
+        void getInfo() {
+            // assert(std::is_base_of<Info, PassType>::value, "must be infotype")
+            infoManager->getInfo<InfoType>();
+        }
+
         void run(){
             // module_->getInfoMan()->run();    info pass 应该在需要它时再进行分析，而非从一开始将其全部执行
             for(auto pass : passes_){
@@ -45,12 +84,10 @@ class PassManager{
             }
         }
 
-
     private:
-        std::vector<std::pair<Pass*,bool>> passes_;
-        // std::unique_ptr<Module> m_;
         Module* module_;
-
+        std::vector<std::pair<Pass*,bool>> passes_;
+        InfoManager *infoManager;
 };
 
 #endif

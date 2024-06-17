@@ -16,6 +16,8 @@ protected:
 public:
     bool isInvalid() { return invalid; }
     void invalidate() { invalid = true; }
+    
+    // analyse(std::Function f) { f(); invalid = false; }   // 在后面添加一些操作，使得写分析的时候可以暂时忽略一些细节
     virtual void analyse()=0;               // run on module
     virtual void reAnalyse()=0;
     virtual string print() { return ""; }   // debug

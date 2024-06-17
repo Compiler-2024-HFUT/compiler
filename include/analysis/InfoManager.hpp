@@ -14,6 +14,13 @@ class InfoManager{
     std::vector<Info*> infos;
 
 public:
+    /*
+    
+    特化模板
+    getInfoResult() ...
+
+    */
+    
     template<class InfoType>
     InfoType* getInfo() {
         InfoType *res = nullptr;
@@ -25,12 +32,10 @@ public:
         return res;
     }
 
-    template<class InfoContainer, class InfoType>
-    void addInfo(InfoContainer *ic) {
-        infos.push_back( new InfoType(ic, this) );
+    template<class InfoType>
+    void addInfo() {
+        infos.push_back( new InfoType(module_, this) );
     }
-
-    static InfoManager *createInfoManager(Module *m) { return new InfoManager(m); }
 
     // Dominators* getFuncDom(Function*f);
     void run();
