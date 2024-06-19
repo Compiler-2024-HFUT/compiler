@@ -30,7 +30,7 @@ public:
     void addGlobalVariable(GlobalVariable *g);
     std::list<GlobalVariable*> &getGlobalVariables() { return globals_list_; }
 
-    std::string getInstrOpName(Instruction::OpID instr) { return instr_id2string_[instr]; }
+    std::string getInstrOpName(Instruction::OpID instr) const { return instr_id2string_.find(instr)->second; }
 
     void setPrintName();
     void setFileName(std::string name) { source_file_name_ = name; }
@@ -44,7 +44,7 @@ private:
     std::list<GlobalVariable *> globals_list_;                  //& The Global Variables in the module
     std::list<Function *> functions_list_;                      //& The Functions in the module
     std::map<std::string, Value*> value_symbol_table_;          //& Symbol table for values
-    std::map<Instruction::OpID, std::string> instr_id2string_;  //& Instruction from opid to string
+    std::map<Instruction::OpID, std::string> const instr_id2string_;  //& Instruction from opid to string
 
     std::string module_name_;                                   //& Human readable identifier for the module
     std::string source_file_name_;                              //& Original source file name for module, for test and debug
