@@ -4,7 +4,7 @@
 #include "midend/Value.hpp"
 #include <set>
 #include "optimization/DeadPHIEli.hpp"
-
+#include "optimization/util.hpp"
 
 void replacePhiWith(PhiInst*old,Value* new_val){
     auto &ul=old->getUseList();
@@ -74,6 +74,8 @@ void DeadPHIEli::runOnFunc(Function*func){
                     auto u=phi->getUseList().back();
                     auto ins=static_cast<PhiInst*>(u.val_);
                     ins->removeOperands(u.arg_no_,u.arg_no_+1);
+                    fixPhiOpUse(ins);
+
                     phi_set.erase(iter);
                     visited.erase(phi);
                     phi->getParent()->deleteInstr(phi);
