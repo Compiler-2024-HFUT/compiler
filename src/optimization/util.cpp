@@ -16,14 +16,11 @@
 //     return ret;
 // }
 void fixPhiOpUse(Instruction*phi){
-    int size=phi->getNumOperands()/2;
-    for (int i=0; i < size; i++){
-        auto value = phi->getOperand(i*2);
-        auto bb = phi->getOperand(i*2 + 1);
+    auto &oper=phi->getOperands();
+    for(int i=0;i<oper.size();++i){
+        auto value=phi->getOperand(i);
         value->removeUse(phi);
-        value->addUse(phi,i*2);
-        bb->removeUse(phi);
-        bb->addUse(phi,i*2+1);
+        value->addUse(phi,i);
     }
 }
 // bool is_call_by(Function*be_called,Function*call_func,std::set<Function*>visited){

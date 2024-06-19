@@ -62,31 +62,33 @@ void findConstCond(BasicBlock*bb){
             bb->getSuccBasicBlocks().pop_back();
             falsebb->getPreBasicBlocks().pop_back();
         }
-        // if(toerase==nullptr||!toerase->getPreBasicBlocks().empty())return;
-        // eraseBB(toerase);
+        if(toerase==nullptr||!toerase->getPreBasicBlocks().empty())return;
+        eraseBB(toerase);
 }
-// void eraseBB(BasicBlock*bb){
-//     if(!bb->getPreBasicBlocks().empty())
-//         return;
-//     auto _uselist=bb->getUseList();
-//     rmBBPhi(bb);
-//     if(!bb->useEmpty()) {
-//         exit(235);}
-//     auto termin=bb->getTerminator();
-//     if(termin->isRet())
-//         exit(223); 
+void eraseBB(BasicBlock*bb){
+    if(bb==bb->getParent()->getEntryBlock())
+        return;
+    if(!bb->getPreBasicBlocks().empty())
+        return;
+    auto _uselist=bb->getUseList();
+    rmBBPhi(bb);
+    if(!bb->useEmpty()) {
+        exit(235);}
+    auto termin=bb->getTerminator();
+    if(termin->isRet())
+        exit(223); 
 
-//     std::list<BasicBlock*> succbbs=bb->getSuccBasicBlocks();
-//     bb->getParent()->removeBasicBlock(bb);
-//     bb->getSuccBasicBlocks().clear();
-    
-//     for(auto succ:succbbs){
-//         succ->removePreBasicBlock(bb);
-//         eraseBB(succ);
-//     }
-//     delete  bb;
+    std::list<BasicBlock*> succbbs=bb->getSuccBasicBlocks();
+    bb->getParent()->removeBasicBlock(bb);
+    bb->getSuccBasicBlocks().clear();
+    for(auto succ:succbbs){
+        succ->removePreBasicBlock(bb);
+        if(succ->getPreBasicBlocks().empty())
+            eraseBB(succ);
+    }
+    delete  bb;
 
-// }
+}
 void ConstBr::runOnFunc(Function*func){
     const_true=ConstantInt::get(true);
     const_false=ConstantInt::get(false);

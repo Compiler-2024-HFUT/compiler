@@ -17,6 +17,11 @@ void User::replaceOperand(unsigned i,Value*v) {
     assert(i < num_ops_ && "set_operand out of index");
     operands_[i] = v;
     v->addUse(this, i);
+    for (int i=0; i < this->getNumOperands(); i++){
+        auto value = this->getOperand(i);
+        value->removeUse(this);
+        value->addUse(this,i);
+    }
 }
 
 void User::setOperand(unsigned i, Value *v) {

@@ -284,6 +284,18 @@ void G2L::run(){
         if(cur_global->useEmpty())
             continue;
         calOneGlobal();
+        {
+            auto init=cur_global->getInit();
+            if(def_list_.empty()){
+                for(auto u:cur_global->getUseList()){
+                    if(auto load=dynamic_cast<LoadInst*>(u.val_)){
+                        load->replaceAllUseWith(init);
+                    }
+                }
+                calOneGlobal();
+            }
+        }
+        
         runGlobal();
     }
 }
