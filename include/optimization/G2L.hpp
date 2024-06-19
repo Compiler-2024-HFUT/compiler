@@ -29,17 +29,15 @@ private:
     void calDefAndUse(Function*cur_func,::std::set<BasicBlock*>&def_bbs,::std::set<BasicBlock*>&use_bbs);
     void calOneGlobal();
     void runGlobal();
-    void rmLocallyGlob(GlobalVariable*global,BasicBlock*use);
+    void rmLocallyGlob(GlobalVariable*global,BasicBlock*use,Value*incoming=nullptr);
     __attribute__((always_inline)) void clear(){
         global_instrs_.clear();
         use_list_.clear();
         def_list_.clear();
         new_phi.clear();
-        // stored.clear();
     }
     __attribute__((always_inline)) void funcClear(){
-        set<Value*>stored;
-        map<BasicBlock*, PhiInst*> new_phi;
+        new_phi.clear();
     }
 public:
     G2L(Module *m) : Pass(m){}

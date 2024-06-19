@@ -24,12 +24,12 @@ BasicBlock* isOnlyInOneBB(GlobalVariable*global){
     }
     return last;
 }
-void G2L::rmLocallyGlob(GlobalVariable*global,BasicBlock* used_bb){
+void G2L::rmLocallyGlob(GlobalVariable*global,BasicBlock* used_bb,Value*incoming){
     assert(used_bb!=nullptr && "global no used");
     
     auto &instrs=used_bb->getInstructions();
-    Value* cur_val=nullptr;
-    Value*final_store=nullptr;
+    Value* cur_val=incoming;
+    Value*final_store=incoming;
     bool _stored=false;
     for(auto _iter=instrs.begin();_iter!=instrs.end();){
         auto cur_iter=_iter++;
@@ -238,7 +238,10 @@ void G2L::runGlobal(){
         //only def continue;
         if(!use_list_.count(func))continue;
         if(auto bb=isOnlyInOneBB(cur_global)){
-            rmLocallyGlob(cur_global,bb);
+            if(func==module_->getMainFunction())
+                rmLocallyGlob(cur_global,bb,cur_global->getInit());
+            else
+                rmLocallyGlob(cur_global,bb,nullptr);
             continue;
         }
 
@@ -281,21 +284,30 @@ void G2L::run(){
             continue;
         this->cur_global=cur_global;
         clear();
+        funcClear();
+        visited.clear();
         if(cur_global->useEmpty())
             continue;
         calOneGlobal();
-        {
-            auto init=cur_global->getInit();
-            if(def_list_.empty()){
-                for(auto u:cur_global->getUseList()){
-                    if(auto load=dynamic_cast<LoadInst*>(u.val_)){
-                        load->replaceAllUseWith(init);
-                    }
-                }
-                calOneGlobal();
+            
+        if(!def_list_.empty()){
+            runGlobal();
+            return;
+        }else if(use_list_.empty()){
+            // for(auto u:cur_global->getUseList()){
+
+            // }
+        }
+
+        for(auto u:cur_global->getUseList()){
+            if(auto load=dynamic_cast<LoadInst*>(u.val_)){
+                load->replaceAllUseWith(cur_global->getInit());
             }
         }
-        
+        clear();
+        funcClear();
+        visited.clear();
+        calOneGlobal();
         runGlobal();
     }
 }
