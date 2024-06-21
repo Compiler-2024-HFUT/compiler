@@ -34,18 +34,12 @@ public:
 };
 
 class FunctionInfo: public Info {
-protected:
-    // set func_ = func, then analyse happened at func
-    Function *func_;           
+protected:               
     Module *const module_;
 public:
     virtual ~FunctionInfo(){}
     FunctionInfo(Module*module, InfoManager *im):Info(im), module_(module) { }
     
-    // 暂时用于兼容Dominators
-    FunctionInfo(Function* func):Info(nullptr), func_(func), module_(nullptr) { } 
-    void setInfoManager(InfoManager *im) { infoManager = im; }
-    
-    virtual void analyseOnFunc()=0;
+    virtual void analyseOnFunc(Function *func)=0;
 };
 #endif

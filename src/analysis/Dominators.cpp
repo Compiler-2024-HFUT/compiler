@@ -1,11 +1,13 @@
 #include "analysis/Dominators.hpp"
+#include "midend/Module.hpp"
 #include "midend/BasicBlock.hpp"
 #include "midend/Function.hpp"
 #include <functional>
 #include <iostream>
 #include <ostream>
 #include <set>
-void Dominators::post(){
+
+void Dominators::post(Function *func_){
     auto bbs=func_->getBasicBlocks();
     // int id=0;
     
@@ -22,10 +24,10 @@ void Dominators::post(){
     };
     post_order_func(func_->getEntryBlock());
 }
-void Dominators::sFastIDomAlg(){
+void Dominators::sFastIDomAlg(Function *func_){
     post_order_id_.clear();
     reverse_post_order_.clear();
-    post();
+    post(func_);
     auto entry=func_->getEntryBlock();
     bool changed=true;
     for (auto bb : this->reverse_post_order_) {
@@ -74,7 +76,7 @@ void Dominators::sFastIDomAlg(){
     // }
 }
 
-void Dominators::domAlg(){
+void Dominators::domAlg(Function *func_){
     for (auto bb : func_->getBasicBlocks()) {
         auto idom = getIDom(bb);        
         if (idom != bb&&idom!=nullptr) {
@@ -120,7 +122,7 @@ void Dominators::domAlg(){
         // }
     }
 }
-void Dominators::domTreeAlg(){
+void Dominators::domTreeAlg(Function *func_){
     for (auto bb : func_->getBasicBlocks()) {
         auto idom = getIDom(bb);        
         if (idom != bb&&idom!=nullptr) {
@@ -131,7 +133,7 @@ void Dominators::domTreeAlg(){
         }
     }
 }
-void Dominators::domFrontierAlg(){
+void Dominators::domFrontierAlg(Function *func_){
 
     for (auto bb : func_->getBasicBlocks()) {
         if (bb->getPreBasicBlocks().size() <2) continue;
@@ -158,22 +160,35 @@ void Dominators::clear(){
     reverse_post_order_.clear();
     post_order_id_.clear();
     idom_.clear();
+
     dom_set_.clear();
     dom_tree_.clear();
     dom_frontier_.clear();
+
+    func_dom_set_.clear();
+    func_dom_tree_.clear();
+    func_dom_frontier_.clear();
+
+    for(Function *f : module_->getFunctions()) {
+        if(f->getBasicBlocks().size() == 0)
+            continue;
+        for(BasicBlock *bb : f->getBasicBlocks()) {
+            func_dom_set_[f].insert({bb,{bb}});
+            func_dom_frontier_[f].insert({bb,{}});
+        }
+    }
+
 }
 void Dominators::analyse(){
     this->clear();
-    for(auto bb:func_->getBasicBlocks()){
-        dom_set_.insert({bb,{bb}});
-        dom_frontier_.insert({bb,{}});
+    for(Function *f : module_->getFunctions()) {
+        if(f->getBasicBlocks().size() == 0)
+            continue;
+        analyseOnFunc(f);
     }
-    sFastIDomAlg();
-    domFrontierAlg();
-    domTreeAlg();
-    // domAlg();
-}
-void Dominators::reAnalyse(){
+
+    invalid = false;
+    /*
     this->clear();
     for(auto bb:func_->getBasicBlocks()){
         dom_set_.insert({bb,{bb}});
@@ -183,7 +198,29 @@ void Dominators::reAnalyse(){
     domFrontierAlg();
     domTreeAlg();
     // domAlg();
+     */
 }
+void Dominators::reAnalyse(){
+    analyse();
+    /*
+    this->clear();
+    for(auto bb:func_->getBasicBlocks()){
+        dom_set_.insert({bb,{bb}});
+        dom_frontier_.insert({bb,{}});
+    }
+    sFastIDomAlg();
+    domFrontierAlg();
+    domTreeAlg();
+    // domAlg();
+     */
+}
+
+void Dominators::analyseOnFunc(Function *func) {
+    sFastIDomAlg(func);
+    domFrontierAlg(func);
+    domTreeAlg(func);
+}
+
 void Dominators::printDomFront(){
 #ifdef DEBUG
     ::std::cout<<"dominate frontier:\n";
@@ -223,17 +260,14 @@ void Dominators::printDomTree(){
     }
 #endif
 }
-Dominators::Dominators(Function* fun):FunctionInfo(fun){
-    for(auto bb:fun->getBasicBlocks()){
-        dom_set_.insert({bb,{bb}});
-        dom_frontier_.insert({bb,{}});
-    }
-    sFastIDomAlg();
-    domFrontierAlg();
-    domTreeAlg();
+Dominators::Dominators(Module*module, InfoManager *im): FunctionInfo(module, im) {
+    this->clear();
+    
+    /*
     // 没有用到，而且当前算法非常影响性能，之后可能要改
     // domAlg();
     // printDomFront();
     // printDomSet();
     // printDomTree();
+     */
 }

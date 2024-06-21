@@ -14,13 +14,6 @@ class InfoManager{
     std::vector<Info*> infos;
 
 public:
-    /*
-    
-    特化模板
-    getInfoResult() ...
-
-    */
-    
     template<class InfoType>
     InfoType* getInfo() {
         InfoType *res = nullptr;

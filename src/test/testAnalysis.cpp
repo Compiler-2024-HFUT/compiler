@@ -1,13 +1,13 @@
 #include "frontend/parser.hpp"
+#include "midend/IRGen.hpp"
+#include "optimization/PassManager.hpp"
+
+#include "optimization/PassManagerBuilder.hpp"
+
 #include <iostream>
 #include <memory>
 #include <string>
-#include "midend/IRGen.hpp"
 
-#include "optimization/DeadStoreEli.hpp"
-#include "optimization/Mem2Reg.hpp"
-#include "optimization/PassManager.hpp"
-#include "optimization/inline.hpp"
 using namespace std;
 
 int main(int argc , char**argv){
@@ -21,16 +21,10 @@ int main(int argc , char**argv){
     p->comp->accept(irgen);
     auto m=irgen.getModule();
  
-    // string str_out=argv[1];
-    // str_out=str_out+".ll";
-    // fstream os;
-    // os.open(str_out,ios_base::out);
-    PassManager pm{m};
-    pm.add_pass<DeadStoreEli>();
-    pm.add_pass<Mem2Reg>();
-    // pm.add_pass<ADCE>();
-    // pm.add_pass<FuncInline>();
-    pm.run();
+    PassManager *pm = new PassManager(m);
+    buildTestPassManager(pm);
+
+    pm->run();
     cout << irgen.getModule()->print();
 
     delete (p);

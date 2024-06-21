@@ -40,9 +40,21 @@ target("passtest")
     add_files("src/frontend/*.cpp")
     add_files("src/midend/*.cpp")
     add_files("src/analysis/*.cpp")
-    add_files("src/optimization/Mem2Reg.cpp","src/optimization/DeadStoreEli.cpp")
+    add_files("src/optimization/*.cpp")
     add_files("src/test/testpass.cpp")
     set_optimize("none")
+
+target("testAnalysis")
+    set_kind("binary")
+    set_languages( "c++17")
+    add_includedirs("include")
+    add_files("src/frontend/*.cpp")
+    add_files("src/midend/*.cpp")
+    add_files("src/analysis/*.cpp")
+    add_files("src/optimization/Mem2Reg.cpp")   -- ignore other opt pass!!!
+    add_files("src/test/testAnalysis.cpp")
+    set_optimize("none")
+
 --
 --
 -- If you want to known more usage about xmake, please see https://xmake.io

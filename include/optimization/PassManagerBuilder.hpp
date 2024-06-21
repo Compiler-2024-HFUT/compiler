@@ -13,13 +13,16 @@
 
 // Info Pass
 #include "analysis/LoopInfo.hpp"
-#include "analysis/LoopInfo.hpp"
+#include "analysis/Dominators.hpp"
 
 // Opt Pass
 #include "optimization/Mem2Reg.hpp"
 
 void buildTestPassManager(PassManager *pm) {
+    pm->addInfo<Dominators>();
+    pm->addInfo<LoopInfo>();
 
+    pm->addPass<Mem2Reg>();
 }
 
 void buildDefaultPassManager(PassManager *pm) {

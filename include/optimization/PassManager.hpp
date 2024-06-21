@@ -59,18 +59,19 @@ class PassManager{
         
         template<typename PassType> 
         void addPass(bool print_ir=false){
-            if(std::is_base_of<Info, PassType>::value) {            // Info Pass
-                infoManager->addInfo<PassType>();
-            } else if(std::is_base_of<Pass, PassType>::value) {     // Opt Pass
-                passes_.push_back(std::pair<Pass*,bool>(new PassType(module_, infoManager), print_ir));
-            } else {
-                // assert
-            }
+            // assert(std::is_base_of<Pass, PassType>::value && "must be passtype")
+            passes_.push_back(std::pair<Pass*,bool>(new PassType(module_, infoManager), print_ir));
+        }
+
+        template<typename InfoType>
+        void addInfo() {
+            // assert(std::is_base_of<Info, InfoType>::value && "must be infotype")
+            infoManager->addInfo<InfoType>();
         }
 
         template<typename InfoType>
         void getInfo() {
-            // assert(std::is_base_of<Info, PassType>::value, "must be infotype")
+            // assert(std::is_base_of<Info, InfoType>::value, "must be infotype")
             infoManager->getInfo<InfoType>();
         }
 
