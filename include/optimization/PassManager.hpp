@@ -70,9 +70,9 @@ class PassManager{
         }
 
         template<typename InfoType>
-        void getInfo() {
+        InfoType getInfo() {
             // assert(std::is_base_of<Info, InfoType>::value, "must be infotype")
-            infoManager->getInfo<InfoType>();
+            return infoManager->getInfo<InfoType>();
         }
 
         void run(){
