@@ -19,6 +19,7 @@ public:
     std::vector<Value *> &getOperands();
     unsigned getNumOperands() const;
 
+    void removeAllOperand();
     void removeOperands(int index1, int index2);
     void removeUseOfOps();
     

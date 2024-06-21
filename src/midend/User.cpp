@@ -43,7 +43,13 @@ std::vector<Value*>& User::getOperands() {
 unsigned User::getNumOperands() const {
     return num_ops_;
 }
-
+void User::removeAllOperand(){
+    for(auto v:operands_){
+        v->removeUse(this);
+    }
+    operands_.clear();
+    num_ops_=0;
+}
 void User::removeOperands(int index1, int index2) {
     for (int i = index1; i <= index2; i++) {
         operands_[i]->removeUse(this);
