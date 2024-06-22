@@ -145,7 +145,50 @@ std::string Function::print() {
 
     return func_ir;
 }
+std::string Function::printGra(){
+#ifdef DEBUG
+    setInstrName();
+    ::std::string ret;
+    ::std::set<BasicBlock*> bb_set;
+    // ::std::vector<::std::pair<BasicBlock*,BasicBlock*>>graph;
+    ::std::map<BasicBlock* , ::std::set<BasicBlock*>>graph;
+    for(auto bb:getBasicBlocks()){
+        bb_set.insert(bb);
+    }
+    auto entry=getEntryBlock();
+    ::std::function<void (BasicBlock* bb,::std::map<BasicBlock* , ::std::set<BasicBlock*>> &graph)> draw=[&draw](BasicBlock* bb,::std::map<BasicBlock* , ::std::set<BasicBlock*>> &graph){
+        if(graph.find(bb)!=graph.end())
+            return ;
 
+        auto it=graph.insert({bb,{}}).first;
+        for(auto succ_bb:bb->getSuccBasicBlocks()){
+            if(it->second.find(succ_bb)==it->second.end()){
+                it->second.insert(succ_bb);
+            }else{
+                exit(123);
+            }
+        }
+
+        for(auto succ_bb:bb->getSuccBasicBlocks()){
+            draw(succ_bb,graph);
+        }
+
+    };
+    draw(entry,graph);
+    ret="digraph ";
+    ret+=getName();ret+="{\n";
+    for(auto bb:bb_set){
+        ret+=bb->getName();ret+=";\n";
+    }
+    for(auto [bb,bbset]:graph){
+        for(auto succ_bb:bbset){
+            ret+=bb->getName()+"->"+succ_bb->getName()+";\n";
+        }
+    }
+    ret+="}\n";
+#endif
+    return ret;
+}
 std::string Argument::print() {
     std::string arg_ir;
     arg_ir += this->getType()->print();

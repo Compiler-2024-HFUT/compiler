@@ -9,7 +9,12 @@
 #include "optimization/PassManager.hpp"
 #include "optimization/inline.hpp"
 using namespace std;
-
+void drawGra(ostream &out,Module*m){
+    for(auto f:m->getFunctions() ){
+        if(f->isDeclaration())continue;
+        out<<f->printGra()<<endl;
+    }
+}
 int main(int argc , char**argv){
     if(argc<2){
         std::cerr<<("expect argv")<<endl;
@@ -31,7 +36,7 @@ int main(int argc , char**argv){
     // pm.add_pass<ADCE>();
     // pm.add_pass<FuncInline>();
     pm.run();
-    cout << irgen.getModule()->print();
+    drawGra(cout,m);
 
     delete (p);
 

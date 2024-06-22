@@ -45,6 +45,7 @@ public:
 
     void setInstrName();
 
+    std::string printGra();
     std::string print();
   
 private:
