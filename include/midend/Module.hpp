@@ -37,6 +37,7 @@ public:
     std::string getFileName() { return source_file_name_; }
 
     virtual std::string print();
+    std::string printGra();
 
     InfoManager *getInfoMan();
 

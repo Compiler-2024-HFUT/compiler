@@ -175,8 +175,8 @@ std::string Function::printGra(){
 
     };
     draw(entry,graph);
-    ret="digraph ";
-    ret+=getName();ret+="{\n";
+    // ret="digraph ";
+    // ret+=getName();ret+="{\n";
     for(auto bb:bb_set){
         ret+=bb->getName();ret+=";\n";
     }
@@ -185,7 +185,7 @@ std::string Function::printGra(){
             ret+=bb->getName()+"->"+succ_bb->getName()+";\n";
         }
     }
-    ret+="}\n";
+    // ret+="}\n";
 #endif
     return ret;
 }

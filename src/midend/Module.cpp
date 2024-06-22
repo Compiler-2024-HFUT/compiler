@@ -86,4 +86,13 @@ std::string Module::print() {
     }
     return module_ir;
 }
+std::string Module::printGra(){
+    std::string ret="digraph {\n";
+    for(auto f:getFunctions() ){
+        if(f->isDeclaration())continue;
+        ret+=f->printGra();
+    }
+    ret+="}\n";
+    return ret;
+}
 __attribute__((always_inline)) InfoManager *Module::getInfoMan(){return info_man_.get();}

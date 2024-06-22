@@ -113,18 +113,18 @@ void IRGen::visit(ast::FuncDef &node) {
     
     // call global_init in main func
     if(node.name == "main"){
-        auto globalVarInitBB = BasicBlock::create( "global_init", fun);
+        auto globalVarInitBB = BasicBlock::create("global_init_"+node.name, fun);
         CallInst::createCall( dynamic_cast<Function*>(scope.findFunc("global_var_init")), {}, globalVarInitBB);
         
         // create entry block, which alloc params
-        auto entryBB = BasicBlock::create( "entry", fun);
+        auto entryBB = BasicBlock::create( "entry_"+node.name, fun);
         cur_block_of_cur_fun = entryBB;
         cur_basic_block_list.push_back(entryBB);
 
         BranchInst::createBr(entryBB, globalVarInitBB);
     }else{
         // create entry block, which alloc params
-        auto entryBB = BasicBlock::create( "entry", fun);
+        auto entryBB = BasicBlock::create( "entry_"+node.name, fun);
         cur_block_of_cur_fun = entryBB;
         cur_basic_block_list.push_back(entryBB);
     }
@@ -188,7 +188,7 @@ void IRGen::visit(ast::FuncDef &node) {
    
 
     // build return BB    
-    ret_BB = BasicBlock::create( "ret", fun);
+    ret_BB = BasicBlock::create( "ret_"+node.name, fun);
 
      // build func block
     node.body->accept(*this);
