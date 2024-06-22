@@ -622,9 +622,7 @@ PhiInst::PhiInst(OpID op, std::vector<Value *> vals, std::vector<BasicBlock *> v
 }
 
 PhiInst *PhiInst::createPhi(Type *ty, BasicBlock *bb) {
-    std::vector<Value *> vals;
-    std::vector<BasicBlock *> val_bbs;
-    return new PhiInst(Instruction::OpID::phi, vals, val_bbs, ty, bb);
+    return new PhiInst(Instruction::OpID::phi, {}, {}, ty, bb);
 }
 
 std::string PhiInst::print() {

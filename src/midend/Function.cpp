@@ -40,19 +40,6 @@ void Function::addBasicBlock(BasicBlock *bb) {
 }
 
 void Function::removeBasicBlock(BasicBlock *bb) {
-    {
-        ::std::list<Instruction*> &instrs=bb->getInstructions();
-        for(auto i:instrs){
-            i->removeUseOfOps();       
-        }
-        while(!instrs.empty()){
-            auto iter=instrs.begin();
-            auto instr=*iter;
-            assert(instr->getUseList().empty()&&"removed basicblock has cannot remove instruction");
-            instrs.pop_front();
-            delete instr;
-        }
-    }
     basic_blocks_.erase(std::find(basic_blocks_.begin(),basic_blocks_.end(),bb));
     for (auto pre : bb->getPreBasicBlocks()) {
         pre->removeSuccBasicBlock(bb);

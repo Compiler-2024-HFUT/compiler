@@ -23,6 +23,20 @@ void fixPhiOpUse(Instruction*phi){
         value->addUse(phi,i);
     }
 }
+void deleteBasicBlock(BasicBlock*bb){
+    ::std::list<Instruction*> &instrs=bb->getInstructions();
+    for(auto i:instrs){
+        i->removeUseOfOps();       
+    }
+    while(!instrs.empty()){
+        auto iter=instrs.begin();
+        auto instr=*iter;
+        assert(instr->getUseList().empty()&&"removed basicblock has cannot remove instruction");
+        instrs.pop_front();
+        delete instr;
+    }
+    delete  bb;
+}
 // bool is_call_by(Function*be_called,Function*call_func,std::set<Function*>visited){
 //     for(auto u:be_called->getUseList())
 //         if(auto call=dynamic_cast<CallInst*>(u.val_)){

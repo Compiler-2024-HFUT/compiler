@@ -1,6 +1,7 @@
+#ifndef  VAL_NUM_HPP
+#define VAL_NUM_HPP
 #include "midend/Module.hpp"
 #include "optimization/PassManager.hpp"
-#include <unordered_map>
 struct Expr{
     enum class ExprOp:int32_t{
         ILLEGAL=-1,EMPTY=0,
@@ -68,3 +69,4 @@ public:
     // virtual ~ValNumbering(){}
 
 };
+#endif

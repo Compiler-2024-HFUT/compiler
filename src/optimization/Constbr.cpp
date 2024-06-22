@@ -79,15 +79,14 @@ void eraseBB(BasicBlock*bb){
         exit(223); 
 
     std::list<BasicBlock*> succbbs=bb->getSuccBasicBlocks();
+
     bb->getParent()->removeBasicBlock(bb);
-    bb->getSuccBasicBlocks().clear();
+    deleteBasicBlock(bb);
+
     for(auto succ:succbbs){
-        succ->removePreBasicBlock(bb);
         if(succ->getPreBasicBlocks().empty())
             eraseBB(succ);
     }
-    delete  bb;
-
 }
 void ConstBr::runOnFunc(Function*func){
     const_true=ConstantInt::get(true);
