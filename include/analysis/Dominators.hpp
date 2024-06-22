@@ -20,11 +20,11 @@ private:
     //左：被支配者，右：直接支配者 entry的直接支配者为nullptr
     ::std::map<BasicBlock*,BasicBlock*> idom_;
 
-    ::std::map<BasicBlock*,::std::unordered_set<BasicBlock*>> dom_set_;
+    // ::std::map<BasicBlock*,::std::unordered_set<BasicBlock*>> dom_set_;
     //右边是被直接支配的集合
-    ::std::map<BasicBlock*,::std::set<BasicBlock*>> dom_tree_;
+    // ::std::map<BasicBlock*,::std::set<BasicBlock*>> dom_tree_;
     //支配边界可以包含自己
-    ::std::map<BasicBlock*,::std::set<BasicBlock*>> dom_frontier_;
+    // ::std::map<BasicBlock*,::std::set<BasicBlock*>> dom_frontier_;
 
     ::std::map<Function*, ::std::map<BasicBlock*,::std::unordered_set<BasicBlock*> > > func_dom_set_;
     ::std::map<Function*, ::std::map<BasicBlock*,::std::set<BasicBlock*> > > func_dom_tree_;
@@ -60,18 +60,9 @@ public:
     void printDomSet();
     void printDomTree();
 
-    ::std::set<BasicBlock*> &getDomFrontier(BasicBlock* bb){
-        if(invalid) analyse();
-        return func_dom_frontier_[bb->getParent()].find(bb)->second;
-    }
-    ::std::unordered_set<BasicBlock*> &getDomSet(BasicBlock* bb){
-        if(invalid) analyse();
-        return func_dom_set_[bb->getParent()].find(bb)->second;
-    }
-    ::std::set<BasicBlock*> &getDomTree(BasicBlock* dominator){
-        if(invalid) analyse();
-        return func_dom_tree_[dominator->getParent()].find(dominator)->second;
-    }
+    ::std::set<BasicBlock*> &getDomFrontier(BasicBlock* bb){ return func_dom_frontier_[bb->getParent()].find(bb)->second; }
+    ::std::unordered_set<BasicBlock*> &getDomSet(BasicBlock* bb){ return func_dom_set_[bb->getParent()].find(bb)->second; }
+    ::std::set<BasicBlock*> &getDomTree(BasicBlock* dominator){ return func_dom_tree_[dominator->getParent()].find(dominator)->second; }
     
     BasicBlock* getIDom(BasicBlock*b){ return idom_[b];}
 

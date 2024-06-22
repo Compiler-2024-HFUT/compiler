@@ -24,7 +24,9 @@ void Dominators::post(Function *func_){
     };
     post_order_func(func_->getEntryBlock());
 }
+
 void Dominators::sFastIDomAlg(Function *func_){
+    idom_.clear();      // ?
     post_order_id_.clear();
     reverse_post_order_.clear();
     post(func_);
@@ -102,7 +104,7 @@ void Dominators::domAlg(Function *func_){
     while (changed) {
         changed=false;
         for(auto [domed,idom]:idom_){
-            for(auto &[dom, dset]:dom_set_){
+            for(auto &[dom, dset]:func_dom_set_[func_]){
                 if(idom==dom||dset.find(idom)!=dset.end()){
                     if(dset.find(domed)==dset.end()){
                         changed=true;
@@ -126,10 +128,11 @@ void Dominators::domTreeAlg(Function *func_){
     for (auto bb : func_->getBasicBlocks()) {
         auto idom = getIDom(bb);        
         if (idom != bb&&idom!=nullptr) {
-            if(auto tree_iter=dom_tree_.find(idom);tree_iter!=dom_tree_.end())
+            auto tree_iter=func_dom_tree_[func_].find(idom);
+            if(tree_iter!=func_dom_tree_[func_].end())
                 tree_iter->second.insert(bb);
             else
-                dom_tree_.insert({idom,{bb}});
+                func_dom_tree_[func_].insert({idom,{bb}});
         }
     }
 }
@@ -161,9 +164,9 @@ void Dominators::clear(){
     post_order_id_.clear();
     idom_.clear();
 
-    dom_set_.clear();
-    dom_tree_.clear();
-    dom_frontier_.clear();
+    // dom_set_.clear();
+    // dom_tree_.clear();
+    // dom_frontier_.clear();
 
     func_dom_set_.clear();
     func_dom_tree_.clear();
@@ -224,40 +227,50 @@ void Dominators::analyseOnFunc(Function *func) {
 void Dominators::printDomFront(){
 #ifdef DEBUG
     ::std::cout<<"dominate frontier:\n";
-    for(auto [b ,bbset]:dom_frontier_){
-        if(bbset.empty()) continue;
-        ::std::cout<<b->getName()<<" domf : ";
-        for(auto df:bbset){
-            ::std::cout<<df->getName()<<" ";            
+    for(auto f : module_->getFunctions()) {
+        for(auto [b ,bbset]:func_dom_frontier_[f]){
+            if(bbset.empty()) continue;
+            ::std::cout<<b->getName()<<" domf : ";
+            for(auto df:bbset){
+                ::std::cout<<df->getName()<<" ";            
+            }
+            ::std::cout<<::std::endl;
         }
-        ::std::cout<<::std::endl;
     }
+    
 #endif
 }
 void Dominators::printDomSet(){
 #ifdef DEBUG
     ::std::cout<<"dominate set:\n";
-    for(auto &[b ,bbset]:dom_set_){
-        if(bbset.empty()) continue;
-        ::std::cout<<b->getName()<<" dom : "<<bbset.size()<<" ";
-        for(auto dom:bbset){
-            ::std::cout<<dom->getName()<<" ";            
+    for(auto f : module_->getFunctions()) {
+        ::std::cout<<f->getName()<<"\n";
+        for(auto &[b ,bbset]:func_dom_set_[f]){
+            if(bbset.empty()) continue;
+            ::std::cout<<"\t"<<b->getName()<<" dom : "<<bbset.size()<<"\n";
+            for(auto dom:bbset){
+                ::std::cout<<"\t\t"<<dom->getName()<<"\n";            
+            }
+            ::std::cout<<::std::endl;
         }
-        ::std::cout<<::std::endl;
     }
 #endif
 }
 void Dominators::printDomTree(){
 #ifdef DEBUG
     ::std::cout<<"dominate tree:\n";
-    for(auto &[b ,bbset]:dom_tree_){
-        if(bbset.empty()) continue;
-        ::std::cout<<b->getName()<<" dom : "<<bbset.size()<<" ";
-        for(auto dom:bbset){
-            ::std::cout<<dom->getName()<<" ";            
-        }
-        ::std::cout<<::std::endl;
+    for(auto f : module_->getFunctions()) { 
+        ::std::cout<<f->getName()<<"\n";
+        for(auto &[b ,bbset]:func_dom_tree_[f]){
+            if(bbset.empty()) continue;
+            ::std::cout<<"\t"<<b->getName()<<" dom : "<<bbset.size()<<"\n";
+            for(auto dom:bbset){
+                ::std::cout<<"\t\t"<<dom->getName()<<"\n";            
+            }
+            ::std::cout<<::std::endl;
+        }    
     }
+    
 #endif
 }
 Dominators::Dominators(Module*module, InfoManager *im): FunctionInfo(module, im) {

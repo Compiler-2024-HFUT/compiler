@@ -26,7 +26,13 @@ int main(int argc , char**argv){
 
     pm->run();
     cout << irgen.getModule()->print();
+    pm->getInfo<Dominators>()->printDomSet();
+    pm->getInfo<Dominators>()->printDomFront();
+    pm->getInfo<Dominators>()->printDomTree();
 
-    delete (p);
+    cout << pm->getInfo<LoopInfo>()->print();
+    
+
+    // delete (p);
 
 }

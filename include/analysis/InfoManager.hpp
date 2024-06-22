@@ -22,6 +22,11 @@ public:
             res = dynamic_cast<InfoType*>(infos[i]);
             i++;
         } while (res == nullptr && i < infos.size());
+        
+        if(res->isInvalid()) {
+            res->analyse();
+        }
+        
         return res;
     }
 
