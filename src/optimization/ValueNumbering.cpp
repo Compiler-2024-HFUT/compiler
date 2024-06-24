@@ -4,6 +4,7 @@
 #include "midend/Value.hpp"
 #include <cstdint>
 #include <map>
+#include <set>
 #include <vector>
 #include "optimization/ValueNumbering.hpp"
 Expr::ExprOp Expr::instop2exprop(Instruction::OpID instrop){
@@ -71,36 +72,22 @@ void ValNumbering::runOnFunc(Function*func){
         vn_table_.getValueNum(ins);
     }
     auto dom=info_man_->getFuncDom(func);
-    do{
-        change=false;
-        for(auto bb:dom->getDomTree(entry)){
-            auto &ins_list=bb->getInstructions();
-            
-            for(auto _iter=ins_list.begin();_iter!=ins_list.end();){
-                Instruction* instr=*_iter;
-                auto cur_iter=_iter++;
-                change=change|proInstr(instr);
-            }
-        }
-
-    } while(change);
 }
-bool ValNumbering::proInstr(Instruction*instr){
-    {
-        auto op=instr->getInstrType();
-        if(op==Instruction::OpID::fcmp||op==Instruction::OpID::cmp||op==Instruction::OpID::phi||op==Instruction::OpID::br||op==Instruction::OpID::call||op==Instruction::OpID::store||op==Instruction::OpID::load||op==Instruction::OpID::ret)
-            return false;
-    }
-    auto num=vn_table_.getValueNum(instr);
-    if(vn_table_.getNumVal(num)==instr){
+static std::set<BasicBlock*> visited;
+bool ValNumbering::dvnt(Function*func,BasicBlock*bb){
+    if(visited.count(bb))
         return false;
-    }else{
-        instr->replaceAllUseWith(vn_table_.getNumVal(num));
-        instr->getParent()->deleteInstr(instr);
-        return true;
+    visited.insert(bb);
+    if(bb==func->getEntryBlock()){
+        for(auto arg:func->getArgs()){
+            vn_table_.getValueNum(arg);
+        }
     }
-
+    for(auto ins:bb->getInstructions()){
+        // if()
+    }
 }
+
 Expr ValueTable::creatExpr(BinaryInst*bin){
     return Expr(Expr::instop2exprop(bin->getInstrType()),bin->getType(),getValueNum(bin->getOperand(0)),getValueNum(bin->getOperand(1)));
 }

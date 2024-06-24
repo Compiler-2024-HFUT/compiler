@@ -8,11 +8,11 @@ struct Expr{
         ADD,SUB,MUL,DIV,FADD,FSUB,FMUL,FDIV,REM,
         ZEXT,SITOFP,FPTOSI,
     }op_;
-    uint32_t first_vn_,second_vn_,unuse;
+    uint32_t lhs,rhs,unuse;
     Type* type_; 
     
     bool operator==(Expr const &other)const{
-        if(this->op_!=other.op_||type_!=other.type_||first_vn_!=other.first_vn_||second_vn_!=other.second_vn_||unuse!=other.unuse)
+        if(this->op_!=other.op_||type_!=other.type_||lhs!=other.lhs||rhs!=other.rhs)//||unuse!=other.unuse)
             return false;
         return true;
     }
@@ -20,12 +20,12 @@ struct Expr{
         return !((*this)==other);
     }
     bool operator<(Expr const &other)const{
-        if(this->op_<other.op_||type_->getTypeId()<other.type_->getTypeId()||first_vn_<other.first_vn_||second_vn_<other.second_vn_||unuse<other.unuse)
+        if(this->op_<other.op_||type_->getTypeId()<other.type_->getTypeId()||lhs<other.lhs||rhs<other.rhs)//||unuse<other.unuse)
             return true;
         return false;
     }
-    Expr():op_(ExprOp::EMPTY),unuse(0){}
-    Expr(ExprOp _op,Type*type,uint32_t first=0,uint32_t second=0):op_(_op),type_(type),first_vn_(first),second_vn_(second),unuse(0){}
+    Expr():op_(ExprOp::EMPTY){}
+    Expr(ExprOp _op,Type*type,uint32_t first=0,uint32_t second=0):op_(_op),type_(type),lhs(first),rhs(second){}
 
 public:
     static ExprOp instop2exprop(Instruction::OpID instrop);
@@ -62,6 +62,7 @@ class ValNumbering:public FunctionPass{
     }
     bool proInstr(Instruction*instr);
 public:
+    bool dvnt(Function*func,BasicBlock*bb);
     virtual void runOnFunc(Function *func) override;
     // using FunctionPass::FunctionPass;
     ValNumbering(Module *m) : FunctionPass(m){}
