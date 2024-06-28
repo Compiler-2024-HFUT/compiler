@@ -26,7 +26,7 @@ void Dominators::post(Function *func_){
 }
 
 void Dominators::sFastIDomAlg(Function *func_){
-    idom_.clear();      // ?
+    idom_.clear();
     post_order_id_.clear();
     reverse_post_order_.clear();
     post(func_);
@@ -71,11 +71,6 @@ void Dominators::sFastIDomAlg(Function *func_){
             }
         }
     }
-
-    // for(auto [bb,idom]:idom_){
-    //     if(bb!=entry)
-    //         ::std::cout<<bb->getName()<<" idom: "<<idom->getName()<<::std::endl;
-    // }
 }
 
 void Dominators::domAlg(Function *func_){
@@ -164,10 +159,6 @@ void Dominators::clear(){
     post_order_id_.clear();
     idom_.clear();
 
-    // dom_set_.clear();
-    // dom_tree_.clear();
-    // dom_frontier_.clear();
-
     func_dom_set_.clear();
     func_dom_tree_.clear();
     func_dom_frontier_.clear();
@@ -191,37 +182,16 @@ void Dominators::analyse(){
     }
 
     invalid = false;
-    /*
-    this->clear();
-    for(auto bb:func_->getBasicBlocks()){
-        dom_set_.insert({bb,{bb}});
-        dom_frontier_.insert({bb,{}});
-    }
-    sFastIDomAlg();
-    domFrontierAlg();
-    domTreeAlg();
-    // domAlg();
-     */
 }
 void Dominators::reAnalyse(){
     analyse();
-    /*
-    this->clear();
-    for(auto bb:func_->getBasicBlocks()){
-        dom_set_.insert({bb,{bb}});
-        dom_frontier_.insert({bb,{}});
-    }
-    sFastIDomAlg();
-    domFrontierAlg();
-    domTreeAlg();
-    // domAlg();
-     */
 }
 
 void Dominators::analyseOnFunc(Function *func) {
     sFastIDomAlg(func);
     domFrontierAlg(func);
     domTreeAlg(func);
+    domAlg(func);       // slow??
 }
 
 void Dominators::printDomFront(){

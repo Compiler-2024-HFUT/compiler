@@ -1,3 +1,9 @@
+/*
+    没有查找exits，loop的exits都为空
+
+ */
+
+
 #ifndef LOOPINFO_HPP
 #define LOOPINFO_HPP
 
@@ -6,12 +12,18 @@
 #include "midend/BasicBlock.hpp"
 #include "analysis/Info.hpp"
 #include "analysis/InfoManager.hpp"
+#include "utils/Logger.hpp"
 
+#include <iostream>
+#include <string>
 #include <vector>
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+using std::cout;
+using std::endl;
+using std::string;
 using std::vector;
 using std::map;
 using std::pair;
@@ -24,16 +36,57 @@ using BB = BasicBlock;
 
 class Loop {
     BB *header;  
-    BB *latch;                          // 有一条边连接到header, latch->header形成回边backedge
-    
-    vector<BB*> blocks;                 // 组成natural loop的集合
+    vector<BB*> latchs;                 // 有一条边连接到header, latch->header形成回边backedge
+    vector<BB*> exits;                  // 执行完循环或break后到达的基本块   
+
+    uset<BB*> blocks;                 // 组成natural loop的集合
     Loop *outer;                        // 外层循环
-    vector<Loop*> inner;                // 内循环
+    vector<Loop*> inners;               // 内循环
+    int depth = 1;                      // 循环深度
 public:
-    Loop(BB *tail, BB *head): latch(tail), header(head) {}
-    BB* getHeader() { return header; }
-    BB* getLatch()  { return latch;  }
-    void addBlock(BB* bb) { blocks.push_back(bb); }
+    Loop(BB *tail, BB *head): latchs({tail}), header(head) {}
+    
+    BB* const &getHeader() { return header; }
+    int getDepth() { return depth; }
+    Loop *getOuter() { return outer; }
+    void setDepth(int d) { depth = d; }
+    void setOuter(Loop *l) { outer = l; }
+
+    vector<BB*> const &getExits()   { return exits; }
+    vector<BB*> const &getLatchs()  { return latchs; }
+    uset<BB*> const &getBlocks()    { return blocks; }
+    vector<Loop*> const &getInners()  { return inners; }
+ 
+    void addExits(BB* bb) { exits.push_back(bb); }
+    void addLatchs(BB* bb) { latchs.push_back(bb); }
+    void addBlock(BB* bb) { blocks.insert(bb); }
+    void addInner(Loop *l) { inners.push_back(l); }
+
+    string print() {
+        string loop = "";
+        loop += STRING_YELLOW("header: ") + header->getName() + '\n';
+        loop += STRING_YELLOW("latchs") + ":\n";
+        for(auto bb : latchs) {
+            loop += '\t' + bb->getName() + '\n';
+        }
+        loop += STRING_YELLOW("blocks") + ":\n";
+        for(auto bb : blocks) {
+            loop += '\t' + bb->getName() + '\n';
+        }
+        /*
+        loop += "exits: " + '\n';
+        for(auto bb : exits) {
+            loop += '\t' + bb->getName() + '\n';
+        }
+        */
+        loop += STRING_YELLOW("inners") + ":\n";
+        for(auto l : inners) {
+            loop += "Depth" + ('0'+depth);
+            loop += l->print() + "\n";
+        }
+        
+        return loop;
+    }
 };
 
 class LoopInfo: public FunctionInfo {
@@ -42,20 +95,41 @@ class LoopInfo: public FunctionInfo {
     vector< pair<BB*, BB*> > retreatEdges;       // 由低层次指向高层次的边
     vector< pair<BB*, BB*> > backEdges;
 
-    void findRetreatEdges();   
+    void findRetreatEdges(Function *func_);   
     void findBackEdges();
-    void findLoops();
+    void findLoops(Function *func_);
+    void combineLoops(Function *func_);         // 对于存在continue的循环，存在多条backedge回到header，该方法主要是将具有相同header的Loop合并
+    void producedNestLoops(Function *func_);    // 处理嵌套循环，计算loop的inner
     void DFS_CFG( BB* rootBB, int level ); 
-    void DFS_CFG( BB* tail, BB* head, Loop *loop);
+    void DFS_CFG( BB* tail, BB* head, Loop *loop, Function *func_);
 public:
     LoopInfo(Module *m, InfoManager *im): FunctionInfo(m, im) { }
     virtual ~LoopInfo() { }
 
     virtual void analyse() override;
     virtual void reAnalyse() override;
-    virtual void analyseOnFunc() override;
+    virtual void analyseOnFunc(Function *func) override;
 
-    vector<Loop*> getLoops(Function* func) { return loops[func]; }
+    virtual string print() override {
+        string loopinfo = "";
+        module_->print();
+        for(Function *f : module_->getFunctions()) {
+            if(f->getBasicBlocks().size() == 0)
+                continue;
+            if(f->getBasicBlocks().size() != 0) {
+                loopinfo += STRING_RED("Loops of " + f->getName() + ":\n");
+                for(auto loop : loops[f]) {
+                    loopinfo += STRING(loop->print() + "\n");
+                }
+            }
+        }
+        return loopinfo;
+    }
+
+    vector<Loop*> getLoops(Function* func) { 
+        if(isInvalid()) analyse();
+        return loops[func]; 
+    }
 
 };
 

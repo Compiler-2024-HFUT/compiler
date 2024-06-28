@@ -1,8 +1,8 @@
 #include "frontend/parser.hpp"
 #include "midend/IRGen.hpp"
 #include "optimization/PassManager.hpp"
-
 #include "optimization/PassManagerBuilder.hpp"
+#include "utils/Logger.hpp"
 
 #include <iostream>
 #include <memory>
@@ -26,12 +26,11 @@ int main(int argc , char**argv){
 
     pm->run();
     cout << irgen.getModule()->print();
-    pm->getInfo<Dominators>()->printDomSet();
-    pm->getInfo<Dominators>()->printDomFront();
-    pm->getInfo<Dominators>()->printDomTree();
+    // pm->getInfo<Dominators>()->printDomSet();
+    // pm->getInfo<Dominators>()->printDomFront();
+    // pm->getInfo<Dominators>()->printDomTree();
 
     cout << pm->getInfo<LoopInfo>()->print();
-    
 
     // delete (p);
 
