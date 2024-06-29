@@ -1,4 +1,4 @@
-#include "optimization/Constbr.hpp"
+#include "optimization/ConstBrEli.hpp"
 #include "optimization/util.hpp"
 static ConstantInt* const_true=nullptr;
 static ConstantInt* const_false=nullptr;
@@ -91,7 +91,9 @@ void eraseBB(BasicBlock*bb){
 void ConstBr::runOnFunc(Function*func){
     const_true=ConstantInt::get(true);
     const_false=ConstantInt::get(false);
-    for(auto b:func->getBasicBlocks()){
-        findConstCond(b);
+    auto bbs=func->getBasicBlocks();
+    for(auto iter=bbs.begin();iter!=bbs.end();){
+        findConstCond(*iter);
+        ++iter;
     }
 }
