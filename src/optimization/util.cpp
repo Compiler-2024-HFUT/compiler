@@ -1,4 +1,5 @@
 #include "optimization/util.hpp"
+#include "midend/BasicBlock.hpp"
 #include "midend/Instruction.hpp"
 // bool is_call_func(CallInst*call,Function*f,std::set<Function*>visited){
 //     visited.insert(call->getParent()->getParent());
@@ -36,6 +37,10 @@ void deleteBasicBlock(BasicBlock*bb){
         delete instr;
     }
     delete  bb;
+}
+void deleteIns(BasicBlock*bb,Instruction*ins){
+    bb->deleteInstr(ins);
+    delete  ins;
 }
 // bool is_call_by(Function*be_called,Function*call_func,std::set<Function*>visited){
 //     for(auto u:be_called->getUseList())
