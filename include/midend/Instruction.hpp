@@ -60,7 +60,8 @@ public:
       cmpbr,
       fcmpbr,
       loadoffset,
-      storeoffset
+      storeoffset,
+      select,
     };
 
 public:
@@ -114,6 +115,7 @@ public:
         case OpID::fcmpbr: return "fcmpbr"; break;
         case OpID::loadoffset: return "loadoffset"; break;
         case OpID::storeoffset: return "storeoffset"; break;
+        case OpID::select:return "select"; break;
 
         default: return ""; break; 
       }
@@ -206,6 +208,8 @@ public:
 
     bool isTerminator() { return isBr() || isRet() || isCmpBr() || isFCmpBr(); }
     bool isWriteMem(){return isStore() || isStoreOffset(); }
+
+    bool isSelect(){return op_id_==OpID::select;}
 
     // void setId(int id) { id_ = id; }
     // int getId() { return id_; }
@@ -675,6 +679,26 @@ private:
     StoreOffsetInst(Value *val, Value *ptr, BasicBlock *bb);
 };
 
+class SelectInst: public Instruction {
+
+public:
+    static SelectInst *createSelect(Type*type,Value *cond, Value *true_val, Value *false_val, BasicBlock *bb);
+
+    // Type *getSelectType() const{return getType();}
+
+    __attribute__((always_inline)) Value *getCond() const { return getOperand(0); }
+    __attribute__((always_inline)) Value *getTrue() const { return getOperand(1); }
+    __attribute__((always_inline)) Value *getFalse() const { return getOperand(2); }
+
+    virtual std::string print() override;
+
+    Instruction *copyInst(BasicBlock *bb) override final{
+        return  new SelectInst(this->getType(),getOperand(0),getOperand(1), getOperand(2), bb);
+    }
+
+private:
+    SelectInst(Type*type,Value *cond, Value *true_val, Value *false_val, BasicBlock *bb);
+};
 
 #endif
 

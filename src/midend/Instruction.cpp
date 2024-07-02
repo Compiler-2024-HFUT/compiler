@@ -834,3 +834,32 @@ bool BinaryInst::isNeg(){
     }
     return ret;
 }
+SelectInst::SelectInst(Type*type,Value *cond, Value *true_val, Value *false_val, BasicBlock *bb): Instruction(type, Instruction::OpID::select, 3, bb) {
+    setOperand(0,cond);
+    setOperand(1,true_val);
+    setOperand(2,false_val);
+}
+SelectInst* SelectInst::createSelect(Type*type,Value *cond, Value *true_val, Value *false_val, BasicBlock *bb){
+    return new SelectInst(type,cond, true_val, false_val,bb);
+}
+std::string SelectInst::print() {
+    std::string instr_ir;
+    instr_ir += "%";
+    instr_ir += this->getName();
+    instr_ir += " = ";
+    instr_ir += this->getModule()->getInstrOpName(this->getInstrType());
+    instr_ir += " ";
+    instr_ir += getType()->print();
+    instr_ir += " ";
+    instr_ir += this->getOperand(0)->getType()->print();
+    instr_ir += " ";
+    // instr_ir += printAsOp(this->getOperand(0), false);
+    instr_ir += ", ";
+    instr_ir +getOperand(1)->getType()->print();
+    instr_ir += " ";
+    instr_ir += printAsOp(this->getOperand(1), false);
+    instr_ir += ",";
+    instr_ir +getOperand(1)->getType()->print();
+    instr_ir += printAsOp(this->getOperand(2), false);
+    return instr_ir;
+}
