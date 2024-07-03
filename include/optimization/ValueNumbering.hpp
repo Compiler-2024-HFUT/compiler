@@ -1,6 +1,7 @@
 #ifndef  VAL_NUM_HPP
 #define VAL_NUM_HPP
 #include "midend/Module.hpp"
+#include "midend/Value.hpp"
 #include "optimization/PassManager.hpp"
 struct Expr{
     enum class ExprOp:int32_t{
@@ -55,17 +56,17 @@ public:
 
 class ValNumbering:public FunctionPass{
     ValueTable vn_table_;
-    ::std::map<BasicBlock*,::std::set<Value*>> basic_value_;
+    // ::std::map<BasicBlock*,::std::set<Value*>> basic_value_;
     __attribute__((__always_inline__)) void clear(){
         vn_table_.clear();
-        basic_value_.clear();
+        // basic_value_.clear();
     }
     bool proInstr(Instruction*instr);
 public:
     bool dvnt(Function*func,BasicBlock*bb);
     virtual void runOnFunc(Function *func) override;
     // using FunctionPass::FunctionPass;
-    ValNumbering(Module *m) : FunctionPass(m){}
+    ValNumbering(Module *m, InfoManager *im) : FunctionPass(m, im){}
     ~ValNumbering(){};
     // virtual ~ValNumbering(){}
 

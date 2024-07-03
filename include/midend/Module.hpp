@@ -39,7 +39,7 @@ public:
     virtual std::string print();
     std::string printGra();
 
-    InfoManager *getInfoMan();
+    // InfoManager *getInfoMan();
 
 private:
     std::list<GlobalVariable *> globals_list_;                  //& The Global Variables in the module
@@ -52,7 +52,7 @@ private:
 
 private:
     std::unique_ptr<IRBuilder> builder_;
-    std::unique_ptr<InfoManager> info_man_;
+    // std::unique_ptr<InfoManager> info_man_;
 };
 
 #endif

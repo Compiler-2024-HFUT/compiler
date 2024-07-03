@@ -6,7 +6,7 @@
 static ConstantInt* const_true=nullptr;
 static ConstantInt* const_false=nullptr;
 std::set<BasicBlock*>erased;
-ConstBr::ConstBr(Module*m):FunctionPass(m){
+ConstBr::ConstBr(Module*m, InfoManager *im) : FunctionPass(m, im){
     const_true=ConstantInt::get(true);
     const_false=ConstantInt::get(false);
 }

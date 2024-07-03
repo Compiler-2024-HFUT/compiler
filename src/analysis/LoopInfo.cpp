@@ -3,20 +3,25 @@
 #include "analysis/Dominators.hpp"
 
 #include <unordered_map>
+#include <algorithm>
+using std::sort;
+using std::includes;
 template<typename key, typename value>
 using umap = std::unordered_map<key, value>;
 
-void LoopInfo::analyseOnFunc() {
+void LoopInfo::analyseOnFunc(Function *func_) {
     DFS_CFG(func_->getEntryBlock(), 0);
-    findRetreatEdges();
+    findRetreatEdges(func_);
     findBackEdges();
-    findLoops();
+    findLoops(func_);
+    combineLoops(func_);
+    producedNestLoops(func_);
 }
 
 void LoopInfo::analyse() {
     for (Function* f : module_->getFunctions()) {
-        func_ = f;
-        analyseOnFunc();
+        if(f->getBasicBlocks().size() == 0) continue;
+        analyseOnFunc(f);
     }
     invalid = false;    // validate
 }
@@ -30,10 +35,13 @@ void LoopInfo::DFS_CFG( BB* rootBB, int level ) {
     static umap<BB*, bool> isVisited;
     if(level == 0) {
         isVisited.clear();
+        for(BB *bb : rootBB->getParent()->getBasicBlocks()) {
+            isVisited[bb] = false;
+        }
     }
 
-    BBlevel.insert( {rootBB, level} );
-    BBlevel.insert( {rootBB, true} );
+    BBlevel[rootBB] = level;
+    isVisited[rootBB] = true;
 
     for(BB* bb : rootBB->getSuccBasicBlocks()) {
         if(!isVisited[bb]) {
@@ -45,25 +53,29 @@ void LoopInfo::DFS_CFG( BB* rootBB, int level ) {
 // **反向**深度优先遍历CFG，从tail开始，到head或entry结束
 // 遍历过程中遇到的BB既是Loop的BB
 // 遍历过程中，使用的参数head、Loop不变，但参数tail逐渐靠近head
-void LoopInfo::DFS_CFG( BB* tail, BB* head, Loop *loop ) {
+void LoopInfo::DFS_CFG( BB* tail, BB* head, Loop *loop, Function *func_ ) {
     static umap<BB*, bool> isVisited;
-    if(loop->getLatch() == tail) {
+    // 第一个exit必然是
+    if(loop->getLatchs()[0] == tail) {
         isVisited.clear();
+        for(BB *bb : head->getParent()->getBasicBlocks()) {
+            isVisited[bb] = false;
+        }
     }
 
-    BBlevel.insert( {tail, true} );
+    isVisited[tail] = true;
     loop->addBlock(tail);
 
     for(BB* pre : tail->getPreBasicBlocks()) {
         // pre未被访问，并且pre不是head或entry
         if(!isVisited[pre] && pre != head && pre != func_->getEntryBlock() ) {
-            DFS_CFG(pre, head, loop);
+            DFS_CFG(pre, head, loop, func_);
         }
     }
 }
 
 // 如果某个BBtail的level小于其后继节点BBhead，那么（BBtail，BBhead）构成一条RetreatEdge
-void LoopInfo::findRetreatEdges() {
+void LoopInfo::findRetreatEdges(Function *func_) {
     retreatEdges.clear();
     for(BB* tail : func_->getBasicBlocks()) {
         for(BB* head : tail->getSuccBasicBlocks()) {
@@ -78,11 +90,6 @@ void LoopInfo::findRetreatEdges() {
 void LoopInfo::findBackEdges() {
     backEdges.clear();
     Dominators *dom = infoManager->getInfo<Dominators>();
-    if(dom == nullptr) {
-        // here
-        exit(-1);
-    }
-    
 
     for(pair<BB*, BB*> edge : retreatEdges) {
         auto &domSet = dom->getDomSet(edge.second);
@@ -92,11 +99,69 @@ void LoopInfo::findBackEdges() {
     }
 }
 
-void LoopInfo::findLoops() {
+void LoopInfo::findLoops(Function *func_) {
     for(auto be : backEdges) {
         Loop *tmp = new Loop(be.first, be.second);
-        DFS_CFG( be.first, be.second, tmp );
+        DFS_CFG( be.first, be.second, tmp, func_ );
         tmp->addBlock(be.second);
         loops[func_].push_back(tmp);
+    }
+}
+
+// 同header的loop合并
+void LoopInfo::combineLoops(Function *func_) {
+    // loops按照header排序，使得同样header的loop相邻
+    sort(loops[func_].begin(), loops[func_].begin(), [](Loop *a, Loop* b){ return a->getHeader() < b->getHeader(); });
+
+    auto iter1 = loops[func_].begin(), iter2 = loops[func_].begin();
+    while(iter1 != loops[func_].end()) { 
+        iter2++;
+        // 如果iter1是最后一个元素，iter2为end
+        while(iter1 != loops[func_].end() && iter2 != loops[func_].end() && (*iter1)->getHeader() == (*iter2)->getHeader()) {
+            // 合并同header的2个loop
+            (*iter1)->addLatchs( (*iter2)->getLatchs()[0] );
+            for(auto bb : (*iter2)->getBlocks()) {
+                (*iter1)->addBlock(bb);
+            }
+            // 下个元素
+            iter2 = loops[func_].erase(iter2);
+        }
+        // 下一个header或end结束
+        iter1 = iter2;
+    }
+}
+
+void LoopInfo::producedNestLoops(Function *func_) {
+    bool erased = false;
+
+    // loops按照包含的基本块数量排序，少的在前
+    sort(loops[func_].begin(), loops[func_].begin(), [](Loop *a, Loop* b){ return a->getBlocks().size() < b->getBlocks().size(); });
+
+    auto iter1 = loops[func_].begin(), iter2 = loops[func_].begin();
+    while(iter1 != loops[func_].end()) {
+        iter2 = iter1 + 1;
+        while(iter2 != loops[func_].end()) {
+            // loop1 header 属于 loop2 且 loop1的blocks属于loop2的blocks
+            if( (*iter1)->getHeader() != (*iter2)->getHeader() && 
+                (*iter2)->getBlocks().find( (*iter1)->getHeader() ) != (*iter2)->getBlocks().end() && 
+                includes( (*iter2)->getBlocks().begin(), (*iter2)->getBlocks().end(), (*iter1)->getBlocks().begin(), (*iter1)->getBlocks().end() ) 
+                ) {
+                (*iter2)->addInner( (*iter1) );
+                (*iter1)->setOuter( (*iter2) );
+                (*iter1)->setDepth( (*iter2)->getDepth() + 1 );
+                // 标记移除已经被识别为子循环的iter1
+                erased = true;
+
+                break;
+            }
+            ++iter2;
+        }
+
+        // iter1是子循环，移除，iter1是下一个；不是，iter1移动到下一个
+        if(erased) {
+            iter1 = loops[func_].erase(iter1);
+        } else {
+            ++iter1;
+        }
     }
 }

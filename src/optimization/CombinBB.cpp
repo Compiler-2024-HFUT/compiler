@@ -46,6 +46,7 @@ using namespace  std;
 //         }
 //     // }
 // }
+CombinBB::CombinBB(Module *m, InfoManager *im) : FunctionPass(m, im){}
 void CombinBB::runOnFunc(Function*func){
     auto &bb_list=func->getBasicBlocks();
     if(bb_list.size()<2)return;

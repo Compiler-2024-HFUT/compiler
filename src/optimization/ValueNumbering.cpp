@@ -1,3 +1,4 @@
+#include "analysis/Dominators.hpp"
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include "midend/BasicBlock.hpp"
@@ -71,7 +72,8 @@ void ValNumbering::runOnFunc(Function*func){
     for(auto ins:entry->getInstructions()){
         vn_table_.getValueNum(ins);
     }
-    auto dom=info_man_->getFuncDom(func);
+    auto dom=info_man_->getInfo<Dominators>();
+
 }
 static std::set<BasicBlock*> visited;
 bool ValNumbering::dvnt(Function*func,BasicBlock*bb){

@@ -15,7 +15,7 @@ private:
     void rmStore();
     bool isAllocVar(Instruction *instr);
 public:
-    DeadStoreEli(Module *m) : FunctionPass(m){}
+    DeadStoreEli(Module *m, InfoManager *im) : FunctionPass(m, im){}
     ~DeadStoreEli(){};
     void runOnFunc(Function*func) override;
 };

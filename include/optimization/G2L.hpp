@@ -3,6 +3,7 @@
 
 
 #include "analysis/Dominators.hpp"
+#include "analysis/InfoManager.hpp"
 #include "midend/BasicBlock.hpp"
 #include "midend/Function.hpp"
 #include "midend/GlobalVariable.hpp"
@@ -40,7 +41,9 @@ private:
         new_phi.clear();
     }
 public:
-    G2L(Module *m) : Pass(m){}
+    G2L(Module *m,InfoManager*im) : Pass(m,im){
+        cur_dom_=info_man_->getInfo<Dominators>();
+    }
     ~G2L(){};
     void run() override;
 };

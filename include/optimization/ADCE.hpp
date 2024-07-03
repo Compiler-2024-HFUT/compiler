@@ -18,7 +18,7 @@ private:
     ::std::set<BasicBlock*> alive_blocks_;
 
 public:
-    ADCE(Module *m) : FunctionPass(m){}
+    ADCE(Module *m, InfoManager *im) : FunctionPass(m, im){}
     ~ADCE(){};
     void runOnFunc(Function*func) override;
 };

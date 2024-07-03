@@ -7,7 +7,7 @@
 class DeadPHIEli:public FunctionPass{
 public:
     void runOnFunc(Function*func)override;
-    DeadPHIEli(Module *m) : FunctionPass(m){}
+    DeadPHIEli(Module *m, InfoManager *im) : FunctionPass(m, im){}
     ~DeadPHIEli(){};
 };
 

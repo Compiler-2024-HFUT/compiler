@@ -245,7 +245,7 @@ void G2L::runGlobal(){
             continue;
         }
 
-        cur_dom_=info_man_->getFuncDom(func);
+        // cur_dom_=info_man_->getInfo<Dominators>();
         funcClear();
         visited.clear();
 

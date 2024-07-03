@@ -10,6 +10,6 @@ class ConstBr:public FunctionPass{
 public:
     static bool canFold(BasicBlock*bb);
     void runOnFunc(Function*func);
-    ConstBr(Module*m);
+    ConstBr(Module*m, InfoManager *im);
 };
 #endif

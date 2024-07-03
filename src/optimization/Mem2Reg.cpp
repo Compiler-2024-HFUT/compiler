@@ -140,7 +140,6 @@ void Mem2Reg::runOnFunc(Function*func){
         new_phi.clear();
         auto &bb_list=func->getBasicBlocks();
         if(bb_list.empty())return;
-        cur_dom_=info_man_->getFuncDom(func);
         // ::std::unique_ptr<Dominators> dom=std::make_unique<Dominators>(func);
         // cur_fun_dom=func_dom_.insert({func,std::move(dom)}).first;
 

@@ -23,7 +23,9 @@ private:
     bool isAllocVar(Instruction *instr);
 
 public:
-    Mem2Reg(Module *m) : FunctionPass(m){}
+    Mem2Reg(Module *m, InfoManager *im) : FunctionPass(m, im){
+        cur_dom_=info_man_->getInfo<Dominators>();
+    }
     ~Mem2Reg(){};
     // void run()=default;
     void runOnFunc(Function*func)override;

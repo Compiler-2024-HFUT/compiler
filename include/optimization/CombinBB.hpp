@@ -18,8 +18,8 @@ b1:
 */
 class CombinBB:public FunctionPass{
 public:
-    void runOnFunc(Function*func)override;
-    CombinBB(Module *m) : FunctionPass(m){}
+    virtual void runOnFunc(Function*func)override;
+    CombinBB(Module *m, InfoManager *im);
     ~CombinBB(){};
 };
 

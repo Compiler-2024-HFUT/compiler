@@ -1,16 +1,15 @@
 #ifndef INFO_MAN_HPP
 #define INFO_MAN_HPP
 #include "midend/Function.hpp"
-// #include "Dominators.hpp"
 #include "analysis/Info.hpp"
-// #include "optimization/PassManager.hpp"
+#include "utils/Logger.hpp"
+
 #include <map>
 #include <memory>
 #include <vector>
 
 class InfoManager{
     Module*module_;
-    // std::map<Function*,std::unique_ptr<Dominators> >func_doms_;
     std::vector<Info*> infos;
 
 public:
@@ -22,15 +21,23 @@ public:
             res = dynamic_cast<InfoType*>(infos[i]);
             i++;
         } while (res == nullptr && i < infos.size());
+        
+        if(res->isInvalid()) {
+            res->analyse();
+        }
+        
+        if(res == nullptr) {
+            LOG_ERROR("you don't add info", 1)
+        }
+
         return res;
     }
 
-    template<class InfoContainer, class InfoType>
-    void addInfo(InfoContainer *ic) {
-        infos.push_back( new InfoType(ic, this) );
+    template<class InfoType>
+    void addInfo() {
+        infos.push_back( new InfoType(module_, this) );
     }
 
-    // Dominators* getFuncDom(Function*f);
     void run();
 
     explicit InfoManager(Module*m):module_(m){}

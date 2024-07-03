@@ -13,7 +13,7 @@ private:
 
     ::std::set<CallInst *> getCallInfo(Module*);
 public:
-    FuncInline(Module *m) : Pass(m){}
+    FuncInline(Module *m, InfoManager *im) : Pass(m, im){}
     // void insertFunc(CallInst* call);
     ~FuncInline(){};
     void run() override;

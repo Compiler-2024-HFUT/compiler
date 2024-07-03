@@ -5,7 +5,6 @@
 #include "midend/Module.hpp"
 
 Module::Module(std::string name) : module_name_(name) ,builder_(std::make_unique<IRBuilder>()),
-info_man_(std::make_unique<InfoManager>(this)),
 //init instr_id2string 
 instr_id2string_{
     {Instruction::OpID::ret, "ret"},
@@ -96,4 +95,4 @@ std::string Module::printGra(){
     ret+="}\n";
     return ret;
 }
-__attribute__((always_inline)) InfoManager *Module::getInfoMan(){return info_man_.get();}
+// __attribute__((always_inline)) InfoManager *Module::getInfoMan(){return info_man_.get();}
