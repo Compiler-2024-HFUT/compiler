@@ -45,6 +45,7 @@ instr_id2string_{
     {Instruction::OpID::fcmpbr, "fcmpbr"},
     {Instruction::OpID::loadoffset, "loadoffset"},
     {Instruction::OpID::storeoffset, "storeoffset"},
+    {Instruction::OpID::select, "select"},
     }
 {
 }
