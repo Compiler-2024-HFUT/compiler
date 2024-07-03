@@ -18,26 +18,26 @@
 // }
 void fixPhiOpUse(Instruction*phi){
     auto &oper=phi->getOperands();
+    phi->removeUseOfOps();
     for(int i=0;i<oper.size();++i){
         auto value=phi->getOperand(i);
-        value->removeUse(phi);
         value->addUse(phi,i);
     }
 }
-void deleteBasicBlock(BasicBlock*bb){
-    ::std::list<Instruction*> &instrs=bb->getInstructions();
-    for(auto i:instrs){
-        i->removeUseOfOps();       
-    }
-    while(!instrs.empty()){
-        auto iter=instrs.begin();
-        auto instr=*iter;
-        assert(instr->getUseList().empty()&&"removed basicblock has cannot remove instruction");
-        instrs.pop_front();
-        delete instr;
-    }
-    delete  bb;
-}
+// void deleteBasicBlock(BasicBlock*bb){
+//     ::std::list<Instruction*> &instrs=bb->getInstructions();
+//     for(auto i:instrs){
+//         i->removeUseOfOps();
+//     }
+//     while(!instrs.empty()){
+//         auto iter=instrs.begin();
+//         auto instr=*iter;
+//         assert(instr->getUseList().empty()&&"removed basicblock has cannot remove instruction");
+//         instrs.pop_front();
+//         delete instr;
+//     }
+//     delete  bb;
+// }
 void deleteIns(BasicBlock*bb,Instruction*ins){
     bb->deleteInstr(ins);
     delete  ins;

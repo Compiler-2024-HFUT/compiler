@@ -8,7 +8,8 @@
 #include "optimization/PassManager.hpp"
 class ConstBr:public FunctionPass{
 public:
+    static bool canFold(BasicBlock*bb);
     void runOnFunc(Function*func);
-    ConstBr(Module*m):FunctionPass(m){}
+    ConstBr(Module*m);
 };
 #endif
