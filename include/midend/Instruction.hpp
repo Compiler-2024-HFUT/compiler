@@ -10,7 +10,7 @@
 class Module;
 class BasicBlock;
 class Function;
-
+class IRVisitor;
 class Instruction : public User {
 public:
     enum class OpID {
@@ -255,6 +255,9 @@ public:
 
     bool isNeg();
 
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
+
 private:
     BinaryInst(Type *ty, OpID id, Value *v1, Value *v2, BasicBlock *bb); 
     BinaryInst(Type *ty, OpID id, Value *v1, Value *v2); 
@@ -284,6 +287,8 @@ public:
     Instruction *copyInst(BasicBlock *bb) override final {
         return new CmpInst(getType(), cmp_op_, getOperand(0), getOperand(1), bb);
     }
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
 
 private:
     CmpInst(Type *ty, CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb); 
@@ -306,6 +311,8 @@ class FCmpInst : public Instruction {
     Instruction *copyInst(BasicBlock *bb) override final {
         return new FCmpInst(getType(), cmp_op_, getOperand(0), getOperand(1), bb);
     }
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
 
   private:
     FCmpInst(Type *ty, CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb);
@@ -333,6 +340,9 @@ public:
         new_inst->setOperand(0, getOperand(0));
         return new_inst;
     }
+
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
 
 protected:
     CallInst(Function *func, std::vector<Value *>args, BasicBlock *bb);
@@ -363,6 +373,9 @@ public:
         }
     }
 
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
+
 private:
     BranchInst(Value *cond, BasicBlock *if_true, BasicBlock *if_false,
                BasicBlock *bb);
@@ -390,6 +403,9 @@ public:
         }
     }
 
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
+
 private:
     ReturnInst(Value *val, BasicBlock *bb);
     ReturnInst(BasicBlock *bb);
@@ -410,6 +426,9 @@ public:
         }
         return new GetElementPtrInst(getOperand(0),idxs,bb);
     }
+
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
 
 private:
     GetElementPtrInst(Value *ptr, std::vector<Value *> idxs, BasicBlock *bb);
@@ -432,6 +451,9 @@ public:
         return new StoreInst(getOperand(0),getOperand(1),bb);
     }
 
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
+
 private:
     StoreInst(Value *val, Value *ptr, BasicBlock *bb);
 };
@@ -448,6 +470,9 @@ public:
     Instruction *copyInst(BasicBlock *bb) override final{
         return new MemsetInst(getOperand(0),bb);
     }
+
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
 
 private:
     MemsetInst(Value *ptr, BasicBlock *bb);
@@ -467,6 +492,9 @@ public:
         return new LoadInst(getType(),getOperand(0),bb);
     }
 
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
+
 private:
     LoadInst(Type *ty, Value *ptr, BasicBlock *bb);
 };
@@ -483,6 +511,9 @@ public:
     Instruction *copyInst(BasicBlock *bb) override final{
         return new AllocaInst(alloca_ty_,bb);
     }
+
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
 
 private:
     AllocaInst(Type *ty, BasicBlock *bb);
@@ -503,6 +534,9 @@ public:
         return new ZextInst(getInstrType(),getOperand(0),dest_ty_,bb);
     }
 
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
+
 private:
     ZextInst(OpID op, Value *val, Type *ty, BasicBlock *bb);
 
@@ -522,6 +556,9 @@ public:
         return new SiToFpInst(getInstrType(), getOperand(0), getDestType(), bb);
     }
 
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
+
 private:
     SiToFpInst(OpID op, Value *val, Type *ty, BasicBlock *bb);
 
@@ -540,6 +577,9 @@ public:
     Instruction *copyInst(BasicBlock *bb) override final{
         return new FpToSiInst(getInstrType(), getOperand(0), getDestType(), bb);
     }
+
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
 
 private:
     FpToSiInst(OpID op, Value *val, Type *ty, BasicBlock *bb);
@@ -569,6 +609,9 @@ public:
         }
         return new_inst;
     }
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
+
 private:
      PhiInst(OpID op, std::vector<Value *> vals, std::vector<BasicBlock *> val_bbs, Type *ty, BasicBlock *bb);
 
@@ -593,6 +636,9 @@ public:
         new_inst->setOperand(3, getOperand(3));
         return new_inst;
     }
+
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
 
 private:
     CmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb);
@@ -620,6 +666,9 @@ public:
         return new_inst;
     }
 
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
+
 
 private:
     FCmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb);
@@ -645,6 +694,9 @@ public:
         return new_inst;
     }
 
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
+
 private:
     LoadOffsetInst(Type *ty, Value *ptr, Value *offset, BasicBlock *bb);
     LoadOffsetInst(Type *ty, Value *ptr, BasicBlock *bb);
@@ -669,6 +721,9 @@ public:
         new_inst->setOperand(2, getOperand(2));
         return new_inst;
     }
+
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
 
 private:
     StoreOffsetInst(Value *val, Value *ptr, Value *offset, BasicBlock *bb);

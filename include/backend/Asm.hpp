@@ -4,8 +4,8 @@
 
 class Val{
     public:
-        vir
-}
+        
+};
 
 
 

@@ -11,9 +11,12 @@
 #include "Value.hpp"
 #include "Instruction.hpp"
 #include "analysis/InfoManager.hpp"
+
+
 class GlobalVariable;
 class Function;
 class Instruction;
+class IRVisitor;
 class Module {
 public:
     explicit Module(std::string name);
@@ -39,6 +42,10 @@ public:
     virtual std::string print();
 
     InfoManager *getInfoMan();
+
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
+
 
 private:
     std::list<GlobalVariable *> globals_list_;                  //& The Global Variables in the module

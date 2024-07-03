@@ -13,6 +13,7 @@ class Argument;
 class BasicBlock;
 class Type;
 class FunctionType;
+class IRVisitor;
 
 class Function : public Value {
 public:
@@ -46,6 +47,9 @@ public:
     void setInstrName();
 
     std::string print();
+
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
   
 private:
     void buildArgs();
