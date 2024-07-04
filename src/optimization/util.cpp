@@ -24,6 +24,20 @@ void fixPhiOpUse(Instruction*phi){
         value->addUse(phi,i);
     }
 }
+void rmBBPhi(BasicBlock*valuefrom){
+    auto _uselist=valuefrom->getUseList();
+    for(auto [v,i ]:_uselist){
+        if(auto phi=dynamic_cast<PhiInst*>(v)){
+            phi->removeOperands(i-1,i);
+            fixPhiOpUse(phi);
+            // if(phi->getNumOperands()==2&&valuefrom->getPreBasicBlocks().size()<2){
+            //     phi->replaceAllUseWith(phi->getOperand(0));
+            //     phi->getParent()->deleteInstr(phi);
+            //     delete phi;
+            // }
+        }
+    }
+}
 // void deleteBasicBlock(BasicBlock*bb){
 //     ::std::list<Instruction*> &instrs=bb->getInstructions();
 //     for(auto i:instrs){

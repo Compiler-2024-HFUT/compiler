@@ -6,3 +6,4 @@
 void fixPhiOpUse(Instruction*phi);
 // void deleteBasicBlock(BasicBlock*bb);
 void deleteIns(BasicBlock*bb,Instruction*ins);
+void rmBBPhi(BasicBlock*valuefrom);
