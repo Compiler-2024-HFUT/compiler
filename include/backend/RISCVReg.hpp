@@ -4,6 +4,7 @@
 
 #include <map>
 #include <string>
+#include <iostream>
 
 using ::std::map;
 
@@ -82,7 +83,21 @@ class RISCV{
             ft11
         };
 
-    inline ::std::string reg2String(GPR reg){
+
+    static inline GPR id2GReg(int reg_id){
+        if(reg_id>=static_cast<int>(GPR::zero) && reg_id<=static_cast<int>(GPR::t6))
+            return static_cast<GPR>(reg_id);
+        else ::std::cout<<"寄存器ID非法"<<::std::endl;
+    }
+
+    static inline FPR id2FReg(int reg_id){
+        if(reg_id>=static_cast<int>(FPR::ft0) && reg_id<=static_cast<int>(FPR::ft11))
+            return static_cast<FPR>(reg_id);
+        else ::std::cout<<"寄存器ID非法"<<::std::endl;
+    }
+
+
+    static inline ::std::string reg2String(GPR reg){
         int index = static_cast<int>(reg);
         switch(index){
             case 0: return "zero";
@@ -120,7 +135,7 @@ class RISCV{
         }
     }
 
-    inline ::std::string freg2String(FPR reg){
+    static inline ::std::string freg2String(FPR reg){
         int index = static_cast<int>(reg);
         switch(index){
             case 0: return "ft0";
