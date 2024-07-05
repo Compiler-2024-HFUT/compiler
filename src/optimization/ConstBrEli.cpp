@@ -1,16 +1,13 @@
 #include "optimization/ConstBrEli.hpp"
 #include "midend/Instruction.hpp"
 #include "optimization/util.hpp"
-#include <algorithm>
 #include <cassert>
-static ConstantInt* const_true=nullptr;
-static ConstantInt* const_false=nullptr;
-std::set<BasicBlock*>erased;
+
 ConstBr::ConstBr(Module*m, InfoManager *im) : FunctionPass(m, im){
     const_true=ConstantInt::get(true);
     const_false=ConstantInt::get(false);
 }
-void eraseBB(BasicBlock*bb);
+
 /*
 value_in:
     %1=phi[%0,valuefrom]，[%2，bb3]
@@ -34,7 +31,7 @@ void rmBBPhi(BasicBlock*value_in,BasicBlock*valuefrom){
     }
 }
 
-bool constCondFold(BasicBlock*bb){
+bool ConstBr::constCondFold(BasicBlock*bb){
     auto termin=bb->getTerminator();
     /*多判断一下 */
     if(!termin->isBr()||termin->getNumOperands()!=3)return false;
@@ -72,7 +69,7 @@ bool constCondFold(BasicBlock*bb){
     }
     return false;
 }
-void eraseBB(BasicBlock*bb){
+void ConstBr::eraseBB(BasicBlock*bb){
     if(bb==bb->getParent()->getEntryBlock())
         return;
     if(!bb->getPreBasicBlocks().empty())
@@ -113,7 +110,7 @@ void ConstBr::runOnFunc(Function*func){
         if(constCondFold(*iter))
             iter=bbs.begin();
     }
-    std::list<Instruction*> to_del;
+    std::vector<Instruction*> to_del;
     for(auto b:erased){
         std::copy(b->getInstructions().begin(),b->getInstructions().end(),to_del.end());
     }
