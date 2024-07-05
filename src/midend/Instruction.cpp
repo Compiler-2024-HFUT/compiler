@@ -16,11 +16,11 @@ Instruction::Instruction(Type *ty, OpID id, unsigned num_ops)
     : User(ty, "", num_ops), op_id_(id), parent_(nullptr) {}
 
 
-Function *Instruction::getFunction() { 
-    return parent_->getParent(); 
+Function *Instruction::getFunction() {
+    return parent_->getParent();
 }
 
-Module *Instruction::getModule() { 
+Module *Instruction::getModule() {
     return parent_->getParent()->getParent();
 }
 
@@ -139,10 +139,10 @@ std::string BinaryInst::print() {
 }
 
 //& CmpInst
-CmpInst::CmpInst(Type *ty, CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb) 
+CmpInst::CmpInst(Type *ty, CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb)
     : Instruction(ty, Instruction::OpID::cmp, 2, bb), cmp_op_(op) {
     setOperand(0, lhs);
-    setOperand(1, rhs); 
+    setOperand(1, rhs);
 }
 
 CmpInst *CmpInst::createCmp(CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb) {
@@ -257,7 +257,7 @@ std::string FCmpInst::print() {
 }
 
 //& CallInst
-CallInst::CallInst(Function *func, std::vector<Value *> args, BasicBlock *bb) 
+CallInst::CallInst(Function *func, std::vector<Value *> args, BasicBlock *bb)
     : Instruction(func->getReturnType(), Instruction::OpID::call, args.size()+1, bb) {
     assert(func->getNumOfArgs() == args.size());
     int num_ops = args.size() + 1;
@@ -269,7 +269,7 @@ CallInst::CallInst(Function *func, std::vector<Value *> args, BasicBlock *bb)
 
 CallInst::CallInst(Type *ret_ty, std::vector<Value *> args, BasicBlock *bb)
     : Instruction(ret_ty, Instruction::OpID::call, args.size() + 1, bb) {
-    int num_ops = args.size() + 1; 
+    int num_ops = args.size() + 1;
     for (int i = 1; i < num_ops; i++) {
         setOperand(i, args[i-1]);
     }
@@ -306,11 +306,11 @@ std::string CallInst::print() {
 }
 
 //& BranchInst
-BranchInst::BranchInst(Value *cond, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb) 
-    : Instruction(Type::getVoidType(), Instruction::OpID::br, 3, bb) { 
+BranchInst::BranchInst(Value *cond, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb)
+    : Instruction(Type::getVoidType(), Instruction::OpID::br, 3, bb) {
     setOperand(0, cond);
     setOperand(1, if_true);
-    setOperand(2, if_false); 
+    setOperand(2, if_false);
 }
 
 BranchInst::BranchInst(BasicBlock *if_true, BasicBlock *bb)
@@ -361,12 +361,12 @@ std::string BranchInst::print() {
 
 //& ReturnInst
 
-ReturnInst::ReturnInst(Value *val, BasicBlock *bb) 
+ReturnInst::ReturnInst(Value *val, BasicBlock *bb)
     : Instruction(Type::getVoidType(), Instruction::OpID::ret, 1, bb) {
     setOperand(0, val);
 }
 
-ReturnInst::ReturnInst(BasicBlock *bb) 
+ReturnInst::ReturnInst(BasicBlock *bb)
     : Instruction(Type::getVoidType(), Instruction::OpID::ret, 0, bb) {
 
 }
@@ -395,7 +395,7 @@ std::string ReturnInst::print() {
 }
 
 //& GetElementPtrInst
-GetElementPtrInst::GetElementPtrInst(Value *ptr, std::vector<Value *> idxs, BasicBlock *bb) 
+GetElementPtrInst::GetElementPtrInst(Value *ptr, std::vector<Value *> idxs, BasicBlock *bb)
     : Instruction(PointerType::get(getElementType(ptr, idxs)), Instruction::OpID::getelementptr, 1+idxs.size(), bb) {
     setOperand(0, ptr);
     for (int i = 0; i < idxs.size(); i++) {
@@ -489,7 +489,7 @@ std::string MemsetInst::print() {
 }
 
 //& LoadInst
-LoadInst::LoadInst(Type *ty, Value *ptr, BasicBlock *bb) 
+LoadInst::LoadInst(Type *ty, Value *ptr, BasicBlock *bb)
     : Instruction(ty, Instruction::OpID::load, 1, bb) {
     assert(ptr->getType()->isPointerType());
     assert(ty == static_cast<PointerType *>(ptr->getType())->getElementType());
@@ -516,7 +516,7 @@ std::string LoadInst::print() {
 }
 
 //& AllocInst
-AllocaInst::AllocaInst(Type *ty, BasicBlock *bb) 
+AllocaInst::AllocaInst(Type *ty, BasicBlock *bb)
     : Instruction(PointerType::get(ty), Instruction::OpID::alloca, 0, bb), alloca_ty_(ty) {
 
 }
@@ -612,7 +612,7 @@ std::string SiToFpInst::print() {
 }
 
 //& PhiInst
-PhiInst::PhiInst(OpID op, std::vector<Value *> vals, std::vector<BasicBlock *> val_bbs, Type *ty, BasicBlock *bb) 
+PhiInst::PhiInst(OpID op, std::vector<Value *> vals, std::vector<BasicBlock *> val_bbs, Type *ty, BasicBlock *bb)
     : Instruction(ty, op, 2*vals.size()) {
     for (int i = 0; i < vals.size(); i++) {
         setOperand(2 * i, vals[i]);
@@ -655,7 +655,7 @@ std::string PhiInst::print() {
     return instr_ir;
 }
 
-CmpBrInst::CmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb) 
+CmpBrInst::CmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb)
         :Instruction(Type::getVoidType(), Instruction::OpID::cmpbr, 4, bb), cmp_op_(op) {
     setOperand(0, lhs);
     setOperand(1, rhs);
@@ -664,7 +664,7 @@ CmpBrInst::CmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, Basi
 }
 
 
-CmpBrInst::CmpBrInst(CmpOp op, Value *lhs, Value *rhs, 
+CmpBrInst::CmpBrInst(CmpOp op, Value *lhs, Value *rhs,
             BasicBlock *bb)
     : Instruction(Type::getVoidType(), Instruction::OpID::cmpbr, 4, bb), cmp_op_(op) {
     setOperand(0, lhs);
@@ -695,16 +695,16 @@ std::string CmpBrInst::print() {
     } else {
         instr_ir += printAsOp(this->getOperand(1), true);
     }
-    
+
     instr_ir += ", ";
     instr_ir += printAsOp(this->getOperand(2), true);
     instr_ir += ", ";
     instr_ir += printAsOp(this->getOperand(3), true);
-    
+
     return instr_ir;
 }
 
-FCmpBrInst::FCmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb) 
+FCmpBrInst::FCmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb)
         :Instruction(Type::getVoidType(), Instruction::OpID::fcmpbr, 4, bb), cmp_op_(op) {
     setOperand(0, lhs);
     setOperand(1, rhs);
@@ -712,7 +712,7 @@ FCmpBrInst::FCmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, Ba
     setOperand(3, if_false);
 }
 
-FCmpBrInst::FCmpBrInst(CmpOp op, Value *lhs, Value *rhs, 
+FCmpBrInst::FCmpBrInst(CmpOp op, Value *lhs, Value *rhs,
             BasicBlock *bb)
     : Instruction(Type::getVoidType(), Instruction::OpID::fcmpbr, 4, bb), cmp_op_(op) {
     setOperand(0, lhs);
@@ -743,12 +743,12 @@ std::string FCmpBrInst::print() {
     } else {
         instr_ir += printAsOp(this->getOperand(1), true);
     }
-    
+
     instr_ir += ", ";
     instr_ir += printAsOp(this->getOperand(2), true);
     instr_ir += ", ";
     instr_ir += printAsOp(this->getOperand(3), true);
-    
+
     return instr_ir;
 }
 
@@ -849,17 +849,10 @@ std::string SelectInst::print() {
     instr_ir += " = ";
     instr_ir += this->getModule()->getInstrOpName(this->getInstrType());
     instr_ir += " ";
-    instr_ir += getType()->print();
-    instr_ir += " ";
-    instr_ir += this->getOperand(0)->getType()->print();
-    instr_ir += " ";
-    // instr_ir += printAsOp(this->getOperand(0), false);
+    instr_ir += printAsOp(this->getOperand(0), true);
     instr_ir += ", ";
-    instr_ir +getOperand(1)->getType()->print();
-    instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(1), false);
-    instr_ir += ",";
-    instr_ir +getOperand(1)->getType()->print();
-    instr_ir += printAsOp(this->getOperand(2), false);
+    instr_ir += printAsOp(this->getOperand(1), true);
+    instr_ir += ", ";
+    instr_ir += printAsOp(this->getOperand(2), true);
     return instr_ir;
 }

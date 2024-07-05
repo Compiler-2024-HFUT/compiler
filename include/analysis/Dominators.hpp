@@ -14,7 +14,7 @@
 // };
 class Dominators:public FunctionInfo{
 private:
-    ::std::list<BasicBlock *> reverse_post_order_;
+    ::std::vector<BasicBlock *> reverse_post_order_;
     ::std::map<BasicBlock*,int> post_order_id_;
 
     //左：被支配者，右：直接支配者 entry的直接支配者为nullptr
@@ -43,7 +43,7 @@ private:
         func_dom_set_[bb->getParent()].find(bb)->second.insert(dom);
     }
     // void addDomTree(BasicBlock* dominator,BasicBlock*bb ){dom_tree.find(dominator)->second.insert(bb);}
-    
+
     void post(Function *func_);
     void sFastIDomAlg(Function *func_);
     void domAlg(Function *func_);
@@ -63,7 +63,7 @@ public:
     ::std::set<BasicBlock*> &getDomFrontier(BasicBlock* bb){ return func_dom_frontier_[bb->getParent()].find(bb)->second; }
     ::std::unordered_set<BasicBlock*> &getDomSet(BasicBlock* bb){ return func_dom_set_[bb->getParent()].find(bb)->second; }
     ::std::set<BasicBlock*> &getDomTree(BasicBlock* dominator){ return func_dom_tree_[dominator->getParent()].find(dominator)->second; }
-    
+
     BasicBlock* getIDom(BasicBlock*b){ return idom_[b];}
 
 };
