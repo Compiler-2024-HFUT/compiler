@@ -48,11 +48,11 @@ void Function::removeBasicBlock(BasicBlock *bb) {
         succ->removePreBasicBlock(bb);
     }
 }
-BasicBlock *Function::getRetBlock() const { 
-    for(auto b:basic_blocks_) 
+BasicBlock *Function::getRetBlock() const {
+    for(auto b:basic_blocks_)
         if(b->getSuccBasicBlocks().empty())
             return b;
-    return nullptr;    
+    return nullptr;
 }
 void Function::setInstrName() {
     std::map<Value *, int> seq;
@@ -146,9 +146,9 @@ std::string Function::print() {
     return func_ir;
 }
 std::string Function::printGra(){
+    ::std::string ret;
 #ifdef DEBUG
     setInstrName();
-    ::std::string ret;
     ::std::set<BasicBlock*> bb_set;
     // ::std::vector<::std::pair<BasicBlock*,BasicBlock*>>graph;
     ::std::map<BasicBlock* , ::std::set<BasicBlock*>>graph;
