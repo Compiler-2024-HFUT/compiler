@@ -145,11 +145,11 @@ void BrToSelect::runOnFunc(Function*func){
         }
         phi->getParent()->deleteInstr(phi);
         auto ul=phi->getUseList();
-        for(auto [v,i ]:ul){
-            if(auto _phi=dynamic_cast<PhiInst*>(v)){
-                _phi->replaceOperand(i+1,b);
-            }
-        }
+        // for(auto [v,i ]:ul){
+        //     if(auto _phi=dynamic_cast<PhiInst*>(v)){
+        //         _phi->replaceOperand(i+1,b);
+        //     }
+        // }
         auto truebb=bb_info_.true_bb;
         func->removeBasicBlock(truebb);
         auto _ins=truebb->getInstructions().front();
