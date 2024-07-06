@@ -37,12 +37,12 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
     //直接递归
     if(cur_func==call_func)
         return;
-    ::std::list<BasicBlock*>succ_bbs;
+    // ::std::list<BasicBlock*>succ_bbs;
     Instruction *new_instr;
-    BasicBlock *new_bb=cur_bb;
+    BasicBlock *new_bb;
     BasicBlock *ret_bb;
     std::map<Value *, Value *> old_new;
-    std::list<BasicBlock *> new_bbs;
+    std::vector<BasicBlock *> new_bbs;
     std::set<CallInst*> _incall;
 
     auto iter_inster=++(cur_bb->findInstruction(call));
@@ -51,10 +51,7 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
         auto cur_iter=iter_inster++;
         _list.push_back(cur_iter);
     }
-    list<BasicBlock*>_succ_bbs;
-    for(auto succ_bb:cur_bb->getSuccBasicBlocks()){
-        _succ_bbs.push_back(succ_bb);
-    }
+    list<BasicBlock*>_succ_bbs=cur_bb->getSuccBasicBlocks();
 
     {
         int arg_idx = 1;
@@ -63,8 +60,8 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
         }
     }
 
-    auto func_list{call_func->getBasicBlocks()};
-    for(auto old_bb: func_list){
+    // auto func_list{};
+    for(auto old_bb: call_func->getBasicBlocks()){
         new_bb = BasicBlock::create( "", cur_func);
         old_new.insert({old_bb,new_bb});
         new_bbs.push_back(new_bb);
@@ -83,7 +80,7 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
                 instr->replaceOperand(0,true_bb);
                 true_bb->addPreBasicBlock(new_bb);
                 new_bb->addSuccBasicBlock(true_bb);
-            }else if(instr->isBr()||instr->isCmpBr()||instr->isFCmpBr()){
+            }else if(instr->isBr()/*||instr->isCmpBr()||instr->isFCmpBr()*/){
                 if(old_new[instr->getOperand(0)]!=nullptr)
                     instr->replaceOperand(0, old_new[instr->getOperand(0)]);
                 auto true_bb = static_cast<BasicBlock*>(old_new[instr->getOperand(1)]);
@@ -93,6 +90,7 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
                 auto false_bb = static_cast<BasicBlock*>(old_new[instr->getOperand(2)]);
                 instr->replaceOperand(2,false_bb);
                 false_bb->addPreBasicBlock(new_bb);
+                new_bb->addSuccBasicBlock(false_bb);
             }else if(instr->isRet()){
                 call->removeOperands(0,0);
                 if (instr->getNumOperands()==1){
@@ -126,7 +124,7 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
     BranchInst::createBr(*new_bbs.begin(),cur_bb);
 
     for(auto succ_bb:_succ_bbs){
-        succ_bb->getPreBasicBlocks().remove(cur_bb);
+        succ_bb->removePreBasicBlock(cur_bb);
         succ_bb->addPreBasicBlock(ret_bb);
         ret_bb->addSuccBasicBlock(succ_bb);
 
@@ -138,9 +136,10 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
                         instr->replaceOperand(i,ret_bb);
                     }
                 }
-            }
+            }else
+                break;
         }
-    
+
     }
 
     // calleds.push_back(call_func);

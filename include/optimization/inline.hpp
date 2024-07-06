@@ -4,7 +4,7 @@
 #include "midend/Instruction.hpp"
 #include "PassManager.hpp"
 #include <set>
-
+//不考虑lir情况
 void insertFunc(CallInst* call,std::list<Function*> called);
 __attribute__((always_inline))  bool isEmpty(Function* f);
 class FuncInline : public Pass{
