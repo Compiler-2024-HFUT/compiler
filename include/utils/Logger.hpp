@@ -10,6 +10,7 @@
 // string str
 // str += STRING(str1) + str2 + ...
 #define STRING(msg)         ((std::string)(msg))
+#define STRING_NUM(num)     (std::to_string(num))
 
 // 颜色代码
 #define LOG_COLOR_RESET     STRING("\e[0m")

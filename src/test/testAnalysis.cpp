@@ -25,13 +25,14 @@ int main(int argc , char**argv){
     buildTestPassManager(pm);
 
     pm->run();
-    cout << irgen.getModule()->print();
+    // cout << irgen.getModule()->print();
     // pm->getInfo<Dominators>()->printDomSet();
     // pm->getInfo<Dominators>()->printDomFront();
     // pm->getInfo<Dominators>()->printDomTree();
 
+    // cout << pm->getInfo<LiveVar>()->print();
     cout << pm->getInfo<LoopInfo>()->print();
 
-    // delete (p);
+    delete (p);
 
 }

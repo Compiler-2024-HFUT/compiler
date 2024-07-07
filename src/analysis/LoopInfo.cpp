@@ -18,18 +18,6 @@ void LoopInfo::analyseOnFunc(Function *func_) {
     producedNestLoops(func_);
 }
 
-void LoopInfo::analyse() {
-    for (Function* f : module_->getFunctions()) {
-        if(f->getBasicBlocks().size() == 0) continue;
-        analyseOnFunc(f);
-    }
-    invalid = false;    // validate
-}
-
-void LoopInfo::reAnalyse() {
-    analyse();
-}
-
 // 深度优先遍历CFG，并标注层次，EntryBlock的level为0
 void LoopInfo::DFS_CFG( BB* rootBB, int level ) {
     static umap<BB*, bool> isVisited;
@@ -75,11 +63,12 @@ void LoopInfo::DFS_CFG( BB* tail, BB* head, Loop *loop, Function *func_ ) {
 }
 
 // 如果某个BBtail的level小于其后继节点BBhead，那么（BBtail，BBhead）构成一条RetreatEdge
+// 特殊地，如果tail == head，它们也组成一条RetreatEdge
 void LoopInfo::findRetreatEdges(Function *func_) {
     retreatEdges.clear();
     for(BB* tail : func_->getBasicBlocks()) {
         for(BB* head : tail->getSuccBasicBlocks()) {
-            if(BBlevel[tail] > BBlevel[head]) {
+            if(BBlevel[tail] > BBlevel[head] || tail == head) {
                 retreatEdges.push_back( {tail, head} );
             }
         }
@@ -135,33 +124,58 @@ void LoopInfo::producedNestLoops(Function *func_) {
     bool erased = false;
 
     // loops按照包含的基本块数量排序，少的在前
-    sort(loops[func_].begin(), loops[func_].begin(), [](Loop *a, Loop* b){ return a->getBlocks().size() < b->getBlocks().size(); });
+    sort(loops[func_].begin(), loops[func_].end(), [](Loop *a, Loop *b) { return (a->getBlocks().size() < b->getBlocks().size()); });
+
+    // 判断a为b的真子集
+    auto isSubset = [](const uset<BB*> &a, const uset<BB*> &b) {
+        for (const auto& element : a) {
+            if (b.find(element) == b.end()) {
+                return false;
+            }
+        }
+        return a.size() < b.size();
+    };
 
     auto iter1 = loops[func_].begin(), iter2 = loops[func_].begin();
     while(iter1 != loops[func_].end()) {
         iter2 = iter1 + 1;
         while(iter2 != loops[func_].end()) {
             // loop1 header 属于 loop2 且 loop1的blocks属于loop2的blocks
-            if( (*iter1)->getHeader() != (*iter2)->getHeader() && 
-                (*iter2)->getBlocks().find( (*iter1)->getHeader() ) != (*iter2)->getBlocks().end() && 
-                includes( (*iter2)->getBlocks().begin(), (*iter2)->getBlocks().end(), (*iter1)->getBlocks().begin(), (*iter1)->getBlocks().end() ) 
-                ) {
+            if( (*iter2)->getBlocks().count( (*iter1)->getHeader() ) && isSubset( (*iter1)->getBlocks(), (*iter2)->getBlocks() ) ) {
+
                 (*iter2)->addInner( (*iter1) );
                 (*iter1)->setOuter( (*iter2) );
                 (*iter1)->setDepth( (*iter2)->getDepth() + 1 );
+                
                 // 标记移除已经被识别为子循环的iter1
                 erased = true;
-
                 break;
             }
             ++iter2;
         }
 
         // iter1是子循环，移除，iter1是下一个；不是，iter1移动到下一个
-        if(erased) {
+        if(erased && iter2 != loops[func_].end()) {
             iter1 = loops[func_].erase(iter1);
         } else {
             ++iter1;
         }
     }
+}
+
+string LoopInfo::print() {
+    string loopinfo = "";
+    module_->print();
+    for(Function *f : module_->getFunctions()) {
+        if(f->getBasicBlocks().size() == 0 || loops[f].size() == 0)
+            continue;
+        
+        if(f->getBasicBlocks().size() != 0) {
+            loopinfo += STRING_RED("Loops of " + f->getName() + " with LoopSize " + STRING_NUM(loops[f].size()) +":\n");
+            for(auto loop : loops[f]) {
+                loopinfo += STRING(loop->print() + "\n");
+            }
+        }
+    }
+    return loopinfo;
 }

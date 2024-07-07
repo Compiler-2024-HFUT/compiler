@@ -79,10 +79,13 @@ public:
             loop += '\t' + bb->getName() + '\n';
         }
         */
-        loop += STRING_YELLOW("inners") + ":\n";
-        for(auto l : inners) {
-            loop += "Depth" + ('0'+depth);
-            loop += l->print() + "\n";
+
+        if(inners.size() != 0) {
+            loop += STRING_YELLOW("inners") + ":\n";
+            for(auto l : inners) {
+                loop += STRING("outer's header: ") + STRING_RED(header->getName()) + STRING(" inner's depth: ") + STRING_NUM(depth);
+                loop += "\n" + l->print() + "\n";
+            }
         }
         
         return loop;
@@ -106,25 +109,9 @@ public:
     LoopInfo(Module *m, InfoManager *im): FunctionInfo(m, im) { }
     virtual ~LoopInfo() { }
 
-    virtual void analyse() override;
-    virtual void reAnalyse() override;
     virtual void analyseOnFunc(Function *func) override;
 
-    virtual string print() override {
-        string loopinfo = "";
-        module_->print();
-        for(Function *f : module_->getFunctions()) {
-            if(f->getBasicBlocks().size() == 0)
-                continue;
-            if(f->getBasicBlocks().size() != 0) {
-                loopinfo += STRING_RED("Loops of " + f->getName() + ":\n");
-                for(auto loop : loops[f]) {
-                    loopinfo += STRING(loop->print() + "\n");
-                }
-            }
-        }
-        return loopinfo;
-    }
+    virtual string print() override;
 
     vector<Loop*> getLoops(Function* func) { 
         if(isInvalid()) analyse();
