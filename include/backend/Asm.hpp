@@ -173,18 +173,6 @@ class IRIA: public AddressMode{
 
 };
 
-class FRIA: public AddressMode{
-    public:
-        FRIA(int id, int offset):reg(RISCV::id2GReg(id)), offset(offset){}
-        bool isI(){return false;}
-        RISCV::GPR getReg(){return reg;}
-        int getOffset(){return offset;}
-        ::std::string print() final;
-
-    private:
-        RISCV::GPR reg; 
-        int offset;
-};
 
 
 class AsmUnit;

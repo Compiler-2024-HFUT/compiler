@@ -34,9 +34,7 @@ inline ::std::string FRA::print(){
 inline ::std::string IRIA::print(){
     return ::std::to_string(offset)+"("+RISCV::reg2String(reg)+")";
 }
-inline ::std::string FRIA::print(){
-    return ::std::to_string(offset)+"("+RISCV::reg2String(reg)+")";
-}
+
 inline ::std::string AsmUnit::print(){
     asm_context+=AsmString::space+
                 ".file"+
