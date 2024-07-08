@@ -132,6 +132,7 @@ class RISCV{
             case 29: return "t4";
             case 30: return "t5";
             case 31: return "t6";
+            default: return "寄存器编号未知出错";
         }
     }
 
@@ -170,6 +171,7 @@ class RISCV{
             case 29: return "ft9";
             case 30: return "ft10";
             case 31: return "ft11";
+            default: return "寄存器编号未知出错";
         }
     }
 

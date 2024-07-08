@@ -10,6 +10,7 @@
 #include "midend/BasicBlock.hpp"
 
 #include <vector>
+#include <utility>
 
 class Val{
     public:
@@ -24,7 +25,7 @@ class IConst: public Val{
         bool isConst() {return true;}
         bool isIConst() {return true;}
         bool isReg() {return false;}
-        int getIConst() {return val;}
+        int &getIConst() {return val;}
         ::std::string print() final;
 
     private:
@@ -37,7 +38,7 @@ class FConst: public Val{
         bool isConst() {return true;}
         bool isIConst() {return false;}
         bool isReg() {return false;}
-        float getIConst() {return val;}
+        float &getFConst() {return val;}
         ::std::string print() final;
 
     private:
@@ -186,48 +187,11 @@ class FRIA: public AddressMode{
 };
 
 
-
+class AsmUnit;
 class Subroutine;
 class Sequence;
 class Label;
 class AsmInst;
-
-
-//汇编单元（一个源程序对应的一个汇编源程序文件的内容就是一个汇编单元）
-//设计思想：总之就是得到汇编源程序字面量（string）,.data、.bss可以直接得到，只是.text需要自己构造
-class AsmUnit{
-    public:
-        AsmUnit(Module* module): module(module){}
-        Module* getModuleOfAsmUnit() {return module;}
-        void addSubroutine( Function* func){
-            Subroutines.push_back(new Subroutine(this, func));
-        }
-        ::std::string print();
-
-    private:
-        ::std::string asm_context;                  //汇编源程序字面量
-        Module *module;                             //基于IR的Module
-        ::std::vector<Subroutine*> Subroutines;     //一个AsmUnit包括多个子程序Subroutine
-};
-
-//子程序
-class Subroutine{
-    public:
-        Subroutine(AsmUnit* parent, Function* func): parent(parent), func(func) {}
-        Function* getFuncOfSubroutine() {return func;}
-        void addSequence(BasicBlock* bb, Label* label){
-            Sequences.push_back(new Sequence(this, bb, label));
-        }
-        ::std::string print();
-
-    private:
-        Function* func;
-        AsmUnit *parent;
-        ::std::vector<Sequence*> Sequences;
-
-
-};
-
 //序列（指令序列，对若干指令的抽象，抽象层次介于子程序与指令之间）
 class Sequence{
     public:
@@ -253,5 +217,781 @@ class Sequence{
         Label* label;
         ::std::vector<AsmInst*> insts;
 };
+
+
+//子程序
+class Subroutine{
+    public:
+        Subroutine(AsmUnit* parent, Function* func): parent(parent), func(func) {}
+        Function* getFuncOfSubroutine() {return func;}
+        void addSequence(BasicBlock* bb, Label* label){
+            Sequences.push_back(new Sequence(this, bb, label));
+        }
+        ::std::string print();
+
+    private:
+        Function* func;
+        AsmUnit *parent;
+        ::std::vector<Sequence*> Sequences;
+
+
+};
+
+//汇编单元（一个源程序对应的一个汇编源程序文件的内容就是一个汇编单元）
+//设计思想：总之就是得到汇编源程序字面量（string）,.data、.bss可以直接得到，只是.text需要自己构造
+class AsmUnit{
+    public:
+        AsmUnit(Module* module): module(module){}
+        Module* getModuleOfAsmUnit() {return module;}
+        void addSubroutine( Function* func){
+            Subroutines.push_back(new Subroutine(this, func));
+        }
+        ::std::string print();
+
+    private:
+        ::std::string asm_context;                  //汇编源程序字面量
+        Module *module;                             //基于IR的Module
+        ::std::vector<Subroutine*> Subroutines;     //一个AsmUnit包括多个子程序Subroutine
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+class AsmInst{
+    public:
+        enum class Op{
+            //I
+            add = 0,
+            subw,
+            sraw,
+            sllw,
+            srlw,
+            sra,
+            sll,
+            srl,
+            land,
+            zext,
+            snez,
+            seqz,
+            lw,
+            lw_label,
+            sw,
+            sw_label,
+            call,
+            la,
+            mv,
+            beq,
+            bne,
+            bge,
+            blt,
+            j,
+            ret,
+            memset,
+
+            //F
+            fadd_s,
+            fsub_s,
+            fmul_s,
+            fdiv_s,
+            fcvt_w_s,
+            fcvt_s_w,
+            feq_s,
+            fle_s,
+            flt_s,
+            fge_s,//编译伪指令
+            fgt_s,//编译伪指令
+            fne_s,//编译伪指令
+            flw,
+            flw_label,
+            fsw,
+            fsw_label,
+            fbeq,
+            fbge,
+            fbgt,
+            fble,
+            fblt,
+            fbne,
+
+            //M
+            mulw,
+            divw,
+            remw,
+            mul64,//编译伪指令
+
+            //编译伪指令
+            //现场保护
+            caller_save_regs,//调用函数负责保存的寄存器
+            callee_save_regs,//被调用函数负责保存的寄存器
+            
+            //现场恢复
+            caller_restore_regs,//恢复调用者保存的寄存器
+            callee_restore_regs,//恢复被调用者保存的寄存器
+
+            //被调者的堆栈控制
+            callee_stack_frame_initialize,//被调用者的堆栈帧的初始化
+            callee_stack_frame_clear,//清理被调用者的堆栈帧
+            callee_stack_frame_expand,//扩展被调者的堆栈空间
+            callee_stack_frame_shrink,//缩小被调者的堆栈空间
+
+            //参数传递
+            caller_parameters_passing,//将参数移动到调用者的适当位置
+            callee_parameters_passing,//将参数移动到被调用者的适当位置
+            caller_save_result,//保存调用结果
+            callee_save_result,//被调用者保存调用结果
+
+            //临时寄存器控制
+            load_tmp_regs,//加载值到临时寄存器
+            store_tmp_regs,//存储临时寄存器的值
+            alloca_tmp_regs,//分配临时寄存器并保存各寄存器对应的初始值
+            initialize_all_temp_regs,//恢复所有临时寄存器
+
+            //phi节点处理
+            phi_passing //移动PHI节点的数据
+
+        };
+    public:
+        AsmInst(Op id, Sequence* seq):id(id), seq(seq){}
+        virtual ~AsmInst() = default;
+        Sequence* getSeq(){return seq;}
+        Subroutine* getSub(){return seq->getSubroutineOfSeq();}
+        virtual ::std::string print() = 0;
+
+    private:
+        Op id;
+        Sequence* seq; 
+};
+
+//I
+
+//
+class Add: public AsmInst{
+    public:
+        Add(GReg* rd,Val* rs1,Val* rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), rs2(rs2), AsmInst(Op::add, seq){} 
+        ::std::string print() final;
+
+    private:
+        GReg* rd;
+        Val* rs1;
+        Val* rs2;
+};
+
+class Subw: public AsmInst{
+    public:
+        Subw(GReg* rd,Val* rs1,Val* rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), rs2(rs2), AsmInst(Op::subw, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* rs1;
+        Val* rs2;
+};
+
+class Mulw: public AsmInst{
+    public:
+        Mulw(GReg* rd,Val* rs1,Val* rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), rs2(rs2), AsmInst(Op::mulw, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* rs1;
+        Val* rs2;
+};
+
+class Muld: public AsmInst{
+    public:
+        Muld(GReg* rd,Val* rs1,Val* rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), rs2(rs2), AsmInst(Op::mul64, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* rs1;
+        Val* rs2;
+};
+
+class Divw: public AsmInst{
+    public:
+        Divw(GReg* rd,Val* rs1,Val* rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), rs2(rs2), AsmInst(Op::divw, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* rs1;
+        Val* rs2;
+};
+
+
+class Remw: public AsmInst{
+    public:
+        Remw(GReg* rd,Val* rs1,Val* rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), rs2(rs2), AsmInst(Op::remw, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* rs1;
+        Val* rs2;
+};
+
+class Sraw: public AsmInst{
+    public:
+        Sraw(GReg* rd,Val* rs1,IConst* iconst_rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), iconst_rs2(iconst_rs2), AsmInst(Op::sraw, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* rs1;
+        IConst* iconst_rs2;
+};
+
+class Sllw: public AsmInst{
+    public:
+        Sllw(GReg* rd,Val* rs1,IConst* iconst_rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), iconst_rs2(iconst_rs2), AsmInst(Op::sllw, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* rs1;
+        IConst* iconst_rs2;
+};
+
+class Srlw: public AsmInst{
+    public:
+        Srlw(GReg* rd,Val* rs1,IConst* iconst_rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), iconst_rs2(iconst_rs2), AsmInst(Op::srlw, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* rs1;
+        IConst* iconst_rs2;
+};
+
+class Sra: public AsmInst{
+    public:
+        Sra(GReg* rd,Val* rs1,IConst* iconst_rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), iconst_rs2(iconst_rs2), AsmInst(Op::sra, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* rs1;
+        IConst* iconst_rs2;
+};
+
+
+class Sll: public AsmInst{
+    public:
+        Sll(GReg* rd,Val* rs1,IConst* iconst_rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), iconst_rs2(iconst_rs2), AsmInst(Op::sll, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* rs1;
+        IConst* iconst_rs2;
+};
+
+class Srl: public AsmInst{
+    public:
+        Srl(GReg* rd,Val* rs1,IConst* iconst_rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), iconst_rs2(iconst_rs2), AsmInst(Op::srl, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* rs1;
+        IConst* iconst_rs2;
+};
+
+class Land: public AsmInst{
+    public:
+        Land(GReg* rd,GReg* rs1,IConst* iconst_rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), iconst_rs2(iconst_rs2), AsmInst(Op::land, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        GReg* rs1;
+        IConst* iconst_rs2;
+};
+
+class Fadd_s: public AsmInst{
+    public:
+        Fadd_s(FReg* rd,Val* rs1,Val* rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), rs2(rs2), AsmInst(Op::fadd_s, seq){} 
+        ::std::string print() final;
+        
+    private:
+        FReg* rd;
+        Val* rs1;
+        Val* rs2;
+};
+
+class Fsub_s: public AsmInst{
+    public:
+        Fsub_s(FReg* rd,Val* rs1,Val* rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), rs2(rs2), AsmInst(Op::fsub_s, seq){} 
+        ::std::string print() final;
+        
+    private:
+        FReg* rd;
+        Val* rs1;
+        Val* rs2;
+};
+
+class Fmul_s: public AsmInst{
+    public:
+        Fmul_s(FReg* rd,Val* rs1,Val* rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), rs2(rs2), AsmInst(Op::fmul_s, seq){} 
+        ::std::string print() final;
+        
+    private:
+        FReg* rd;
+        Val* rs1;
+        Val* rs2;
+};
+
+class Fdiv_s: public AsmInst{
+    public:
+        Fdiv_s(FReg* rd,Val* rs1,Val* rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), rs2(rs2), AsmInst(Op::fdiv_s, seq){} 
+        ::std::string print() final;
+        
+    private:
+        FReg* rd;
+        Val* rs1;
+        Val* rs2;
+};
+
+
+class Fcvt_w_s: public AsmInst{
+    public:
+        Fcvt_w_s(GReg* rd,Val* rs1, Sequence* seq)
+        :rd(rd), rs1(rs1), AsmInst(Op::fcvt_w_s, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* rs1;
+       
+};
+
+class Fcvt_s_w: public AsmInst{
+    public:
+        Fcvt_s_w(FReg* rd,Val* rs1, Sequence* seq)
+        :rd(rd), rs1(rs1), AsmInst(Op::fcvt_s_w, seq){} 
+        ::std::string print() final;
+        
+    private:
+        FReg* rd;
+        Val* rs1;
+       
+};
+
+class Zext: public AsmInst{
+    public:
+        Zext(GReg* rd,GReg* rs1, Sequence* seq)
+        :rd(rd), rs1(rs1), AsmInst(Op::zext, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        GReg* rs1;
+       
+};
+
+class Snez: public AsmInst{
+    public:
+        Snez(GReg* rd,Val* cond, Sequence* seq)
+        :rd(rd), cond(cond), AsmInst(Op::snez, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* cond;
+       
+};
+
+class Seqz: public AsmInst{
+    public:
+        Seqz(GReg* rd,Val* cond, Sequence* seq)
+        :rd(rd), cond(cond), AsmInst(Op::seqz, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* cond;
+       
+};
+
+
+class Feq_s: public AsmInst{
+    public:
+        Feq_s(GReg* rd,Val* cond1,Val* cond2, Sequence* seq)
+        :rd(rd), cond1(cond1), cond2(cond2), AsmInst(Op::feq_s, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* cond1;
+        Val* cond2;
+};
+
+class Fle_s: public AsmInst{
+    public:
+        Fle_s(GReg* rd,Val* cond1,Val* cond2, Sequence* seq)
+        :rd(rd), cond1(cond1), cond2(cond2), AsmInst(Op::fle_s, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* cond1;
+        Val* cond2;
+};
+
+class Flt_s: public AsmInst{
+    public:
+        Flt_s(GReg* rd,Val* cond1,Val* cond2, Sequence* seq)
+        :rd(rd), cond1(cond1), cond2(cond2), AsmInst(Op::flt_s, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* cond1;
+        Val* cond2;
+};
+
+class Fgt_s: public AsmInst{
+    public:
+        Fgt_s(GReg* rd,Val* cond1,Val* cond2, Sequence* seq)
+        :rd(rd), cond1(cond1), cond2(cond2), AsmInst(Op::fgt_s, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* cond1;
+        Val* cond2;
+};
+
+class Fge_s: public AsmInst{
+    public:
+        Fge_s(GReg* rd,Val* cond1,Val* cond2, Sequence* seq)
+        :rd(rd), cond1(cond1), cond2(cond2), AsmInst(Op::fge_s, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* cond1;
+        Val* cond2;
+};
+
+
+class Fne_s: public AsmInst{
+    public:
+        Fne_s(GReg* rd,Val* cond1,Val* cond2, Sequence* seq)
+        :rd(rd), cond1(cond1), cond2(cond2), AsmInst(Op::fne_s, seq){} 
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        Val* cond1;
+        Val* cond2;
+};
+
+class Lw: public AsmInst{
+    public:
+        Lw(GReg* rd, GReg* base, Val*offset, Sequence* seq)
+        :rd(rd), base(base), offset(offset), AsmInst(Op::lw, seq){}
+        ::std::string print() final;
+    private:
+        GReg* rd;
+        GReg* base;
+        Val* offset;
+};
+
+
+class Lw_label: public AsmInst{
+    public:
+        Lw_label(GReg* rd, Label* label, Sequence* seq)
+        :rd(rd), label(label), AsmInst(Op::lw_label, seq){}
+        ::std::string print() final;
+    private:
+        GReg* rd;
+        Label* label;
+
+};
+
+class Flw: public AsmInst{
+    public:
+        Flw(FReg* rd, GReg* base, Val*offset, Sequence* seq)
+        :rd(rd), base(base), offset(offset), AsmInst(Op::flw, seq){}
+        ::std::string print() final;
+    private:
+        FReg* rd;
+        GReg* base;
+        Val* offset;
+};
+
+
+class Flw_label: public AsmInst{
+    public:
+        Flw_label(FReg* rd, Label* label, Sequence* seq)
+        :rd(rd), label(label), AsmInst(Op::flw_label, seq){}
+        ::std::string print() final;
+    private:
+        FReg* rd;
+        Label* label;
+
+};
+
+class Sw: public AsmInst{
+    public:
+        Sw(Val* src, GReg* base, Val*offset, Sequence* seq)
+        :src(src), base(base), offset(offset), AsmInst(Op::sw, seq){}
+        ::std::string print() final;
+    private:
+        Val* src;
+        GReg* base;
+        Val* offset;
+};
+
+
+class Sw_label: public AsmInst{
+    public:
+        Sw_label(Val* src, Label* label, Sequence* seq)
+        :src(src), label(label), AsmInst(Op::sw_label, seq){}
+        ::std::string print() final;
+    private:
+        Val* src;
+        Label* label;
+
+};
+
+class Fsw: public AsmInst{
+    public:
+        Fsw(Val* src, GReg* base, Val*offset, Sequence* seq)
+        :src(src), base(base), offset(offset), AsmInst(Op::fsw, seq){}
+        ::std::string print() final;
+    private:
+        Val* src;
+        GReg* base;
+        Val* offset;
+};
+
+
+class Fsw_label: public AsmInst{
+    public:
+        Fsw_label(Val* src, Label* label, Sequence* seq)
+        :src(src), label(label), AsmInst(Op::fsw_label, seq){}
+        ::std::string print() final;
+    private:
+        Val* src;
+        Label* label;
+
+};
+
+
+/*中端已有，后端暂时不需要
+class Imemset: public AsmInst{
+    public: 
+        Imemset(IRIA* base, int size, int block_size, Sequence* seq)
+        :base(base), size(size), block_size(block_size), AsmInst(Op::memset, seq){}
+        ::std::string print() final;
+    private:
+        IRIA* base;
+        int size;
+        int block_size;
+};
+
+
+class Fmemset: public AsmInst{
+    public: 
+        Fmemset(FRIA* base, int size, int block_size, Sequence* seq)
+        :base(base), size(size), block_size(block_size), AsmInst(Op::memset, seq){}
+        ::std::string print() final;
+    private:
+        FRIA* base;
+        int size;
+        int block_size;
+};
+*/
+
+class Call: public AsmInst{
+    public:
+        Call(Label* label, Sequence* seq)
+        :label(label), AsmInst(Op::call, seq){}
+        ::std::string print() final;
+
+    private:
+        Label* label;
+};
+
+class La: public AsmInst{
+    public:
+        La(GReg* rd, Label* label, Sequence* seq)
+        :rd(rd), label(label), AsmInst(Op::la, seq){}
+        ::std::string print() final;
+    private:
+        GReg* rd;
+        Label* label;
+};
+
+class Mv: public AsmInst{
+    public:
+        Mv(GReg* rd, GReg* rs1, Sequence* seq)
+        :rd(rd), rs1(rs1), AsmInst(Op::mv, seq){}
+        ::std::string print() final;
+    private:
+        GReg* rd;
+        GReg* rs1;
+
+};
+
+class Beq: public AsmInst{
+    public:
+        Beq(Val* cond1, Val* cond2, Label* label, Sequence* seq)
+        :cond1(cond1), cond2(cond2), label(label), AsmInst(Op::beq, seq){}
+        ::std::string print() final;
+    private:
+        Val* cond1;
+        Val* cond2;
+        Label* label;
+};
+
+class Bne: public AsmInst{
+    public:
+        Bne(Val* cond1, Val* cond2, Label* label, Sequence* seq)
+        :cond1(cond1), cond2(cond2), label(label), AsmInst(Op::bne, seq){}
+        ::std::string print() final;
+    private:
+        Val* cond1;
+        Val* cond2;
+        Label* label;
+};
+
+class Bge: public AsmInst{
+    public:
+        Bge(Val* cond1, Val* cond2, Label* label, Sequence* seq)
+        :cond1(cond1), cond2(cond2), label(label), AsmInst(Op::bge, seq){}
+        ::std::string print() final;
+    private:
+        Val* cond1;
+        Val* cond2;
+        Label* label;
+};
+class Blt: public AsmInst{
+    public:
+        Blt(Val* cond1, Val* cond2, Label* label, Sequence* seq)
+        :cond1(cond1), cond2(cond2), label(label), AsmInst(Op::blt, seq){}
+        ::std::string print() final;
+    private:
+        Val* cond1;
+        Val* cond2;
+        Label* label;
+};
+
+class FBeq: public AsmInst{
+    public:
+        FBeq(Val* cond1, Val* cond2, Label* label, Sequence* seq)
+        :cond1(cond1), cond2(cond2), label(label), AsmInst(Op::fbeq, seq){}
+        ::std::string print() final;
+    private:
+        Val* cond1;
+        Val* cond2;
+        Label* label;
+};
+
+class FBge: public AsmInst{
+    public:
+        FBge(Val* cond1, Val* cond2, Label* label, Sequence* seq)
+        :cond1(cond1), cond2(cond2), label(label), AsmInst(Op::fbge, seq){}
+        ::std::string print() final;
+    private:
+        Val* cond1;
+        Val* cond2;
+        Label* label;
+};
+class FBgt: public AsmInst{
+    public:
+        FBgt(Val* cond1, Val* cond2, Label* label, Sequence* seq)
+        :cond1(cond1), cond2(cond2), label(label), AsmInst(Op::fbgt, seq){}
+        ::std::string print() final;
+    private:
+        Val* cond1;
+        Val* cond2;
+        Label* label;
+};
+
+class FBle: public AsmInst{
+    public:
+        FBle(Val* cond1, Val* cond2, Label* label, Sequence* seq)
+        :cond1(cond1), cond2(cond2), label(label), AsmInst(Op::fble, seq){}
+        ::std::string print() final;
+    private:
+        Val* cond1;
+        Val* cond2;
+        Label* label;
+};
+
+class FBlt: public AsmInst{
+    public:
+        FBlt(Val* cond1, Val* cond2, Label* label, Sequence* seq)
+        :cond1(cond1), cond2(cond2), label(label), AsmInst(Op::fblt, seq){}
+        ::std::string print() final;
+    private:
+        Val* cond1;
+        Val* cond2;
+        Label* label;
+};
+
+class FBne: public AsmInst{
+    public:
+        FBne(Val* cond1, Val* cond2, Label* label, Sequence* seq)
+        :cond1(cond1), cond2(cond2), label(label), AsmInst(Op::fbne, seq){}
+        ::std::string print() final;
+    private:
+        Val* cond1;
+        Val* cond2;
+        Label* label;
+};
+
+class Jump: public AsmInst{
+    public:
+        Jump(Label* label, Sequence* seq)
+        :label(label), AsmInst(Op::j, seq){}
+
+        ::std::string print() final;
+    private:
+        Label* label;
+
+};
+
+class Ret: public AsmInst{
+    public:
+        Ret(Sequence* seq)
+        :AsmInst(Op::ret, seq){}
+        ::std::string print() final;
+
+
+};
+
+
+
 
 #endif
