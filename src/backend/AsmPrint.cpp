@@ -667,23 +667,23 @@ inline  ::std::string Sw_label::print(){
 }
 
 inline ::std::string Fsw::print(){
-    auto iconst_src = dynamic_cast<IConst*>(src);
+    auto fconst_src = dynamic_cast<FConst*>(src);
     auto iconst_offset = dynamic_cast<IConst*>(offset);
-    if(iconst_src){
+    if(fconst_src){
         if(iconst_offset){
             int iconst_offset_value = iconst_offset->getIConst()*4;
             if(iconst_offset_value<-2048 || iconst_offset_value>2047)
-                return RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(iconst_src->getIConst()))+
+                return RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(fconst_src->getFConst()))+
                        RISCVInst::fmv_s_x(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::s1)))+
                        RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), base, iconst_offset_value)+
                        RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
             else
-                return RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(iconst_src->getIConst()))+
+                return RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(fconst_src->getFConst()))+
                        RISCVInst::fmv_s_x(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::s1)))+
                        RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fs1)), base, iconst_offset_value);
         }
         else
-            return RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(iconst_src->getIConst()))+
+            return RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(fconst_src->getFConst()))+
                    RISCVInst::fmv_s_x(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::s1)))+
                    RISCVInst::slliw(new GReg(static_cast<int>(RISCV::GPR::ra)), dynamic_cast<GReg*>(offset), 2)+
                    RISCVInst::add(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::ra)), base)+
@@ -706,10 +706,10 @@ inline ::std::string Fsw::print(){
 }
 
 inline  ::std::string Fsw_label::print(){
-    auto iconst_src = dynamic_cast<IConst*>(src);
-    if(iconst_src){
+    auto fconst_src = dynamic_cast<FConst*>(src);
+    if(fconst_src){
         return RISCVInst::la(new GReg(static_cast<int>(RISCV::GPR::ra)), label)+
-               RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(iconst_src->getIConst()))+
+               RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(fconst_src->getFConst()))+
                RISCVInst::fmv_s_x(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::s1)))+
                RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
     }
@@ -2073,4 +2073,675 @@ inline ::std::string Jump::print(){
 
 inline ::std::string Ret::print(){
     return RISCVInst::ret();
+}
+
+
+
+
+
+
+
+
+
+
+
+inline ::std::string CallerSaveRegs::print(){
+    ::std::string asm_insts;
+    for(auto i:caller_iregs_save)
+        asm_insts+=RISCVInst::sd(new GReg(static_cast<int>(i.first->getReg())), new GReg(static_cast<int>(i.second->getReg())), i.second->getOffset());
+    
+    for(auto f:caller_fregs_save)
+        asm_insts+=RISCVInst::fsw(new FReg(static_cast<int>(f.first->getReg())), new GReg(static_cast<int>(f.second->getReg())), f.second->getOffset());
+    return asm_insts;
+}
+
+inline ::std::string CalleeSaveRegs::print(){
+    ::std::string asm_insts;
+    for(auto i:callee_iregs_save)
+        asm_insts+=RISCVInst::sd(new GReg(static_cast<int>(i.first->getReg())), new GReg(static_cast<int>(i.second->getReg())), i.second->getOffset());
+    
+    for(auto f:callee_fregs_save)
+        asm_insts+=RISCVInst::fsw(new FReg(static_cast<int>(f.first->getReg())), new GReg(static_cast<int>(f.second->getReg())), f.second->getOffset());
+    return asm_insts;
+}
+
+inline ::std::string CallerRestoreRegs::print(){
+    ::std::string asm_insts;
+    for(auto i:caller_iregs_restore)
+        asm_insts+=RISCVInst::ld(new GReg(static_cast<int>(i.first->getReg())), new GReg(static_cast<int>(i.second->getReg())), i.second->getOffset());
+    
+    for(auto f:caller_fregs_restore)
+        asm_insts+=RISCVInst::flw(new FReg(static_cast<int>(f.first->getReg())), new GReg(static_cast<int>(f.second->getReg())), f.second->getOffset());
+    return asm_insts;
+}
+
+inline ::std::string CalleeRestoreRegs::print(){
+    ::std::string asm_insts;
+    for(auto i:callee_iregs_restore)
+        asm_insts+=RISCVInst::ld(new GReg(static_cast<int>(i.first->getReg())), new GReg(static_cast<int>(i.second->getReg())), i.second->getOffset());
+    
+    for(auto f:callee_fregs_restore)
+        asm_insts+=RISCVInst::flw(new FReg(static_cast<int>(f.first->getReg())), new GReg(static_cast<int>(f.second->getReg())), f.second->getOffset());
+    return asm_insts;
+}
+
+inline ::std::string CallerParaPass::print(){
+    ::std::string asm_insts;
+    for(auto i:caller_iparas_pass){
+        auto src_para = i.second;
+        auto target_para = i.first;
+
+        auto iconst_src_para = dynamic_cast<IConstPool*>(src_para);
+        auto ira_src_para = dynamic_cast<IRA*>(src_para);
+        auto iria_src_para = dynamic_cast<IRIA*>(src_para);
+
+        auto ira_target_para = dynamic_cast<IRA*>(target_para);
+        auto iria_target_para = dynamic_cast<IRIA*>(target_para);
+
+        if(iconst_src_para){
+            if(ira_target_para)
+                asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(ira_target_para->getReg())), new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_src_para->getIConstPool());
+            else if(iria_target_para){
+                int offset_value = iria_target_para->getOffset();
+                if(offset_value<-2048||offset_value>2047){
+                    asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target_para->getReg())), offset_value)+
+                               RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_src_para->getIConstPool())+
+                               RISCVInst::sd(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+                }
+                else{
+                    asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_src_para->getIConstPool())+
+                               RISCVInst::sd(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(iria_target_para->getReg())), offset_value);
+                }
+            }
+        }
+        else if(ira_src_para){
+            if(ira_target_para)
+                asm_insts+=RISCVInst::mv(new GReg(static_cast<int>(ira_target_para->getReg())), new GReg(static_cast<int>(ira_src_para->getReg())));
+            else if(iria_target_para){
+                int offset_value = iria_target_para->getOffset();
+                if(offset_value<-2048||offset_value>2047){
+                    asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target_para->getReg())), offset_value)+
+                               RISCVInst::sd(new GReg(static_cast<int>(ira_src_para->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+                }
+                else{
+                    asm_insts+=RISCVInst::sd(new GReg(static_cast<int>(ira_src_para->getReg())), new GReg(static_cast<int>(iria_target_para->getReg())), offset_value);
+                }
+            }
+        }
+        else{
+            int src_offset_value = iria_src_para->getOffset();
+            int target_offset_value = iria_target_para->getOffset();
+            if(src_offset_value<-2048||src_offset_value>2047){
+                asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_src_para->getReg())), src_offset_value)+
+                           RISCVInst::ld(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+            }
+            else{
+                asm_insts+=RISCVInst::ld(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_src_para->getReg())), src_offset_value);
+            }
+            if(ira_target_para){
+                asm_insts+=RISCVInst::mv(new GReg(static_cast<int>(ira_target_para->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)));
+            }
+            else if(iria_target_para){
+                if(target_offset_value<-2048||target_offset_value>2047){
+                    asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(iria_target_para->getReg())), target_offset_value)+
+                               RISCVInst::sd(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::s1)), 0);
+                }
+                else{
+                    asm_insts+=RISCVInst::sd(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target_para->getReg())), target_offset_value);
+                }
+            }
+
+        }
+    }
+
+
+    for(auto f:caller_fparas_pass){
+        auto src_para = f.second;
+        auto target_para = f.first;
+
+        auto fconst_src_para = dynamic_cast<FConstPool*>(src_para);
+        auto fra_src_para = dynamic_cast<FRA*>(src_para);
+        auto iria_src_para = dynamic_cast<IRIA*>(src_para);
+
+        auto fra_target_para = dynamic_cast<FRA*>(target_para);
+        auto iria_target_para = dynamic_cast<IRIA*>(target_para);
+
+        if(fconst_src_para){
+            if(fra_target_para)
+                asm_insts+=RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(fconst_src_para->getFConstPool()))+
+                           RISCVInst::fmv_s_x(new FReg(static_cast<int>(fra_target_para->getReg())), new GReg(static_cast<int>(RISCV::GPR::s1)));
+            else if(iria_target_para){
+                int offset_value = iria_target_para->getOffset();
+                if(offset_value<-2048||offset_value>2047){
+                    asm_insts+=RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(fconst_src_para->getFConstPool()))+
+                               RISCVInst::fmv_s_x(new FReg(static_cast<int>(fra_target_para->getReg())), new GReg(static_cast<int>(RISCV::GPR::s1)))+
+                               RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target_para->getReg())), offset_value)+
+                               RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+                }
+                else{
+                    asm_insts+=RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(fconst_src_para->getFConstPool()))+
+                               RISCVInst::fmv_s_x(new FReg(static_cast<int>(fra_target_para->getReg())), new GReg(static_cast<int>(RISCV::GPR::s1)))+
+                               RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(iria_target_para->getReg())), offset_value);
+                }
+            }
+        }
+        else if(fra_src_para){
+            if(fra_target_para)
+                asm_insts+=RISCVInst::fmv_s(new FReg(static_cast<int>(fra_target_para->getReg())), new FReg(static_cast<int>(fra_src_para->getReg())));
+            else if(iria_target_para){
+                int offset_value = iria_target_para->getOffset();
+                if(offset_value<-2048||offset_value>2047){
+                    asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target_para->getReg())), offset_value)+
+                               RISCVInst::fsw(new FReg(static_cast<int>(fra_src_para->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+                }
+                else{
+                    asm_insts+=RISCVInst::fsw(new FReg(static_cast<int>(fra_src_para->getReg())), new GReg(static_cast<int>(iria_target_para->getReg())), offset_value);
+                }
+            }
+        }
+        else{
+            int src_offset_value = iria_src_para->getOffset();
+            int target_offset_value = iria_target_para->getOffset();
+            if(src_offset_value<-2048||src_offset_value>2047){
+                asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_src_para->getReg())), src_offset_value)+
+                           RISCVInst::flw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+            }
+            else{
+                asm_insts+=RISCVInst::flw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(iria_src_para->getReg())), src_offset_value);
+            }
+            if(fra_target_para){
+                asm_insts+=RISCVInst::fmv_s(new FReg(static_cast<int>(fra_target_para->getReg())), new FReg(static_cast<int>(RISCV::FPR::fs1)));
+            }
+            else if(iria_target_para){
+                if(target_offset_value<-2048||target_offset_value>2047){
+                    asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target_para->getReg())), target_offset_value)+
+                               RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+                }
+                else{
+                    asm_insts+=RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(iria_target_para->getReg())), target_offset_value);
+                }
+            }
+
+        }
+    }
+
+    return asm_insts;
+}
+
+inline ::std::string CalleeParaPass::print(){
+    ::std::string asm_insts;
+    for(auto i:callee_iparas_pass){
+        auto src_para = i.second;
+        auto target_para = i.first;
+        auto ira_src_para = dynamic_cast<IRA*>(src_para);
+        auto ira_target_para = dynamic_cast<IRA*>(target_para);
+        auto iria_src_para = dynamic_cast<IRIA*>(src_para);
+        auto iria_target_para = dynamic_cast<IRIA*>(target_para);
+
+        if(ira_src_para && ira_target_para){
+            asm_insts+=RISCVInst::mv(new GReg(static_cast<int>(ira_target_para->getReg())), new GReg(static_cast<int>(ira_src_para->getReg())));
+        }
+        else if(ira_src_para && iria_target_para){
+            int offset_target = iria_target_para->getOffset();
+            if(offset_target<-2048 || offset_target>2047){
+                asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target_para->getReg())), offset_target)+
+                           RISCVInst::sd(new GReg(static_cast<int>(ira_src_para->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+            } 
+            else{
+                asm_insts+=RISCVInst::sd(new GReg(static_cast<int>(ira_src_para->getReg())), new GReg(static_cast<int>(iria_target_para->getReg())), offset_target);
+            }
+        }
+        else if(iria_src_para && ira_target_para){
+            int offset_src = iria_src_para->getOffset();
+            if(offset_src<-2048||offset_src>2047){
+                asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_src_para->getReg())), offset_src)+
+                           RISCVInst::ld(new GReg(static_cast<int>(ira_target_para->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)),0);
+            }
+            else{
+                asm_insts+=RISCVInst::ld(new GReg(static_cast<int>(ira_target_para->getReg())), new GReg(static_cast<int>(iria_src_para->getReg())), offset_src);
+            }
+        }
+
+    }
+    for(auto f:callee_fparas_pass){
+        auto src_para = f.second;
+        auto target_para = f.first;
+        auto fra_src_para = dynamic_cast<FRA*>(src_para);
+        auto fra_target_para = dynamic_cast<FRA*>(target_para);
+        auto iria_src_para = dynamic_cast<IRIA*>(src_para);
+        auto iria_target_para = dynamic_cast<IRIA*>(target_para);
+
+        if(fra_src_para && fra_target_para){
+            asm_insts+=RISCVInst::fmv_s(new FReg(static_cast<int>(fra_target_para->getReg())), new FReg(static_cast<int>(fra_src_para->getReg())));
+        }
+        else if(fra_src_para && iria_target_para){
+            int offset_target = iria_target_para->getOffset();
+            if(offset_target<-2048 || offset_target>2047){
+                asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target_para->getReg())), offset_target)+
+                           RISCVInst::fsw(new FReg(static_cast<int>(fra_src_para->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+            } 
+            else{
+                asm_insts+=RISCVInst::fsw(new FReg(static_cast<int>(fra_src_para->getReg())), new GReg(static_cast<int>(iria_target_para->getReg())), offset_target);
+            }
+        }
+        else if(iria_src_para && fra_target_para){
+            int offset_src = iria_src_para->getOffset();
+            if(offset_src<-2048||offset_src>2047){
+                asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_src_para->getReg())), offset_src)+
+                           RISCVInst::flw(new FReg(static_cast<int>(fra_target_para->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)),0);
+            }
+            else{
+                asm_insts+=RISCVInst::flw(new FReg(static_cast<int>(fra_target_para->getReg())), new GReg(static_cast<int>(iria_src_para->getReg())), offset_src);
+            }
+        }
+    }
+
+
+    return asm_insts;
+}
+
+inline ::std::string CallerSaveResult::print(){
+
+    if(grs!=nullptr){
+        auto iria_dst = dynamic_cast<IRIA*>(dst);
+        auto ira_dst = dynamic_cast<IRA*>(dst);
+        if(iria_dst){
+            int offset = iria_dst->getOffset();
+            if(offset<-2048||offset>2047){
+                return RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_dst->getReg())), offset)+
+                       RISCVInst::sd(new GReg(static_cast<int>(RISCV::GPR::a0)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+            }
+            else{
+                return RISCVInst::sd(new GReg(static_cast<int>(RISCV::GPR::a0)), new GReg(static_cast<int>(iria_dst->getReg())), offset);
+            }
+        }
+        else{
+                return RISCVInst::mv(new GReg(static_cast<int>(ira_dst->getReg())), new GReg(static_cast<int>(RISCV::GPR::a0)));
+        }
+    }
+    else if(frs!=nullptr){
+        auto iria_dst = dynamic_cast<IRIA*>(dst);
+        auto fra_dst = dynamic_cast<FRA*>(dst);
+        if(iria_dst){
+            int offset = iria_dst->getOffset();
+            if(offset<-2048||offset>2047){
+                return RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_dst->getReg())), offset)+
+                       RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fa0)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+            }
+            else{
+                return RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fa0)), new GReg(static_cast<int>(iria_dst->getReg())), offset);
+            }
+        }
+        else{
+                return RISCVInst::fmv_s(new FReg(static_cast<int>(fra_dst->getReg())), new FReg(static_cast<int>(RISCV::FPR::fa0)));
+        }
+    }
+
+
+
+}
+
+
+inline ::std::string CalleeSaveResult::print(){
+
+    if(idst!=nullptr){
+        auto iconst_src = dynamic_cast<IConst*>(src);
+        auto greg_src = dynamic_cast<GReg*>(src);
+        auto imem_src = dynamic_cast<Mem*>(src);
+        if(iconst_src){
+            return RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::a0)), new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_src->getIConst());
+        }
+        else if(imem_src){
+            int offset = imem_src->getOffset();
+            if(offset<-2048||offset>2047){
+                return RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(imem_src->getRegId()), offset)+
+                       RISCVInst::ld(new GReg(static_cast<int>(RISCV::GPR::a0)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+            }
+            else{
+                return RISCVInst::ld(new GReg(static_cast<int>(RISCV::GPR::a0)), new GReg(imem_src->getRegId()), offset);
+            }
+        }
+        else if(greg_src){
+            return RISCVInst::mv(new GReg(static_cast<int>(RISCV::GPR::a0)), greg_src);
+        }
+
+    }
+    else if(fdst!=nullptr){
+        auto fconst_src = dynamic_cast<FConst*>(src);
+        auto freg_src = dynamic_cast<FReg*>(src);
+        auto fmem_src = dynamic_cast<Mem*>(src);
+        if(fconst_src){
+            return RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(fconst_src->getFConst()))+
+                   RISCVInst::fmv_s_x(new FReg(static_cast<int>(RISCV::FPR::fa0)), new GReg(static_cast<int>(RISCV::GPR::s1)));
+        }
+        else if(fmem_src){
+            int offset = fmem_src->getOffset();
+            if(offset<-2048||offset>2047){
+                return RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(fmem_src->getRegId()), offset)+
+                       RISCVInst::flw(new FReg(static_cast<int>(RISCV::FPR::fa0)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+            }
+            else{
+                return RISCVInst::flw(new FReg(static_cast<int>(RISCV::FPR::fa0)), new GReg(fmem_src->getRegId()), offset);
+            }
+        }
+        else if(freg_src){
+            return RISCVInst::fmv_s(new FReg(static_cast<int>(RISCV::FPR::fa0)), freg_src);
+        }
+    }
+
+
+
+}
+
+inline ::std::string CalleeStackFrameInitialize::print(){
+    return RISCVInst::mv(new GReg(static_cast<int>(RISCV::GPR::s0)), new GReg(static_cast<int>(RISCV::GPR::sp)))+
+           RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::sp)), new GReg(static_cast<int>(RISCV::GPR::sp)), -stack_initial_size);
+}
+
+inline ::std::string CalleeStackFrameClear::print(){
+    return RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::sp)), new GReg(static_cast<int>(RISCV::GPR::sp)), stack_size_now);
+}
+
+inline ::std::string CalleeStackFrameExpand::print(){
+    return RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::sp)), new GReg(static_cast<int>(RISCV::GPR::sp)), stack_size_expand);
+}
+
+inline ::std::string CalleeStackFrameShrink::print(){
+    return RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::sp)), new GReg(static_cast<int>(RISCV::GPR::sp)), stack_size_shrink);
+}
+
+inline ::std::string LoadTmpRegs::print(){
+    ::std::string asm_insts;
+    for(auto i: iregs_tmp_load){
+        auto ira = i.first;
+        auto iria = i.second;
+        int offset = iria->getOffset();
+        if(offset<-2048||offset>2047){
+            asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria->getReg())), offset)+
+                       RISCVInst::ld(new GReg(static_cast<int>(ira->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+        }
+        else{
+            asm_insts+=RISCVInst::ld(new GReg(static_cast<int>(ira->getReg())), new GReg(static_cast<int>(iria->getReg())), offset);
+        }
+    }   
+
+    for(auto f:fregs_tmp_load){
+        auto fra = f.first;
+        auto iria = f.second;
+        int offset = iria->getOffset();
+        if(offset<-2048||offset>2047){
+            asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria->getReg())), offset)+
+                       RISCVInst::flw(new FReg(static_cast<int>(fra->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+        }
+        else{
+            asm_insts+=RISCVInst::flw(new FReg(static_cast<int>(fra->getReg())), new GReg(static_cast<int>(iria->getReg())), offset);
+        }
+    }
+
+
+    return asm_insts;
+}
+
+inline ::std::string StoreTmpRegs::print(){
+    ::std::string asm_insts;
+    for(auto i: iregs_tmp_store){
+        auto ira = i.first;
+        auto iria = i.second;
+        int offset = iria->getOffset();
+        if(offset<-2048||offset>2047){
+            asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria->getReg())), offset)+
+                       RISCVInst::sd(new GReg(static_cast<int>(ira->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+        }
+        else{
+            asm_insts+=RISCVInst::sd(new GReg(static_cast<int>(ira->getReg())), new GReg(static_cast<int>(iria->getReg())), offset);
+        }
+    }   
+
+    for(auto f:fregs_tmp_store){
+        auto fra = f.first;
+        auto iria = f.second;
+        int offset = iria->getOffset();
+        if(offset<-2048||offset>2047){
+            asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria->getReg())), offset)+
+                       RISCVInst::fsw(new FReg(static_cast<int>(fra->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+        }
+        else{
+            asm_insts+=RISCVInst::fsw(new FReg(static_cast<int>(fra->getReg())), new GReg(static_cast<int>(iria->getReg())), offset);
+        }
+    }
+
+
+    return asm_insts;
+}
+
+inline ::std::string AllocaTmpRegs::print(){
+    ::std::string asm_insts;
+        for(auto is:iregs_tmp_store){
+            auto ira = is.first;
+            auto iria = is.second;
+            int offset = iria->getOffset();
+            if(offset<-2048||offset>2047){
+                asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria->getReg())), offset)+
+                           RISCVInst::sd(new GReg(static_cast<int>(ira->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+            }
+            else{
+                asm_insts+=RISCVInst::sd(new GReg(static_cast<int>(ira->getReg())), new GReg(static_cast<int>(iria->getReg())), offset);
+            }
+
+        }
+
+        for(auto fs:fregs_tmp_store){
+            auto fra = fs.first;
+            auto iria = fs.second;
+            int offset = iria->getOffset();
+            if(offset<-2048||offset>2047){
+                asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria->getReg())), offset)+
+                           RISCVInst::fsw(new FReg(static_cast<int>(fra->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+            }
+            else{
+                asm_insts+=RISCVInst::fsw(new FReg(static_cast<int>(fra->getReg())), new GReg(static_cast<int>(iria->getReg())), offset);
+            }
+        }
+
+        for(auto il:iregs_tmp_load){
+            auto ira = il.first;
+            auto iria = il.second;
+            int offset = iria->getOffset();
+            if(offset<-2048||offset>2047){
+                asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria->getReg())), offset)+
+                           RISCVInst::ld(new GReg(static_cast<int>(ira->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+            }
+            else{
+                asm_insts+=RISCVInst::ld(new GReg(static_cast<int>(ira->getReg())), new GReg(static_cast<int>(iria->getReg())), offset);
+            }
+
+        }
+        for(auto fl:fregs_tmp_load){
+            auto fra = fl.first;
+            auto iria = fl.second;
+            int offset = iria->getOffset();
+            if(offset<-2048||offset>2047){
+                asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria->getReg())), offset)+
+                           RISCVInst::flw(new FReg(static_cast<int>(fra->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+            }
+            else{
+                asm_insts+=RISCVInst::flw(new FReg(static_cast<int>(fra->getReg())), new GReg(static_cast<int>(iria->getReg())), offset);
+            }
+
+        }
+
+
+    return asm_insts;
+}
+
+inline ::std::string InitializeAllTempRegs::print(){
+    ::std::string asm_insts;
+    for(auto i: iregs_tmp_restore){
+        auto ira = i.first;
+        auto iria = i.second;
+        int offset = iria->getOffset();
+        if(offset<-2048||offset>2047){
+            asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria->getReg())), offset)+
+                       RISCVInst::ld(new GReg(static_cast<int>(ira->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+        }
+        else{
+            asm_insts+=RISCVInst::ld(new GReg(static_cast<int>(ira->getReg())), new GReg(static_cast<int>(iria->getReg())), offset);
+        }
+    }   
+
+    for(auto f:fregs_tmp_restore){
+        auto fra = f.first;
+        auto iria = f.second;
+        int offset = iria->getOffset();
+        if(offset<-2048||offset>2047){
+            asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria->getReg())), offset)+
+                       RISCVInst::flw(new FReg(static_cast<int>(fra->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+        }
+        else{
+            asm_insts+=RISCVInst::flw(new FReg(static_cast<int>(fra->getReg())), new GReg(static_cast<int>(iria->getReg())), offset);
+        }
+    }
+
+
+    return asm_insts;
+}
+
+inline ::std::string PhiPass::print(){
+    ::std::string asm_insts;
+    for(auto i: i_phi){
+        auto src = i.second;
+        auto target = i.first;
+        auto iconst_src = dynamic_cast<IConstPool*>(src);
+        auto ireg_src = dynamic_cast<IRA*>(src);
+        auto iria_src = dynamic_cast<IRIA*>(src);
+        auto ireg_target = dynamic_cast<IRA*>(target);
+        auto iria_target = dynamic_cast<IRIA*>(target);
+        if(iconst_src){
+            if(ireg_target){
+                asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(ireg_target->getReg())), new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_src->getIConstPool());
+            }
+            else if(iria_target){
+                int offset = iria_target->getOffset();
+                if(offset<-2048||offset>2047){
+                    asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target->getReg())), offset)+
+                               RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_src->getIConstPool())+
+                               RISCVInst::sd(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+                }
+                else{
+                    asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_src->getIConstPool())+
+                               RISCVInst::sd(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(iria_target->getReg())), offset);
+                }
+            }
+
+        }
+        else if(ireg_src){
+            if(ireg_target){
+                asm_insts+=RISCVInst::mv(new GReg(static_cast<int>(ireg_target->getReg())), new GReg(static_cast<int>(ireg_src->getReg())));
+            }
+            else if(iria_target){
+                int offset = iria_target->getOffset();
+                if(offset<-2048||offset>2047){
+                    asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target->getReg())), offset)+
+                               RISCVInst::sd(new GReg(static_cast<int>(ireg_src->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+                }
+                else{
+                    asm_insts+=RISCVInst::sd(new GReg(static_cast<int>(ireg_src->getReg())), new GReg(static_cast<int>(iria_target->getReg())), offset);
+                }
+            }
+        }
+        else{
+            int src_offset = iria_src->getOffset();
+            if(src_offset<-2048||src_offset>2047){
+                asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)),new GReg(static_cast<int>(iria_src->getReg())), src_offset)+
+                           RISCVInst::ld(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+            }
+            else{
+                asm_insts+=RISCVInst::ld(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_src->getReg())), src_offset);
+            }
+            int target_offset = iria_target->getOffset();
+            if(ireg_target){
+                asm_insts+=RISCVInst::mv(new GReg(static_cast<int>(ireg_target->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)));
+            }
+            else if(iria_target){
+                if(target_offset<-2048||target_offset>2047){
+                    asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(iria_target->getReg())), target_offset)+
+                               RISCVInst::sd(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::s1)), 0);
+                }
+                else{
+                    asm_insts+=RISCVInst::sd(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target->getReg())), target_offset);
+                }
+            }
+        }
+    }
+
+    for(auto f:f_phi){
+        auto src = f.second;
+        auto target = f.first;
+        auto fconst_src = dynamic_cast<FConstPool*>(src);
+        auto freg_src = dynamic_cast<FRA*>(src);
+        auto iria_src = dynamic_cast<IRIA*>(src);
+        auto freg_target = dynamic_cast<FRA*>(target);
+        auto iria_target = dynamic_cast<IRIA*>(target);
+        if(fconst_src){
+            if(freg_target){
+                asm_insts+=RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(fconst_src->getFConstPool()))+
+                           RISCVInst::fmv_s_x(new FReg(static_cast<int>(freg_target->getReg())), new GReg(static_cast<int>(RISCV::GPR::s1)));
+            }
+            else if(iria_target){
+                int offset = iria_target->getOffset();
+                if(offset<-2048||offset>2047){
+                    asm_insts+=RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(fconst_src->getFConstPool()))+
+                               RISCVInst::fmv_s_x(new FReg(static_cast<int>(freg_target->getReg())), new GReg(static_cast<int>(RISCV::GPR::s1)));RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target->getReg())), offset)+
+                               RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target->getReg())), offset)+
+                               RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+                }
+                else{
+                    asm_insts+=RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(fconst_src->getFConstPool()))+
+                               RISCVInst::fmv_s_x(new FReg(static_cast<int>(freg_target->getReg())), new GReg(static_cast<int>(RISCV::GPR::s1)))+
+                               RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(iria_target->getReg())), offset);
+                }
+            }
+
+        }
+        else if(freg_src){
+            if(freg_target){
+                asm_insts+=RISCVInst::fmv_s(new FReg(static_cast<int>(freg_target->getReg())), new FReg(static_cast<int>(freg_src->getReg())));
+            }       
+            else if(iria_target){
+                int offset = iria_target->getOffset();
+                if(offset<-2048||offset>2047){
+                    asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target->getReg())), offset)+
+                               RISCVInst::fsw(new FReg(static_cast<int>(freg_src->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+                }
+                else{
+                    asm_insts+=RISCVInst::fsw(new FReg(static_cast<int>(freg_src->getReg())), new GReg(static_cast<int>(iria_target->getReg())), offset);
+                }
+            }
+        }
+        else{
+            int src_offset = iria_src->getOffset();
+            if(src_offset<-2048||src_offset>2047){
+                asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)),new GReg(static_cast<int>(iria_src->getReg())), src_offset)+
+                           RISCVInst::flw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+            }
+            else{
+                asm_insts+=RISCVInst::flw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(iria_src->getReg())), src_offset);
+            }
+            int target_offset = iria_target->getOffset();
+            if(freg_target){
+                asm_insts+=RISCVInst::fmv_s(new FReg(static_cast<int>(freg_target->getReg())), new FReg(static_cast<int>(RISCV::FPR::fs1)));
+            }
+            else if(iria_target){
+                if(target_offset<-2048||target_offset>2047){
+                    asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target->getReg())), target_offset)+
+                               RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+                }
+                else{
+                    asm_insts+=RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(iria_target->getReg())), target_offset);
+                }
+            }
+        }
+    }
+
+    return asm_insts;
 }

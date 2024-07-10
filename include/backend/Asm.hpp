@@ -110,7 +110,7 @@ class IConstPool: AddressMode{
     public:
         IConstPool(int i_const_pool): i_const_pool(i_const_pool){}
         bool isI(){return true;}
-        int getIConstPool(){return i_const_pool;}
+        int &getIConstPool(){return i_const_pool;}
         ::std::string print() final;
 
     private:
@@ -121,7 +121,7 @@ class FConstPool: AddressMode{
     public:
         FConstPool(float f_const_pool): f_const_pool(f_const_pool){}
         bool isI(){return false;}
-        int getFConstPool(){return f_const_pool;}
+        float &getFConstPool(){return f_const_pool;}
         ::std::string print() final;
 
     private:
@@ -979,7 +979,206 @@ class Ret: public AsmInst{
 
 };
 
+class CallerSaveRegs: public AsmInst{
+    public:
+        CallerSaveRegs(::std::vector<::std::pair<IRA*, IRIA*>> caller_iregs_save, Sequence* seq)
+        :caller_iregs_save(caller_iregs_save), AsmInst(Op::caller_save_regs, seq){}
+        CallerSaveRegs(::std::vector<::std::pair<FRA*, IRIA*>> caller_fregs_save, Sequence* seq)
+        :caller_fregs_save(caller_fregs_save), AsmInst(Op::caller_save_regs, seq){}
+        ::std::string print() final;
+    private:
+        ::std::vector<::std::pair<IRA*, IRIA*>> caller_iregs_save;
+        ::std::vector<::std::pair<FRA*, IRIA*>> caller_fregs_save;
+};
+
+class CalleeSaveRegs: public AsmInst{
+    public:
+        CalleeSaveRegs(::std::vector<::std::pair<IRA*, IRIA*>> callee_iregs_save, Sequence* seq)
+        :callee_iregs_save(callee_iregs_save), AsmInst(Op::callee_save_regs, seq){}
+        CalleeSaveRegs(::std::vector<::std::pair<FRA*, IRIA*>> caller_fregs_save, Sequence* seq)
+        :callee_fregs_save(callee_fregs_save), AsmInst(Op::callee_save_regs, seq){}
+        ::std::string print() final;
+    private:
+        ::std::vector<::std::pair<IRA*, IRIA*>> callee_iregs_save;
+        ::std::vector<::std::pair<FRA*, IRIA*>> callee_fregs_save;
+};
+
+class CallerRestoreRegs: public AsmInst{
+    public:
+        CallerRestoreRegs(::std::vector<::std::pair<IRA*, IRIA*>> caller_iregs_restore, Sequence* seq)
+        :caller_iregs_restore(caller_iregs_restore), AsmInst(Op::caller_restore_regs, seq){}
+        CallerRestoreRegs(::std::vector<::std::pair<FRA*, IRIA*>> caller_fregs_restore, Sequence* seq)
+        :caller_fregs_restore(caller_fregs_restore), AsmInst(Op::caller_restore_regs, seq){}
+        ::std::string print() final;
+    private:
+        ::std::vector<::std::pair<IRA*, IRIA*>> caller_iregs_restore;
+        ::std::vector<::std::pair<FRA*, IRIA*>> caller_fregs_restore; 
+};
+
+class CalleeRestoreRegs: public AsmInst{
+    public:
+        CalleeRestoreRegs(::std::vector<::std::pair<IRA*, IRIA*>> callee_iregs_restore, Sequence* seq)
+        :callee_iregs_restore(callee_iregs_restore), AsmInst(Op::callee_restore_regs, seq){}
+        CalleeRestoreRegs(::std::vector<::std::pair<FRA*, IRIA*>> callee_fregs_restore, Sequence* seq)
+        :callee_fregs_restore(callee_fregs_restore), AsmInst(Op::callee_restore_regs, seq){}
+        ::std::string print() final;
+    private:
+        ::std::vector<::std::pair<IRA*, IRIA*>> callee_iregs_restore;
+        ::std::vector<::std::pair<FRA*, IRIA*>> callee_fregs_restore; 
+};
+
+class CallerParaPass: public AsmInst{
+    public:
+        CallerParaPass(::std::vector<::std::pair<AddressMode*, AddressMode*>> caller_iparas_pass, ::std::vector<::std::pair<AddressMode*, AddressMode*>> caller_fparas_pass, Sequence* seq)
+        :caller_iparas_pass(caller_iparas_pass), caller_fparas_pass(caller_fparas_pass), AsmInst(Op::caller_parameters_passing, seq){}
+        ::std::string print() final;
+
+    private:
+        ::std::vector<::std::pair<AddressMode*, AddressMode*>> caller_iparas_pass;
+        ::std::vector<::std::pair<AddressMode*, AddressMode*>> caller_fparas_pass;         
+};
+
+class CalleeParaPass: public AsmInst{
+    public:
+        CalleeParaPass(::std::vector<::std::pair<AddressMode*, AddressMode*>> callee_iparas_pass, ::std::vector<::std::pair<AddressMode*, AddressMode*>> callee_fparas_pass, Sequence* seq)
+        :callee_iparas_pass(callee_iparas_pass), callee_fparas_pass(callee_fparas_pass), AsmInst(Op::callee_parameters_passing, seq){}
+        ::std::string print() final;
+
+    private:
+        ::std::vector<::std::pair<AddressMode*, AddressMode*>> callee_iparas_pass;
+        ::std::vector<::std::pair<AddressMode*, AddressMode*>> callee_fparas_pass;         
+};
+
+class CallerSaveResult: public AsmInst{
+    public:
+        CallerSaveResult(GReg* grs, AddressMode* dst, Sequence* seq)
+        :grs(grs), dst(dst), AsmInst(Op::caller_save_result, seq){}
+        CallerSaveResult(FReg* frs, AddressMode* dst, Sequence* seq)
+        :frs(frs), dst(dst), AsmInst(Op::caller_save_result, seq){}
+        ::std::string print() final;
+
+    private:
+        GReg* grs=nullptr;
+        FReg* frs=nullptr;
+        AddressMode* dst;
+};
+
+class CalleeSaveResult: public AsmInst{
+    public:
+        CalleeSaveResult(IRA* idst, Val* src, Sequence* seq)
+        :idst(idst), src(src), AsmInst(Op::callee_save_result, seq){}
+        CalleeSaveResult(FRA* fdst, Val* src, Sequence* seq)
+        :fdst(fdst), src(src), AsmInst(Op::callee_save_result, seq){}
+        ::std::string print() final;
+
+    private:
+        IRA* idst=nullptr;
+        FRA* fdst=nullptr;
+        Val* src;
+};
+
+class CalleeStackFrameInitialize: public AsmInst{
+    public:
+        CalleeStackFrameInitialize(int stack_initial_size, Sequence* seq)
+        :stack_initial_size(stack_initial_size), AsmInst(Op::callee_stack_frame_initialize, seq){}
+        ::std::string print() final;
+    private:
+        int stack_initial_size;
+};
+
+class CalleeStackFrameClear: public AsmInst{
+    public:
+        CalleeStackFrameClear(int stack_size_now, Sequence* seq)
+        :stack_size_now(stack_size_now), AsmInst(Op::callee_stack_frame_clear, seq){}
+        ::std::string print() final;
+    private:
+        int stack_size_now;
+};
+
+class CalleeStackFrameExpand: public AsmInst{
+    public:
+        CalleeStackFrameExpand(int stack_size_expand, Sequence* seq)
+        :stack_size_expand(stack_size_expand), AsmInst(Op::callee_stack_frame_expand, seq){}
+        ::std::string print() final;       
+    private:
+        int stack_size_expand;
+
+};
+
+class CalleeStackFrameShrink: public AsmInst{
+    public:
+        CalleeStackFrameShrink(int stack_size_shrink, Sequence* seq)
+        :stack_size_shrink(stack_size_shrink), AsmInst(Op::callee_stack_frame_shrink, seq){}
+        ::std::string print() final;       
+    private:
+        int stack_size_shrink;
+
+};
+
+class LoadTmpRegs: public AsmInst{
+    public:
+        LoadTmpRegs(::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_load, Sequence* seq)
+        :iregs_tmp_load(iregs_tmp_load), AsmInst(Op::load_tmp_regs, seq){}
+        LoadTmpRegs(::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_load, Sequence* seq)
+        :fregs_tmp_load(fregs_tmp_load), AsmInst(Op::load_tmp_regs, seq){}
+        ::std::string print() final;  
+    private:
+        ::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_load;
+        ::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_load;  
+};
+
+class StoreTmpRegs: public AsmInst{
+    public:
+        StoreTmpRegs(::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_store, Sequence* seq)
+        :iregs_tmp_store(iregs_tmp_store), AsmInst(Op::store_tmp_regs, seq){}
+        StoreTmpRegs(::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_store, Sequence* seq)
+        :fregs_tmp_store(fregs_tmp_store), AsmInst(Op::store_tmp_regs, seq){}
+        ::std::string print() final;  
+
+    private:
+        ::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_store;
+        ::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_store;  
+};
+
+class AllocaTmpRegs: public AsmInst{
+    public:
+        AllocaTmpRegs(::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_load, ::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_store, Sequence* seq)
+        :iregs_tmp_load(iregs_tmp_load), iregs_tmp_store(iregs_tmp_store), AsmInst(Op::alloca_tmp_regs, seq){}
+        AllocaTmpRegs(::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_load, ::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_store, Sequence* seq)
+        :fregs_tmp_load(fregs_tmp_load), fregs_tmp_store(fregs_tmp_store), AsmInst(Op::alloca_tmp_regs, seq){}
+
+        ::std::string print() final;
+    private:
+        ::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_load;
+        ::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_load;  
+
+        ::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_store;
+        ::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_store; 
 
 
+};
+
+class InitializeAllTempRegs: public AsmInst{
+    public:
+        InitializeAllTempRegs(::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_restore, Sequence* seq)
+        :iregs_tmp_restore(iregs_tmp_restore), AsmInst(Op::initialize_all_temp_regs, seq){}
+        InitializeAllTempRegs(::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_restore, Sequence* seq)
+        :fregs_tmp_restore(fregs_tmp_restore), AsmInst(Op::initialize_all_temp_regs, seq){}
+        ::std::string print() final;
+    private:
+        ::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_restore;
+        ::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_restore;
+
+};
+
+class PhiPass: public AsmInst{
+    public:
+        PhiPass(::std::vector<::std::pair<AddressMode*, AddressMode*>> i_phi, ::std::vector<::std::pair<AddressMode*, AddressMode*>> f_phi, Sequence* seq)
+        :i_phi(i_phi), f_phi(f_phi), AsmInst(Op::phi_passing, seq){}
+        ::std::string print() final;
+    private:
+        ::std::vector<::std::pair<AddressMode*, AddressMode*>> i_phi;
+        ::std::vector<::std::pair<AddressMode*, AddressMode*>> f_phi;
+};
 
 #endif
