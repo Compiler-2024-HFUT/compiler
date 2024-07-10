@@ -43,8 +43,8 @@ SCEVExpr *SCEVExpr::foldAdd(SCEVExpr *scev){
 }
 
 SCEVExpr *SCEVExpr::foldMul(SCEVExpr *scev){
-    if(this->loop != scev->loop){
-        LOG_ERROR("SCEVExpr in different loop cann't mul", -1)
+    if(this->loop && scev->loop && this->loop != scev->loop){
+        LOG_ERROR("SCEVExpr in different(or empty) loop cann't mul", 1)
     }
 
     if(this->isUnknown() || scev->isUnknown()) {
@@ -59,7 +59,7 @@ SCEVExpr *SCEVExpr::foldMul(SCEVExpr *scev){
         vector<SCEVExpr*> ops;
         
         for(SCEVExpr *expr : addRecExpr->getOperands()) {
-            ops.push_back( expr->foldAdd(constExpr) );
+            ops.push_back( expr->foldMul(constExpr) );
         }
         return createAddRec(std::move(ops), this->loop);
     } else if(this->isAddRec() && scev->isAddRec()) {
@@ -75,7 +75,7 @@ static SCEVExpr *CRProd(SCEVExpr *a, SCEVExpr *b) {
     }
 
     if(a->isConst() || b->isConst()) {
-        return a->foldAdd(b);
+        return a->foldMul(b);
     }
 
     // keep num of a's ops more than b's ops
@@ -83,9 +83,8 @@ static SCEVExpr *CRProd(SCEVExpr *a, SCEVExpr *b) {
 
     vector<SCEVExpr*> f1_ops(a->getOperands().begin()+1, a->getOperands().end());
     vector<SCEVExpr*> g1_ops(b->getOperands().begin()+1, b->getOperands().end());
-    SCEVExpr *f1 = SCEVExpr::createAddRec(f1_ops, a->loop);
-    SCEVExpr *g1 = SCEVExpr::createAddRec(g1_ops, a->loop);
-    if( f1->isUnknown() || g1->isUnknown() ) { return SCEVExpr::createUnknown(a->loop); }
+    SCEVExpr *f1 = (f1_ops.size()==1) ? SCEVExpr::createConst(f1_ops[0]->getConst(), a->loop) : SCEVExpr::createAddRec(f1_ops, a->loop);
+    SCEVExpr *g1 = (g1_ops.size()==1) ? SCEVExpr::createConst(g1_ops[0]->getConst(), a->loop) : SCEVExpr::createAddRec(g1_ops, a->loop);
 
     SCEVExpr *b1 = b->foldAdd(g1);
     if( b1->isUnknown() ) { return SCEVExpr::createUnknown(a->loop); }
@@ -101,11 +100,11 @@ static SCEVExpr *CRProd(SCEVExpr *a, SCEVExpr *b) {
     vector<SCEVExpr*> tmp;
     SCEVExpr *tmp_expr;
     int len = prod1->getOperands().size();
-    tmp_expr = prod1->getOperand(0)->foldAdd(prod2->getOperand(0));
+    tmp_expr = a->getOperand(0)->foldMul(b->getOperand(0));
     if(tmp_expr->isUnknown()) { return SCEVExpr::createUnknown(a->loop); }
     tmp.push_back( tmp_expr );
-    for(int i=1; i<len; i++) {
-        tmp_expr = prod1->getOperand(i)->foldMul(prod2->getOperand(i));
+    for(int i=0; i<len; i++) {
+        tmp_expr = prod1->getOperand(i)->foldAdd(prod2->getOperand(i));
         if(tmp_expr->isUnknown()) { return SCEVExpr::createUnknown(a->loop); }
         tmp.push_back( tmp_expr );
     }
@@ -114,7 +113,7 @@ static SCEVExpr *CRProd(SCEVExpr *a, SCEVExpr *b) {
 
 void SCEV::analyseOnFunc(Function *func){
     vector<Loop*> loops = infoManager->getInfo<LoopInfo>()->getLoops(func);
-    
+
 }
 
 string SCEV::print(){

@@ -23,9 +23,9 @@
     #define STRING_RED(msg)    (LOG_COLOR_RED    + msg + LOG_COLOR_RESET)
     #define STRING_STRONG(msg) (LOG_COLOR_NORMAL + msg + LOG_COLOR_RESET)
     
-    #define LOG_NORMAL(msg) std::cout << LOG_COLOR_NORMAL << "[LOG] " << msg << LOG_COLOR_RESET << std::endl;
-    #define LOG_WARNING(msg) std::cout << LOG_COLOR_YELLOW << "[WARNING] " << msg << LOG_COLOR_RESET << std::endl;
-    #define LOG_ERROR(msg, code) std::cerr << LOG_COLOR_RED << "[ERROR] " << msg << LOG_COLOR_RESET << std::endl; exit(code);
+    #define LOG_NORMAL(msg)         { std::cout << LOG_COLOR_NORMAL << "[LOG] " << msg << LOG_COLOR_RESET << std::endl; }
+    #define LOG_WARNING(msg)        { std::cout << LOG_COLOR_YELLOW << "[WARNING] " << msg << LOG_COLOR_RESET << std::endl; }
+    #define LOG_ERROR(msg, code)    { std::cerr << LOG_COLOR_RED << "[ERROR] " << msg << LOG_COLOR_RESET << std::endl; exit(code); }
 #else
     #define LOG_NORMAL(msg) 
     #define LOG_WARNING(msg)    

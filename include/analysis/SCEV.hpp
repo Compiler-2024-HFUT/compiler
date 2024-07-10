@@ -16,8 +16,10 @@
 
 #include <vector>
 #include <map>
+#include <string>
 using std::vector;
 using std::map;
+using std::string;
 
 struct SCEVExpr {
     enum ExprType { Const, Expr, AddRec, Unknown };
@@ -28,16 +30,16 @@ struct SCEVExpr {
     bool isUnknown() { return type == SCEVExpr::Unknown; }
 
     static SCEVExpr *createConst(int c, Loop *l) {
-        return new SCEVExpr(Const, c, nullptr, {}, l);
+        return new SCEVExpr(SCEVExpr::Const, c, nullptr, {}, l);
     }
     static SCEVExpr *createExpr(Value *v, Loop *l) {
-        return new SCEVExpr(Expr, 0, v, {}, l);
+        return new SCEVExpr(SCEVExpr::Expr, 0, v, {}, l);
     }
     static SCEVExpr *createAddRec(vector<SCEVExpr*> op, Loop *l) {
-        return new SCEVExpr(AddRec, 0, nullptr, op, l);
+        return new SCEVExpr(SCEVExpr::AddRec, 0, nullptr, op, l);
     }
     static SCEVExpr *createUnknown(Loop *l) {
-        return new SCEVExpr(Unknown, 0, nullptr, {}, l);
+        return new SCEVExpr(SCEVExpr::Unknown, 0, nullptr, {}, l);
     }
 
     int getConst() {
@@ -51,6 +53,32 @@ struct SCEVExpr {
     SCEVExpr *getOperand(int i) {
         if(!isAddRec()) LOG_ERROR("scev expr isn't an addrec", 1)
         return operands[i];
+    }
+
+    string print() {
+        string printStr = "";
+        switch (type)
+        {
+        case Const:
+            printStr = STRING("Const( ") + STRING_NUM(cv) + " )";
+            break;
+        case Expr:
+            printStr = STRING("Expr( ") + val->getName() + " )";
+            break;
+        case AddRec:
+            printStr += "AddRec( { ";
+            for(SCEVExpr *expr : operands) {
+                printStr += expr->print();
+                printStr += ", +, ";
+            }
+            printStr += "\b\b\b\b\b } )";
+            break;
+        case Unknown:
+            printStr = "Unknown";
+            break;
+        }
+        // printStr += STRING("<") + loop->getHeader()->getName() + ">";
+        return printStr;
     }
 
     SCEVExpr *foldAdd(SCEVExpr *expr);
