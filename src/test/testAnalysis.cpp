@@ -31,7 +31,7 @@ int main(int argc , char**argv){
     // pm->getInfo<Dominators>()->printDomTree();
 
     // cout << pm->getInfo<LiveVar>()->print();
-    cout << pm->getInfo<LoopInfo>()->print();
+    cout << pm->getInfo<SCEV>()->print();
 
     delete (p);
 
