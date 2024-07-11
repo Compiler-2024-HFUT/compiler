@@ -11,6 +11,8 @@
 #include "optimization/inline.hpp"
 #include "analysis/CIDBB.hpp"
 #include "analysis/CLND.hpp"
+#include "backend/AsmGen.hpp"
+#include "backend/Asm.hpp"
 
 using namespace std;
 
@@ -33,13 +35,19 @@ int main(int argc , char**argv){
     pm.add_pass<DeadStoreEli>();
     pm.add_pass<Mem2Reg>();
    // // pm.add_pass<ADCE>();
+   //pm.run();
+   //cout << irgen.getModule()->print();
    pm.add_pass<LIR>();
-  // pm.add_pass<CIDBB>();
-  // pm.add_pass<CLND>();
+   pm.add_pass<CIDBB>();
+   pm.add_pass<CLND>();
 
     // pm.add_pass<FuncInline>();
     pm.run();
-    cout << irgen.getModule()->print();
+    AsmGen asm_gen(m);
+    m->accept(asm_gen);
+    ::std::string asm_code = asm_gen.getAsmUnit()->print();
+    ::std::cout<<asm_code<<::std::endl;
+
 
     delete (p);
 

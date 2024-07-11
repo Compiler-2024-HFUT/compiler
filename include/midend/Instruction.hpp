@@ -207,17 +207,20 @@ public:
     bool isTerminator() { return isBr() || isRet() || isCmpBr() || isFCmpBr(); }
     bool isWriteMem(){return isStore() || isStoreOffset(); }
 
-    // void setId(int id) { id_ = id; }
-    // int getId() { return id_; }
+     void setId(int id) { id_ = id; }
+     int getId() { return id_; }
 
     virtual Instruction *copyInst(BasicBlock *bb) = 0;
+
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) = 0;
 
 private:
     OpID op_id_;
     // unsigned num_ops_;
     BasicBlock* parent_;
     //似乎没有用到
-    // int id_;
+     int id_;
 };
 
 class BinaryInst : public Instruction {

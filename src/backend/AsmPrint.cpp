@@ -1,41 +1,41 @@
 #include "backend/Asm.hpp"
 
 
-inline ::std::string IConst::print(){
+ ::std::string IConst::print(){
     return ::std::to_string(val);
 }
-inline ::std::string FConst::print(){
+ ::std::string FConst::print(){
     return ::std::to_string(*((uint32_t*)(&val)));
 }
-inline ::std::string GReg::print(){
+ ::std::string GReg::print(){
     return RISCV::reg2String(reg);
 }
-inline ::std::string FReg::print(){
+ ::std::string FReg::print(){
     return RISCV::freg2String(reg);
 }
-inline ::std::string Mem::print(){
+ ::std::string Mem::print(){
     return ::std::to_string(offset)+"("+RISCV::reg2String(reg)+")";
 }
-inline ::std::string Label::print(){
+ ::std::string Label::print(){
     return label;
 }
-inline ::std::string IConstPool::print(){
+ ::std::string IConstPool::print(){
     return ::std::to_string(i_const_pool);
 }
-inline ::std::string FConstPool::print(){
+ ::std::string FConstPool::print(){
     return ::std::to_string(*((uint32_t*)(&f_const_pool)));
 }
-inline ::std::string IRA::print(){
+ ::std::string IRA::print(){
     return RISCV::reg2String(reg);
 }
-inline ::std::string FRA::print(){
+ ::std::string FRA::print(){
     return RISCV::freg2String(reg);
 }
-inline ::std::string IRIA::print(){
+ ::std::string IRIA::print(){
     return ::std::to_string(offset)+"("+RISCV::reg2String(reg)+")";
 }
 
-inline ::std::string AsmUnit::print(){
+ ::std::string AsmUnit::print(){
     asm_context+=AsmString::space+
                 ".file"+
                 AsmString::space+
@@ -124,7 +124,7 @@ inline ::std::string AsmUnit::print(){
     
     return asm_context;
 }
-inline ::std::string Subroutine::print(){
+ ::std::string Subroutine::print(){
     ::std::string subroutine_def;
     subroutine_def+=AsmString::space+".align"+AsmString::space+::std::to_string(1)+AsmString::newline;
     subroutine_def+=AsmString::space+".global"+AsmString::space+func->getName()+AsmString::newline;
@@ -137,7 +137,7 @@ inline ::std::string Subroutine::print(){
     subroutine_def+=AsmString::space+".size"+AsmString::space+func->getName()+AsmString::comma+".-"+func->getName()+AsmString::newline;
     return subroutine_def;
 }
-inline ::std::string Sequence::print(){
+ ::std::string Sequence::print(){
     ::std::string squence_def;
     if(label->getLabel()!="")
         squence_def+=label->getLabel()+AsmString::colon+AsmString::newline;
@@ -148,7 +148,7 @@ inline ::std::string Sequence::print(){
     return squence_def;
 }
 
-inline ::std::string Add::print(){
+ ::std::string Add::print(){
     auto iconst_rs1 = dynamic_cast<IConst*>(rs1);
     auto iconst_rs2 = dynamic_cast<IConst*>(rs2);
     if(iconst_rs1 && iconst_rs2)
@@ -161,7 +161,7 @@ inline ::std::string Add::print(){
         return RISCVInst::add(rd, dynamic_cast<GReg*>(rs1), dynamic_cast<GReg*>(rs2));
 }
 
-inline ::std::string Subw::print(){
+ ::std::string Subw::print(){
     auto iconst_rs1 = dynamic_cast<IConst*>(rs1);
     auto iconst_rs2 = dynamic_cast<IConst*>(rs2);
     if(iconst_rs1 && iconst_rs2)
@@ -175,7 +175,7 @@ inline ::std::string Subw::print(){
         return RISCVInst::subw(rd, dynamic_cast<GReg*>(rs1), dynamic_cast<GReg*>(rs2));
 }
 
-inline ::std::string Mulw::print(){
+ ::std::string Mulw::print(){
     auto iconst_rs1 = dynamic_cast<IConst*>(rs1);
     auto iconst_rs2 = dynamic_cast<IConst*>(rs2);
     if(iconst_rs1 && iconst_rs2)
@@ -191,7 +191,7 @@ inline ::std::string Mulw::print(){
 }
 
 
-inline ::std::string Muld::print(){
+ ::std::string Muld::print(){
     auto iconst_rs1 = dynamic_cast<IConst*>(rs1);
     auto iconst_rs2 = dynamic_cast<IConst*>(rs2);
     if(iconst_rs1)
@@ -204,7 +204,7 @@ inline ::std::string Muld::print(){
         return RISCVInst::mul(rd, dynamic_cast<GReg*>(rs1), dynamic_cast<GReg*>(rs2));
 }
 
-inline ::std::string Divw::print(){
+ ::std::string Divw::print(){
     auto iconst_rs1 = dynamic_cast<IConst*>(rs1);
     auto iconst_rs2 = dynamic_cast<IConst*>(rs2);
     if(iconst_rs1 && iconst_rs2)
@@ -219,7 +219,7 @@ inline ::std::string Divw::print(){
         return RISCVInst::divw(rd, dynamic_cast<GReg*>(rs1), dynamic_cast<GReg*>(rs2));
 }
 
-inline ::std::string Remw::print(){
+ ::std::string Remw::print(){
     auto iconst_rs1 = dynamic_cast<IConst*>(rs1);
     auto iconst_rs2 = dynamic_cast<IConst*>(rs2);
     if(iconst_rs1 && iconst_rs2)
@@ -234,7 +234,7 @@ inline ::std::string Remw::print(){
         return RISCVInst::remw(rd, dynamic_cast<GReg*>(rs1), dynamic_cast<GReg*>(rs2));
 }
 
-inline ::std::string Sraw::print(){
+ ::std::string Sraw::print(){
     auto iconst_rs1 = dynamic_cast<IConst*>(rs1);
     if(iconst_rs1)
         return RISCVInst::addi(rd, new GReg(static_cast<int>(RISCV::GPR::zero)), (iconst_rs1->getIConst())>>(iconst_rs2->getIConst()));
@@ -242,7 +242,7 @@ inline ::std::string Sraw::print(){
         return RISCVInst::sraiw(rd, dynamic_cast<GReg*>(rs1), iconst_rs2->getIConst());
 }
 
-inline ::std::string Sllw::print(){
+ ::std::string Sllw::print(){
     auto iconst_rs1 = dynamic_cast<IConst*>(rs1);
     if(iconst_rs1)
         return RISCVInst::addi(rd, new GReg(static_cast<int>(RISCV::GPR::zero)), (iconst_rs1->getIConst())<<(iconst_rs2->getIConst()));
@@ -250,7 +250,7 @@ inline ::std::string Sllw::print(){
         return RISCVInst::slliw(rd, dynamic_cast<GReg*>(rs1), iconst_rs2->getIConst());
 }
 
-inline ::std::string Srlw::print(){
+ ::std::string Srlw::print(){
     auto iconst_rs1 = dynamic_cast<IConst*>(rs1);
     if(iconst_rs1)
         return RISCVInst::addi(rd, new GReg(static_cast<int>(RISCV::GPR::zero)), (iconst_rs1->getIConst())>>(iconst_rs2->getIConst()));
@@ -258,7 +258,7 @@ inline ::std::string Srlw::print(){
         return RISCVInst::srliw(rd, dynamic_cast<GReg*>(rs1), iconst_rs2->getIConst());
 }
 
-inline ::std::string Sra::print(){
+ ::std::string Sra::print(){
     auto iconst_rs1 = dynamic_cast<IConst*>(rs1);
     if(iconst_rs1)
         return RISCVInst::addi(rd, new GReg(static_cast<int>(RISCV::GPR::zero)), (iconst_rs1->getIConst())>>(iconst_rs2->getIConst()));
@@ -266,7 +266,7 @@ inline ::std::string Sra::print(){
         return RISCVInst::srai(rd, dynamic_cast<GReg*>(rs1), iconst_rs2->getIConst());
 }
 
-inline ::std::string Sll::print(){
+ ::std::string Sll::print(){
     auto iconst_rs1 = dynamic_cast<IConst*>(rs1);
     if(iconst_rs1)
         return RISCVInst::addi(rd, new GReg(static_cast<int>(RISCV::GPR::zero)), (iconst_rs1->getIConst())<<(iconst_rs2->getIConst()));
@@ -274,7 +274,7 @@ inline ::std::string Sll::print(){
         return RISCVInst::slli(rd, dynamic_cast<GReg*>(rs1), iconst_rs2->getIConst());
 }
 
-inline ::std::string Srl::print(){
+ ::std::string Srl::print(){
     auto iconst_rs1 = dynamic_cast<IConst*>(rs1);
     if(iconst_rs1)
         return RISCVInst::addi(rd, new GReg(static_cast<int>(RISCV::GPR::zero)), (iconst_rs1->getIConst())>>(iconst_rs2->getIConst()));
@@ -282,7 +282,7 @@ inline ::std::string Srl::print(){
         return RISCVInst::srli(rd, dynamic_cast<GReg*>(rs1), iconst_rs2->getIConst());
 }
 
-inline ::std::string Land::print(){
+ ::std::string Land::print(){
     auto iconst_rs1 = dynamic_cast<IConst*>(rs1);
     if(iconst_rs2->getIConst()<-2048 || iconst_rs2->getIConst()>2047)
         return RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::zero)), (iconst_rs2->getIConst()))+
@@ -291,7 +291,7 @@ inline ::std::string Land::print(){
         return RISCVInst::andi(rd, rs1, iconst_rs2->getIConst());
 }
 
-inline ::std::string Fadd_s::print(){
+ ::std::string Fadd_s::print(){
     auto fconst_rs1 = dynamic_cast<FConst*>(rs1);
     auto fconst_rs2 = dynamic_cast<FConst*>(rs2);
     if(fconst_rs1 && fconst_rs2){
@@ -314,7 +314,7 @@ inline ::std::string Fadd_s::print(){
     }
 }
 
-inline ::std::string Fsub_s::print(){
+ ::std::string Fsub_s::print(){
     auto fconst_rs1 = dynamic_cast<FConst*>(rs1);
     auto fconst_rs2 = dynamic_cast<FConst*>(rs2);
     if(fconst_rs1 && fconst_rs2){
@@ -337,7 +337,7 @@ inline ::std::string Fsub_s::print(){
     }
 }
 
-inline ::std::string Fmul_s::print(){
+ ::std::string Fmul_s::print(){
     auto fconst_rs1 = dynamic_cast<FConst*>(rs1);
     auto fconst_rs2 = dynamic_cast<FConst*>(rs2);
     if(fconst_rs1 && fconst_rs2){
@@ -360,7 +360,7 @@ inline ::std::string Fmul_s::print(){
     }
 }
 
-inline ::std::string Fdiv_s::print(){
+ ::std::string Fdiv_s::print(){
     auto fconst_rs1 = dynamic_cast<FConst*>(rs1);
     auto fconst_rs2 = dynamic_cast<FConst*>(rs2);
     if(fconst_rs1 && fconst_rs2){
@@ -383,7 +383,7 @@ inline ::std::string Fdiv_s::print(){
     }
 }
 
-inline ::std::string Fcvt_w_s::print(){
+ ::std::string Fcvt_w_s::print(){
     auto fconst_rs1 = dynamic_cast<FConst*>(rs1);
     if(fconst_rs1)
         return RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)(&(fconst_rs1->getFConst())))+
@@ -393,7 +393,7 @@ inline ::std::string Fcvt_w_s::print(){
         return RISCVInst::fcvt_w_s(rd, dynamic_cast<FReg*>(rs1));
 }
 
-inline ::std::string Fcvt_s_w::print(){
+ ::std::string Fcvt_s_w::print(){
     auto iconst_rs1 = dynamic_cast<IConst*>(rs1);
     if(iconst_rs1)
         return RISCVInst::addiw(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_rs1->getIConst())+
@@ -402,11 +402,11 @@ inline ::std::string Fcvt_s_w::print(){
         return RISCVInst::fcvt_s_w(rd, dynamic_cast<GReg*>(rs1));
 }
 
-inline ::std::string Zext::print(){
+ ::std::string Zext::print(){
     return RISCVInst::addi(rd, rs1, 1);
 }
 
-inline ::std::string Snez::print(){
+ ::std::string Snez::print(){
     auto iconst_cond = dynamic_cast<IConst*>(cond);
     auto fconst_cond = dynamic_cast<FConst*>(cond);
     auto ireg = dynamic_cast<GReg*>(cond);
@@ -421,7 +421,7 @@ inline ::std::string Snez::print(){
                RISCVInst::snez(rd, new GReg(static_cast<int>(RISCV::GPR::ra)));
 }
 
-inline ::std::string Seqz::print(){
+ ::std::string Seqz::print(){
     auto iconst_cond = dynamic_cast<IConst*>(cond);
     auto fconst_cond = dynamic_cast<FConst*>(cond);
     auto ireg = dynamic_cast<GReg*>(cond);
@@ -436,7 +436,7 @@ inline ::std::string Seqz::print(){
                RISCVInst::seqz(rd, new GReg(static_cast<int>(RISCV::GPR::ra)));
 }
 
-inline ::std::string Feq_s::print(){
+ ::std::string Feq_s::print(){
     auto fconst1 = dynamic_cast<FConst*>(cond1);
     auto fconst2 = dynamic_cast<FConst*>(cond2);
     if(fconst1 && fconst2){
@@ -458,7 +458,7 @@ inline ::std::string Feq_s::print(){
     
 }
 
-inline ::std::string Fle_s::print(){
+ ::std::string Fle_s::print(){
     auto fconst1 = dynamic_cast<FConst*>(cond1);
     auto fconst2 = dynamic_cast<FConst*>(cond2);
     if(fconst1 && fconst2){
@@ -480,7 +480,7 @@ inline ::std::string Fle_s::print(){
     
 }
 
-inline ::std::string Flt_s::print(){
+ ::std::string Flt_s::print(){
     auto fconst1 = dynamic_cast<FConst*>(cond1);
     auto fconst2 = dynamic_cast<FConst*>(cond2);
     if(fconst1 && fconst2){
@@ -502,7 +502,7 @@ inline ::std::string Flt_s::print(){
     
 }
 
-inline ::std::string Fge_s::print(){
+ ::std::string Fge_s::print(){
     auto fconst1 = dynamic_cast<FConst*>(cond1);
     auto fconst2 = dynamic_cast<FConst*>(cond2);
     if(fconst1 && fconst2){
@@ -525,7 +525,7 @@ inline ::std::string Fge_s::print(){
 }
 
 
-inline ::std::string Fgt_s::print(){
+ ::std::string Fgt_s::print(){
     auto fconst1 = dynamic_cast<FConst*>(cond1);
     auto fconst2 = dynamic_cast<FConst*>(cond2);
     if(fconst1 && fconst2){
@@ -547,7 +547,7 @@ inline ::std::string Fgt_s::print(){
     
 }
 
-inline ::std::string Fne_s::print(){
+ ::std::string Fne_s::print(){
     auto fconst1 = dynamic_cast<FConst*>(cond1);
     auto fconst2 = dynamic_cast<FConst*>(cond2);
     if(fconst1 && fconst2){
@@ -573,7 +573,7 @@ inline ::std::string Fne_s::print(){
     
 }
 
-inline ::std::string Lw::print(){
+ ::std::string Lw::print(){
     auto iconst_offset = dynamic_cast<IConst*>(offset);
     if(iconst_offset){
         int iconst_offset_value = iconst_offset->getIConst()*4;
@@ -590,12 +590,12 @@ inline ::std::string Lw::print(){
     }
 }
 
-inline ::std::string Lw_label::print(){
+ ::std::string Lw_label::print(){
     return RISCVInst::la(new GReg(static_cast<int>(RISCV::GPR::ra)), label)+
            RISCVInst::lw(rd, new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
 }
 
-inline ::std::string Flw::print(){
+ ::std::string Flw::print(){
     auto iconst_offset = dynamic_cast<IConst*>(offset);
     if(iconst_offset){
         int iconst_offset_value = iconst_offset->getIConst()*4;
@@ -612,12 +612,12 @@ inline ::std::string Flw::print(){
     }
 }
 
-inline ::std::string Flw_label::print(){
+ ::std::string Flw_label::print(){
     return RISCVInst::la(new GReg(static_cast<int>(RISCV::GPR::ra)), label)+
            RISCVInst::flw(rd, new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
 }
 
-inline ::std::string Sw::print(){
+ ::std::string Sw::print(){
     auto iconst_src = dynamic_cast<IConst*>(src);
     auto iconst_offset = dynamic_cast<IConst*>(offset);
     if(iconst_src){
@@ -653,7 +653,7 @@ inline ::std::string Sw::print(){
     }
 }
 
-inline  ::std::string Sw_label::print(){
+  ::std::string Sw_label::print(){
     auto iconst_src = dynamic_cast<IConst*>(src);
     if(iconst_src){
         return RISCVInst::la(new GReg(static_cast<int>(RISCV::GPR::ra)), label)+
@@ -666,7 +666,7 @@ inline  ::std::string Sw_label::print(){
     }
 }
 
-inline ::std::string Fsw::print(){
+ ::std::string Fsw::print(){
     auto fconst_src = dynamic_cast<FConst*>(src);
     auto iconst_offset = dynamic_cast<IConst*>(offset);
     if(fconst_src){
@@ -705,7 +705,7 @@ inline ::std::string Fsw::print(){
     }
 }
 
-inline  ::std::string Fsw_label::print(){
+  ::std::string Fsw_label::print(){
     auto fconst_src = dynamic_cast<FConst*>(src);
     if(fconst_src){
         return RISCVInst::la(new GReg(static_cast<int>(RISCV::GPR::ra)), label)+
@@ -719,19 +719,19 @@ inline  ::std::string Fsw_label::print(){
     }
 }
 
-inline ::std::string Call::print(){
+ ::std::string Call::print(){
     return RISCVInst::call(label);
 }
 
-inline ::std::string La::print(){
+ ::std::string La::print(){
     return RISCVInst::la(rd, label);
 }
 
-inline ::std::string Mv::print(){
+ ::std::string Mv::print(){
     return RISCVInst::mv(rd, rs1);
 }
 
-inline ::std::string Beq::print(){
+ ::std::string Beq::print(){
     auto iconst1 = dynamic_cast<IConst*>(cond1);
     auto iconst2 = dynamic_cast<IConst*>(cond2);
     if(iconst1 && iconst2){
@@ -867,7 +867,7 @@ inline ::std::string Beq::print(){
 }
 
 
-inline ::std::string Bne::print(){
+ ::std::string Bne::print(){
     auto iconst1 = dynamic_cast<IConst*>(cond1);
     auto iconst2 = dynamic_cast<IConst*>(cond2);
     if(iconst1 && iconst2){
@@ -1002,7 +1002,7 @@ inline ::std::string Bne::print(){
     }
 }
 
-inline ::std::string Bge::print(){
+ ::std::string Bge::print(){
     auto iconst1 = dynamic_cast<IConst*>(cond1);
     auto iconst2 = dynamic_cast<IConst*>(cond2);
     if(iconst1 && iconst2){
@@ -1137,7 +1137,7 @@ inline ::std::string Bge::print(){
     }
 }
 
-inline ::std::string Blt::print(){
+ ::std::string Blt::print(){
     auto iconst1 = dynamic_cast<IConst*>(cond1);
     auto iconst2 = dynamic_cast<IConst*>(cond2);
     if(iconst1 && iconst2){
@@ -1272,7 +1272,7 @@ inline ::std::string Blt::print(){
     }
 }
 
-inline ::std::string FBeq::print(){
+ ::std::string FBeq::print(){
     auto fconst1 = dynamic_cast<FConst*>(cond1);
     auto fconst2 = dynamic_cast<FConst*>(cond2);
     if(fconst1 && fconst2){
@@ -1406,7 +1406,7 @@ inline ::std::string FBeq::print(){
 
 
 
-inline ::std::string FBge::print(){
+ ::std::string FBge::print(){
     auto fconst1 = dynamic_cast<FConst*>(cond1);
     auto fconst2 = dynamic_cast<FConst*>(cond2);
     if(fconst1 && fconst2){
@@ -1539,7 +1539,7 @@ inline ::std::string FBge::print(){
 }
 
 
-inline ::std::string FBgt::print(){
+ ::std::string FBgt::print(){
     auto fconst1 = dynamic_cast<FConst*>(cond1);
     auto fconst2 = dynamic_cast<FConst*>(cond2);
     if(fconst1 && fconst2){
@@ -1671,7 +1671,7 @@ inline ::std::string FBgt::print(){
     }
 }
 
-inline ::std::string FBle::print(){
+ ::std::string FBle::print(){
     auto fconst1 = dynamic_cast<FConst*>(cond1);
     auto fconst2 = dynamic_cast<FConst*>(cond2);
     if(fconst1 && fconst2){
@@ -1803,7 +1803,7 @@ inline ::std::string FBle::print(){
     }
 }
 
-inline ::std::string FBlt::print(){
+ ::std::string FBlt::print(){
     auto fconst1 = dynamic_cast<FConst*>(cond1);
     auto fconst2 = dynamic_cast<FConst*>(cond2);
     if(fconst1 && fconst2){
@@ -1935,7 +1935,7 @@ inline ::std::string FBlt::print(){
     }
 }
 
-inline ::std::string FBne::print(){
+ ::std::string FBne::print(){
     auto fconst1 = dynamic_cast<FConst*>(cond1);
     auto fconst2 = dynamic_cast<FConst*>(cond2);
     if(fconst1 && fconst2){
@@ -2067,11 +2067,11 @@ inline ::std::string FBne::print(){
     }
 }
 
-inline ::std::string Jump::print(){
+ ::std::string Jump::print(){
     return RISCVInst::j(label);
 }
 
-inline ::std::string Ret::print(){
+ ::std::string Ret::print(){
     return RISCVInst::ret();
 }
 
@@ -2085,7 +2085,7 @@ inline ::std::string Ret::print(){
 
 
 
-inline ::std::string CallerSaveRegs::print(){
+ ::std::string CallerSaveRegs::print(){
     ::std::string asm_insts;
     for(auto i:caller_iregs_save)
         asm_insts+=RISCVInst::sd(new GReg(static_cast<int>(i.first->getReg())), new GReg(static_cast<int>(i.second->getReg())), i.second->getOffset());
@@ -2095,7 +2095,7 @@ inline ::std::string CallerSaveRegs::print(){
     return asm_insts;
 }
 
-inline ::std::string CalleeSaveRegs::print(){
+ ::std::string CalleeSaveRegs::print(){
     ::std::string asm_insts;
     for(auto i:callee_iregs_save)
         asm_insts+=RISCVInst::sd(new GReg(static_cast<int>(i.first->getReg())), new GReg(static_cast<int>(i.second->getReg())), i.second->getOffset());
@@ -2105,7 +2105,7 @@ inline ::std::string CalleeSaveRegs::print(){
     return asm_insts;
 }
 
-inline ::std::string CallerRestoreRegs::print(){
+ ::std::string CallerRestoreRegs::print(){
     ::std::string asm_insts;
     for(auto i:caller_iregs_restore)
         asm_insts+=RISCVInst::ld(new GReg(static_cast<int>(i.first->getReg())), new GReg(static_cast<int>(i.second->getReg())), i.second->getOffset());
@@ -2115,7 +2115,7 @@ inline ::std::string CallerRestoreRegs::print(){
     return asm_insts;
 }
 
-inline ::std::string CalleeRestoreRegs::print(){
+ ::std::string CalleeRestoreRegs::print(){
     ::std::string asm_insts;
     for(auto i:callee_iregs_restore)
         asm_insts+=RISCVInst::ld(new GReg(static_cast<int>(i.first->getReg())), new GReg(static_cast<int>(i.second->getReg())), i.second->getOffset());
@@ -2125,7 +2125,7 @@ inline ::std::string CalleeRestoreRegs::print(){
     return asm_insts;
 }
 
-inline ::std::string CallerParaPass::print(){
+ ::std::string CallerParaPass::print(){
     ::std::string asm_insts;
     for(auto i:caller_iparas_pass){
         auto src_para = i.second;
@@ -2268,7 +2268,7 @@ inline ::std::string CallerParaPass::print(){
     return asm_insts;
 }
 
-inline ::std::string CalleeParaPass::print(){
+ ::std::string CalleeParaPass::print(){
     ::std::string asm_insts;
     for(auto i:callee_iparas_pass){
         auto src_para = i.second;
@@ -2340,7 +2340,7 @@ inline ::std::string CalleeParaPass::print(){
     return asm_insts;
 }
 
-inline ::std::string CallerSaveResult::print(){
+ ::std::string CallerSaveResult::print(){
 
     if(grs!=nullptr){
         auto iria_dst = dynamic_cast<IRIA*>(dst);
@@ -2382,7 +2382,7 @@ inline ::std::string CallerSaveResult::print(){
 }
 
 
-inline ::std::string CalleeSaveResult::print(){
+ ::std::string CalleeSaveResult::print(){
 
     if(idst!=nullptr){
         auto iconst_src = dynamic_cast<IConst*>(src);
@@ -2433,24 +2433,24 @@ inline ::std::string CalleeSaveResult::print(){
 
 }
 
-inline ::std::string CalleeStackFrameInitialize::print(){
+ ::std::string CalleeStackFrameInitialize::print(){
     return RISCVInst::mv(new GReg(static_cast<int>(RISCV::GPR::s0)), new GReg(static_cast<int>(RISCV::GPR::sp)))+
            RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::sp)), new GReg(static_cast<int>(RISCV::GPR::sp)), -stack_initial_size);
 }
 
-inline ::std::string CalleeStackFrameClear::print(){
+ ::std::string CalleeStackFrameClear::print(){
     return RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::sp)), new GReg(static_cast<int>(RISCV::GPR::sp)), stack_size_now);
 }
 
-inline ::std::string CalleeStackFrameExpand::print(){
+ ::std::string CalleeStackFrameExpand::print(){
     return RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::sp)), new GReg(static_cast<int>(RISCV::GPR::sp)), stack_size_expand);
 }
 
-inline ::std::string CalleeStackFrameShrink::print(){
+ ::std::string CalleeStackFrameShrink::print(){
     return RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::sp)), new GReg(static_cast<int>(RISCV::GPR::sp)), stack_size_shrink);
 }
 
-inline ::std::string LoadTmpRegs::print(){
+ ::std::string LoadTmpRegs::print(){
     ::std::string asm_insts;
     for(auto i: iregs_tmp_load){
         auto ira = i.first;
@@ -2482,7 +2482,7 @@ inline ::std::string LoadTmpRegs::print(){
     return asm_insts;
 }
 
-inline ::std::string StoreTmpRegs::print(){
+ ::std::string StoreTmpRegs::print(){
     ::std::string asm_insts;
     for(auto i: iregs_tmp_store){
         auto ira = i.first;
@@ -2514,7 +2514,7 @@ inline ::std::string StoreTmpRegs::print(){
     return asm_insts;
 }
 
-inline ::std::string AllocaTmpRegs::print(){
+ ::std::string AllocaTmpRegs::print(){
     ::std::string asm_insts;
         for(auto is:iregs_tmp_store){
             auto ira = is.first;
@@ -2574,7 +2574,7 @@ inline ::std::string AllocaTmpRegs::print(){
     return asm_insts;
 }
 
-inline ::std::string InitializeAllTempRegs::print(){
+ ::std::string InitializeAllTempRegs::print(){
     ::std::string asm_insts;
     for(auto i: iregs_tmp_restore){
         auto ira = i.first;
@@ -2606,7 +2606,7 @@ inline ::std::string InitializeAllTempRegs::print(){
     return asm_insts;
 }
 
-inline ::std::string PhiPass::print(){
+ ::std::string PhiPass::print(){
     ::std::string asm_insts;
     for(auto i: i_phi){
         auto src = i.second;

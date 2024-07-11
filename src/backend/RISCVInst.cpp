@@ -34,7 +34,7 @@
 //imm
 ::std::string RISCVInst::addi(GReg* rd, GReg* rs1, int imm){
     if(imm>=-2048 && imm<=2047)
-        return TRI("addiw", rd, rs1, imm);
+        return TRI("addi", rd, rs1, imm);
     else{
         GReg* tmp_reg = new GReg(static_cast<int>(RISCV::GPR::s1));
         return DRI("li", tmp_reg, imm)+TR("add", rd, rs1, tmp_reg);

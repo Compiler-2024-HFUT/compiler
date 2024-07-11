@@ -79,7 +79,7 @@ class Mem: public Val{
         int getRegId() {return static_cast<int>(reg);}
         int getOffset() {return offset;}
         bool isReg() {return false;}
-        bool isConse() {return false;}
+        bool isConst() {return false;}
         ::std::string print() final;
 
     private:
@@ -106,7 +106,7 @@ class Label: public AddressMode{
 };
 
 
-class IConstPool: AddressMode{
+class IConstPool: public AddressMode{
     public:
         IConstPool(int i_const_pool): i_const_pool(i_const_pool){}
         bool isI(){return true;}
@@ -117,7 +117,7 @@ class IConstPool: AddressMode{
         int i_const_pool;
 };
 
-class FConstPool: AddressMode{
+class FConstPool: public AddressMode{
     public:
         FConstPool(float f_const_pool): f_const_pool(f_const_pool){}
         bool isI(){return false;}
@@ -347,7 +347,7 @@ class Sequence{
         CalleeStackFrameInitialize* createCalleeStackFrameInitialize(int stack_initial_size);
         CalleeStackFrameClear* createCalleeStackFrameClear(int stack_size_now);
         CalleeStackFrameExpand* createCalleeStackFrameExpand(int stack_size_expand);
-        CalleeStackFrameShrink* create(int stack_size_shrink);
+        CalleeStackFrameShrink* createCalleeStackFrameShrink(int stack_size_shrink);
         LoadTmpRegs* createLoadTmpRegs(::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_load);
         LoadTmpRegs* createLoadTmpRegs(::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_load);
         StoreTmpRegs* createStoreTmpRegs(::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_store);
@@ -373,6 +373,9 @@ class Subroutine{
         void addSequence(BasicBlock* bb, Label* label){
             Sequences.push_back(new Sequence(this, bb, label));
         }
+        Sequence* getSequence(){
+            return Sequences.back();
+        }
         ::std::string print();
 
     private:
@@ -391,6 +394,9 @@ class AsmUnit{
         Module* getModuleOfAsmUnit() {return module;}
         void addSubroutine( Function* func){
             Subroutines.push_back(new Subroutine(this, func));
+        }
+        Subroutine* getSubroutine(){
+            return Subroutines.back();
         }
         ::std::string print();
 

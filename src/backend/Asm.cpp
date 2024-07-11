@@ -1,391 +1,391 @@
 #include "backend/Asm.hpp"
 
-inline:: Add* Sequence::createAdd(GReg* rd,Val* rs1,Val* rs2){
+ Add* Sequence::createAdd(GReg* rd,Val* rs1,Val* rs2){
     auto inst = new Add(rd, rs1, rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Subw* Sequence::createSubw(GReg* rd,Val* rs1,Val* rs2){
+ Subw* Sequence::createSubw(GReg* rd,Val* rs1,Val* rs2){
     auto inst = new Subw(rd, rs1, rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Mulw* Sequence::createMulw(GReg* rd,Val* rs1,Val* rs2){
+ Mulw* Sequence::createMulw(GReg* rd,Val* rs1,Val* rs2){
     auto inst = new Mulw(rd, rs1, rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Muld* Sequence::createMuld(GReg* rd,Val* rs1,Val* rs2){
+ Muld* Sequence::createMuld(GReg* rd,Val* rs1,Val* rs2){
     auto inst = new Muld(rd, rs1, rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Divw* Sequence::createDivw(GReg* rd,Val* rs1,Val* rs2){
+ Divw* Sequence::createDivw(GReg* rd,Val* rs1,Val* rs2){
     auto inst = new Divw(rd, rs1, rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Remw* Sequence::createRemw(GReg* rd,Val* rs1,Val* rs2){
+ Remw* Sequence::createRemw(GReg* rd,Val* rs1,Val* rs2){
     auto inst = new Remw(rd, rs1, rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Sraw* Sequence::createSraw(GReg* rd,Val* rs1,IConst* iconst_rs2){
+ Sraw* Sequence::createSraw(GReg* rd,Val* rs1,IConst* iconst_rs2){
     auto inst = new Sraw(rd, rs1, iconst_rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Sllw* Sequence::createSllw(GReg* rd,Val* rs1,IConst* iconst_rs2){
+ Sllw* Sequence::createSllw(GReg* rd,Val* rs1,IConst* iconst_rs2){
     auto inst = new Sllw(rd, rs1, iconst_rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Srlw* Sequence::createSrlw(GReg* rd,Val* rs1,IConst* iconst_rs2){
+ Srlw* Sequence::createSrlw(GReg* rd,Val* rs1,IConst* iconst_rs2){
     auto inst = new Srlw(rd, rs1, iconst_rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Sra* Sequence::createSra(GReg* rd,Val* rs1,IConst* iconst_rs2){
+ Sra* Sequence::createSra(GReg* rd,Val* rs1,IConst* iconst_rs2){
     auto inst = new Sra(rd, rs1, iconst_rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Sll* Sequence::createSll(GReg* rd,Val* rs1,IConst* iconst_rs2){
+ Sll* Sequence::createSll(GReg* rd,Val* rs1,IConst* iconst_rs2){
     auto inst = new Sll(rd, rs1, iconst_rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Srl* Sequence::createSrl(GReg* rd,Val* rs1,IConst* iconst_rs2){
+ Srl* Sequence::createSrl(GReg* rd,Val* rs1,IConst* iconst_rs2){
     auto inst = new Srl(rd, rs1, iconst_rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Land* Sequence::createLand(GReg* rd,GReg* rs1,IConst* iconst_rs2){
+ Land* Sequence::createLand(GReg* rd,GReg* rs1,IConst* iconst_rs2){
     auto inst = new Land(rd, rs1, iconst_rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Fadd_s* Sequence::createFadd_s(FReg* rd,Val* rs1,Val* rs2){
+ Fadd_s* Sequence::createFadd_s(FReg* rd,Val* rs1,Val* rs2){
     auto inst = new Fadd_s(rd, rs1, rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Fsub_s* Sequence::createFsub_s(FReg* rd,Val* rs1,Val* rs2){
+ Fsub_s* Sequence::createFsub_s(FReg* rd,Val* rs1,Val* rs2){
     auto inst = new Fsub_s(rd, rs1, rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Fmul_s* Sequence::createFmul_s(FReg* rd,Val* rs1,Val* rs2){
+ Fmul_s* Sequence::createFmul_s(FReg* rd,Val* rs1,Val* rs2){
     auto inst = new Fmul_s(rd, rs1, rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Fdiv_s* Sequence::createFdiv_s(FReg* rd,Val* rs1,Val* rs2){
+ Fdiv_s* Sequence::createFdiv_s(FReg* rd,Val* rs1,Val* rs2){
     auto inst = new Fdiv_s(rd, rs1, rs2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Fcvt_w_s* Sequence::createFcvt_w_s(GReg* rd,Val* rs1){
+ Fcvt_w_s* Sequence::createFcvt_w_s(GReg* rd,Val* rs1){
     auto inst = new Fcvt_w_s(rd, rs1,  this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Fcvt_s_w* Sequence::createFcvt_s_w(FReg* rd,Val* rs1){
+ Fcvt_s_w* Sequence::createFcvt_s_w(FReg* rd,Val* rs1){
     auto inst = new Fcvt_s_w(rd, rs1,  this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Zext* Sequence::createZext(GReg* rd,GReg* rs1){
+ Zext* Sequence::createZext(GReg* rd,GReg* rs1){
     auto inst = new Zext(rd, rs1,  this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Snez* Sequence::createSnez(GReg* rd,Val* cond){
+ Snez* Sequence::createSnez(GReg* rd,Val* cond){
     auto inst = new Snez(rd, cond, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Seqz* Sequence::createSeqz(GReg* rd,Val* cond){
+ Seqz* Sequence::createSeqz(GReg* rd,Val* cond){
     auto inst = new Seqz(rd,  cond, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Feq_s* Sequence::createFeq_s(GReg* rd,Val* cond1,Val* cond2){
+ Feq_s* Sequence::createFeq_s(GReg* rd,Val* cond1,Val* cond2){
     auto inst = new Feq_s(rd, cond1, cond2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Fle_s* Sequence::createFle_s(GReg* rd,Val* cond1,Val* cond2){
+ Fle_s* Sequence::createFle_s(GReg* rd,Val* cond1,Val* cond2){
     auto inst = new Fle_s(rd,  cond1, cond2,  this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Flt_s* Sequence::createFlt_s(GReg* rd,Val* cond1,Val* cond2){
+ Flt_s* Sequence::createFlt_s(GReg* rd,Val* cond1,Val* cond2){
     auto inst = new Flt_s(rd, cond1, cond2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Fgt_s* Sequence::createFgt_s(GReg* rd,Val* cond1,Val* cond2){
+ Fgt_s* Sequence::createFgt_s(GReg* rd,Val* cond1,Val* cond2){
     auto inst = new Fgt_s(rd, cond1, cond2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Fge_s* Sequence::createFge_s(GReg* rd,Val* cond1,Val* cond2){
+ Fge_s* Sequence::createFge_s(GReg* rd,Val* cond1,Val* cond2){
     auto inst = new Fge_s(rd, cond1, cond2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Fne_s* Sequence::createFne_s(GReg* rd,Val* cond1,Val* cond2){
+ Fne_s* Sequence::createFne_s(GReg* rd,Val* cond1,Val* cond2){
     auto inst = new Fne_s(rd, cond1, cond2, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Lw* Sequence::createLw(GReg* rd, GReg* base, Val*offset){
+ Lw* Sequence::createLw(GReg* rd, GReg* base, Val*offset){
     auto inst = new Lw(rd, base, offset,  this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Lw_label* Sequence::createLw_label(GReg* rd, Label* label){
+ Lw_label* Sequence::createLw_label(GReg* rd, Label* label){
     auto inst = new Lw_label(rd, label,  this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Flw* Sequence::createFlw(FReg* rd, GReg* base, Val*offset){
+ Flw* Sequence::createFlw(FReg* rd, GReg* base, Val*offset){
     auto inst = new Flw(rd, base, offset, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Flw_label* Sequence::createFlw_label(FReg* rd, Label* label){
+ Flw_label* Sequence::createFlw_label(FReg* rd, Label* label){
     auto inst = new Flw_label(rd, label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Sw* Sequence::createSw(Val* src, GReg* base, Val*offset){
+ Sw* Sequence::createSw(Val* src, GReg* base, Val*offset){
     auto inst = new Sw(src, base, offset,  this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Sw_label* Sequence::createSw_label(Val* src, Label* label){
+ Sw_label* Sequence::createSw_label(Val* src, Label* label){
     auto inst = new Sw_label(src, label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Fsw* Sequence::createFsw(Val* src, GReg* base, Val*offset){
+ Fsw* Sequence::createFsw(Val* src, GReg* base, Val*offset){
     auto inst = new Fsw(src, base, offset, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Fsw_label* Sequence::createFsw_label(Val* src, Label* label){
+ Fsw_label* Sequence::createFsw_label(Val* src, Label* label){
     auto inst = new Fsw_label(src, label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Call* Sequence::createCall(Label* label){
+ Call* Sequence::createCall(Label* label){
     auto inst = new Call(label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: La* Sequence::createLa(GReg* rd, Label* label){
+ La* Sequence::createLa(GReg* rd, Label* label){
     auto inst = new La(rd, label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Mv* Sequence::createMv(GReg* rd, GReg* rs1){
+ Mv* Sequence::createMv(GReg* rd, GReg* rs1){
     auto inst = new Mv(rd, rs1, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Beq* Sequence::createBeq(Val* cond1, Val* cond2, Label* label){
+ Beq* Sequence::createBeq(Val* cond1, Val* cond2, Label* label){
     auto inst = new Beq(cond1, cond2, label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Bne* Sequence::createBne(Val* cond1, Val* cond2, Label* label){
+ Bne* Sequence::createBne(Val* cond1, Val* cond2, Label* label){
     auto inst = new Bne(cond1, cond2, label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Bge* Sequence::createBge(Val* cond1, Val* cond2, Label* label){
+ Bge* Sequence::createBge(Val* cond1, Val* cond2, Label* label){
     auto inst = new Bge(cond1, cond2, label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Blt* Sequence::createBlt(Val* cond1, Val* cond2, Label* label){
+ Blt* Sequence::createBlt(Val* cond1, Val* cond2, Label* label){
     auto inst = new Blt(cond1, cond2, label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: FBeq* Sequence::createFBeq(Val* cond1, Val* cond2, Label* label){
+ FBeq* Sequence::createFBeq(Val* cond1, Val* cond2, Label* label){
     auto inst = new FBeq(cond1, cond2, label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: FBge* Sequence::createFBge(Val* cond1, Val* cond2, Label* label){
+ FBge* Sequence::createFBge(Val* cond1, Val* cond2, Label* label){
     auto inst = new FBge(cond1, cond2, label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: FBgt* Sequence::createFBgt(Val* cond1, Val* cond2, Label* label){
+ FBgt* Sequence::createFBgt(Val* cond1, Val* cond2, Label* label){
     auto inst = new FBgt(cond1, cond2, label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: FBle* Sequence::createFBle(Val* cond1, Val* cond2, Label* label){
+ FBle* Sequence::createFBle(Val* cond1, Val* cond2, Label* label){
     auto inst = new FBle(cond1, cond2, label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: FBlt* Sequence::createFBlt(Val* cond1, Val* cond2, Label* label){
+ FBlt* Sequence::createFBlt(Val* cond1, Val* cond2, Label* label){
     auto inst = new FBlt(cond1, cond2, label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: FBne* Sequence::createFBne(Val* cond1, Val* cond2, Label* label){
+ FBne* Sequence::createFBne(Val* cond1, Val* cond2, Label* label){
     auto inst = new FBne(cond1, cond2, label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Jump* Sequence::createJump(Label* label){
+ Jump* Sequence::createJump(Label* label){
     auto inst = new Jump(label, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: Ret* Sequence::createRet(){
+ Ret* Sequence::createRet(){
     auto inst = new Ret(this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CallerSaveRegs* Sequence::createCallerSaveRegs(::std::vector<::std::pair<IRA*, IRIA*>> caller_iregs_save){
+ CallerSaveRegs* Sequence::createCallerSaveRegs(::std::vector<::std::pair<IRA*, IRIA*>> caller_iregs_save){
     auto inst = new CallerSaveRegs(caller_iregs_save, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CallerSaveRegs* Sequence::createCallerSaveRegs(::std::vector<::std::pair<FRA*, IRIA*>> caller_fregs_save){
+ CallerSaveRegs* Sequence::createCallerSaveRegs(::std::vector<::std::pair<FRA*, IRIA*>> caller_fregs_save){
     auto inst = new CallerSaveRegs(caller_fregs_save, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CalleeSaveRegs* Sequence::createCalleeSaveRegs(::std::vector<::std::pair<IRA*, IRIA*>> callee_iregs_save){
+ CalleeSaveRegs* Sequence::createCalleeSaveRegs(::std::vector<::std::pair<IRA*, IRIA*>> callee_iregs_save){
     auto inst = new CalleeSaveRegs(callee_iregs_save, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CalleeSaveRegs* Sequence::createCalleeSaveRegs(::std::vector<::std::pair<FRA*, IRIA*>> caller_fregs_save){
+ CalleeSaveRegs* Sequence::createCalleeSaveRegs(::std::vector<::std::pair<FRA*, IRIA*>> caller_fregs_save){
     auto inst = new CalleeSaveRegs(caller_fregs_save, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CallerRestoreRegs* Sequence::createCallerRestoreRegs(::std::vector<::std::pair<IRA*, IRIA*>> caller_iregs_restore){
+ CallerRestoreRegs* Sequence::createCallerRestoreRegs(::std::vector<::std::pair<IRA*, IRIA*>> caller_iregs_restore){
     auto inst = new CallerRestoreRegs(caller_iregs_restore, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CallerRestoreRegs* Sequence::createCallerRestoreRegs(::std::vector<::std::pair<FRA*, IRIA*>> caller_fregs_restore){
+ CallerRestoreRegs* Sequence::createCallerRestoreRegs(::std::vector<::std::pair<FRA*, IRIA*>> caller_fregs_restore){
     auto inst = new CallerRestoreRegs(caller_fregs_restore, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CalleeRestoreRegs* Sequence::createCalleeRestoreRegs(::std::vector<::std::pair<IRA*, IRIA*>> callee_iregs_restore){
+ CalleeRestoreRegs* Sequence::createCalleeRestoreRegs(::std::vector<::std::pair<IRA*, IRIA*>> callee_iregs_restore){
     auto inst = new CalleeRestoreRegs(callee_iregs_restore, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CalleeRestoreRegs* Sequence::createCalleeRestoreRegs(::std::vector<::std::pair<FRA*, IRIA*>> callee_fregs_restore){
+ CalleeRestoreRegs* Sequence::createCalleeRestoreRegs(::std::vector<::std::pair<FRA*, IRIA*>> callee_fregs_restore){
     auto inst = new CalleeRestoreRegs(callee_fregs_restore, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CallerParaPass* Sequence::createCallerParaPass(::std::vector<::std::pair<AddressMode*, AddressMode*>> caller_iparas_pass, ::std::vector<::std::pair<AddressMode*, AddressMode*>> caller_fparas_pass){
+ CallerParaPass* Sequence::createCallerParaPass(::std::vector<::std::pair<AddressMode*, AddressMode*>> caller_iparas_pass, ::std::vector<::std::pair<AddressMode*, AddressMode*>> caller_fparas_pass){
     auto inst = new CallerParaPass(caller_iparas_pass, caller_fparas_pass, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CalleeParaPass* Sequence::createCalleeParaPass(::std::vector<::std::pair<AddressMode*, AddressMode*>> callee_iparas_pass, ::std::vector<::std::pair<AddressMode*, AddressMode*>> callee_fparas_pass){
+ CalleeParaPass* Sequence::createCalleeParaPass(::std::vector<::std::pair<AddressMode*, AddressMode*>> callee_iparas_pass, ::std::vector<::std::pair<AddressMode*, AddressMode*>> callee_fparas_pass){
     auto inst = new CalleeParaPass(callee_iparas_pass,  callee_fparas_pass, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CallerSaveResult* Sequence::createCallerSaveResult(GReg* grs, AddressMode* dst){
+ CallerSaveResult* Sequence::createCallerSaveResult(GReg* grs, AddressMode* dst){
     auto inst = new CallerSaveResult(grs, dst, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CallerSaveResult* Sequence::createCallerSaveResult(FReg* frs, AddressMode* dst){
+ CallerSaveResult* Sequence::createCallerSaveResult(FReg* frs, AddressMode* dst){
     auto inst = new CallerSaveResult(frs, dst, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CalleeSaveResult* Sequence::createCalleeSaveResult(IRA* idst, Val* src){
+ CalleeSaveResult* Sequence::createCalleeSaveResult(IRA* idst, Val* src){
     auto inst = new CalleeSaveResult(idst, src, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CalleeSaveResult* Sequence::createCalleeSaveResult(FRA* fdst, Val* src){
+ CalleeSaveResult* Sequence::createCalleeSaveResult(FRA* fdst, Val* src){
     auto inst = new CalleeSaveResult(fdst, src, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CalleeStackFrameInitialize* Sequence::createCalleeStackFrameInitialize(int stack_initial_size){
+ CalleeStackFrameInitialize* Sequence::createCalleeStackFrameInitialize(int stack_initial_size){
     auto inst = new CalleeStackFrameInitialize(stack_initial_size, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CalleeStackFrameClear* Sequence::createCalleeStackFrameClear(int stack_size_now){
+ CalleeStackFrameClear* Sequence::createCalleeStackFrameClear(int stack_size_now){
     auto inst = new CalleeStackFrameClear(stack_size_now, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CalleeStackFrameExpand* Sequence::createCalleeStackFrameExpand(int stack_size_expand){
+ CalleeStackFrameExpand* Sequence::createCalleeStackFrameExpand(int stack_size_expand){
     auto inst = new CalleeStackFrameExpand(stack_size_expand, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: CalleeStackFrameShrink* Sequence::create(int stack_size_shrink){
+ CalleeStackFrameShrink* Sequence::createCalleeStackFrameShrink(int stack_size_shrink){
     auto inst = new CalleeStackFrameShrink(stack_size_shrink, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: LoadTmpRegs* Sequence::createLoadTmpRegs(::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_load){
+ LoadTmpRegs* Sequence::createLoadTmpRegs(::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_load){
     auto inst = new LoadTmpRegs(iregs_tmp_load, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: LoadTmpRegs* Sequence::createLoadTmpRegs(::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_load){
+ LoadTmpRegs* Sequence::createLoadTmpRegs(::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_load){
     auto inst = new LoadTmpRegs(fregs_tmp_load, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: StoreTmpRegs* Sequence::createStoreTmpRegs(::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_store){
+ StoreTmpRegs* Sequence::createStoreTmpRegs(::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_store){
     auto inst = new StoreTmpRegs(iregs_tmp_store, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: StoreTmpRegs* Sequence::createStoreTmpRegs(::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_store){
+ StoreTmpRegs* Sequence::createStoreTmpRegs(::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_store){
     auto inst = new StoreTmpRegs(fregs_tmp_store, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: AllocaTmpRegs* Sequence::createAllocaTmpRegs(::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_load, ::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_store){
+ AllocaTmpRegs* Sequence::createAllocaTmpRegs(::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_load, ::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_store){
     auto inst = new AllocaTmpRegs( iregs_tmp_load,iregs_tmp_store, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: AllocaTmpRegs* Sequence::createAllocaTmpRegs(::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_load, ::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_store){
+ AllocaTmpRegs* Sequence::createAllocaTmpRegs(::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_load, ::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_store){
     auto inst = new AllocaTmpRegs( fregs_tmp_load, fregs_tmp_store, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: InitializeAllTempRegs* Sequence::createInitializeAllTempRegs(::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_restore){
+ InitializeAllTempRegs* Sequence::createInitializeAllTempRegs(::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_restore){
     auto inst = new InitializeAllTempRegs(iregs_tmp_restore, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: InitializeAllTempRegs* Sequence::createInitializeAllTempRegs(::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_restore){
+ InitializeAllTempRegs* Sequence::createInitializeAllTempRegs(::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_restore){
     auto inst = new InitializeAllTempRegs(fregs_tmp_restore, this);
     insts.push_back(inst);
     return inst;
 }
-inline:: PhiPass* Sequence::createPhiPass(::std::vector<::std::pair<AddressMode*, AddressMode*>> i_phi, ::std::vector<::std::pair<AddressMode*, AddressMode*>> f_phi){
+ PhiPass* Sequence::createPhiPass(::std::vector<::std::pair<AddressMode*, AddressMode*>> i_phi, ::std::vector<::std::pair<AddressMode*, AddressMode*>> f_phi){
     auto inst = new PhiPass(i_phi, f_phi, this);
     insts.push_back(inst);
     return inst;
