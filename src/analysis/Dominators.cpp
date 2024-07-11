@@ -2,6 +2,7 @@
 #include "midend/Module.hpp"
 #include "midend/BasicBlock.hpp"
 #include "midend/Function.hpp"
+#include <algorithm>
 #include <functional>
 #include <iostream>
 #include <ostream>
@@ -10,7 +11,7 @@
 void Dominators::post(Function *func_){
     auto bbs=func_->getBasicBlocks();
     // int id=0;
-    
+
     ::std::function<void(/*int & id,*/BasicBlock*bb)> post_order_func=[&post_order_func,this](/*int & id,*/BasicBlock*bb){
         auto it=post_order_id_.insert({bb,-1}).first;
         // ++id;
@@ -50,14 +51,14 @@ void Dominators::sFastIDomAlg(Function *func_){
                 b2=getIDom(b2);
             }
         }
-        return b1; 
+        return b1;
     };
-    
+
     while (changed) {
         changed = false;
         for (auto bb : this->reverse_post_order_) {
             if (bb == entry) continue;
-            auto &pre_l=bb->getPreBasicBlocks(); 
+            auto &pre_l=bb->getPreBasicBlocks();
             auto new_idom=*pre_l.begin();
             if(pre_l.size()>1){
                 auto b_it=pre_l.begin();
@@ -74,54 +75,36 @@ void Dominators::sFastIDomAlg(Function *func_){
 }
 
 void Dominators::domAlg(Function *func_){
-    for (auto bb : func_->getBasicBlocks()) {
-        auto idom = getIDom(bb);        
-        if (idom != bb&&idom!=nullptr) {
-            addDomSet(idom, bb);
-        }
-    }
-    // for(auto [bb,children]:dom_tree_){
-    //     auto &sets=dom_set_.find(bb)->second;
-    //     std::list<BasicBlock*>offspring{children.begin(),children.end()};
-    //     std::set<BasicBlock*>visited{bb};
-    //     while(!offspring.empty()){
-    //         auto b=offspring.back();
-    //         offspring.pop_back();
-    //         if(visited.count(b))
-    //             continue;
-    //         visited.insert(b);
-    //         sets.insert(b);
-    //         auto set=getDomTree(b);
-    //         std::copy(set.begin(),set.end(),inserter(offspring, offspring.end())); 
+    // for (auto bb : func_->getBasicBlocks()) {
+    //     auto idom = getIDom(bb);
+    //     if (idom != bb&&idom!=nullptr) {
+    //         addDomSet(idom, bb);
     //     }
     // }
-    bool changed=true;
-    while (changed) {
-        changed=false;
-        for(auto [domed,idom]:idom_){
-            for(auto &[dom, dset]:func_dom_set_[func_]){
-                if(idom==dom||dset.find(idom)!=dset.end()){
-                    if(dset.find(domed)==dset.end()){
-                        changed=true;
-                        dset.insert(domed);
-                    }
-                }
+    std::function<::std::set<BasicBlock*>(BasicBlock*)> getdoms=[&,this](BasicBlock*bb){
+        auto &dom_set=func_dom_set_.find(func_)->second.find(bb)->second;
+        auto b_set=getDomTree(bb);
+        if(b_set.empty())return std::set<BasicBlock*>{};
+        auto work_list{b_set};
+        auto visited{b_set};
+        for(auto tree_node:work_list){
+            auto b=getdoms(tree_node);
+            if(!visited.count(tree_node)){
+                visited.insert(tree_node);
+                work_list.insert(tree_node);
             }
+            if(b.empty())continue;
+            std::copy(b.begin(),b.end(),inserter(b_set, b_set.end()));
         }
-        // for(auto &[dom, dsets]:dom_set_){
-        //     for(auto d_set:dsets){
-        //         auto size=dsets.size();
-        //         auto set=getDomSet(d_set);
-        //         std::copy(set.begin(),set.end(),inserter(dsets, dsets.end())); 
-        //         if(dsets.size()!=size)
-        //             changed=true;
-        //     }
-        // }
-    }
+        std::copy(b_set.begin(),b_set.end(),inserter(dom_set, dom_set.end()));
+        return b_set;
+    };
+
+    getdoms(func_->getEntryBlock());
 }
 void Dominators::domTreeAlg(Function *func_){
     for (auto bb : func_->getBasicBlocks()) {
-        auto idom = getIDom(bb);        
+        auto idom = getIDom(bb);
         if (idom != bb&&idom!=nullptr) {
             auto tree_iter=func_dom_tree_[func_].find(idom);
             if(tree_iter!=func_dom_tree_[func_].end())
@@ -167,6 +150,7 @@ void Dominators::clear(){
         if(f->getBasicBlocks().size() == 0)
             continue;
         for(BasicBlock *bb : f->getBasicBlocks()) {
+            func_dom_tree_[f].insert({bb,{}});
             func_dom_set_[f].insert({bb,{bb}});
             func_dom_frontier_[f].insert({bb,{}});
         }
@@ -176,14 +160,14 @@ void Dominators::clear(){
 void Dominators::analyse(){
     this->clear();
     for(Function *f : module_->getFunctions()) {
-        if(f->getBasicBlocks().size() == 0)
+        if(f->getBasicBlocks().empty())
             continue;
         analyseOnFunc(f);
     }
-
     invalid = false;
 }
 void Dominators::reAnalyse(){
+    // clear();
     analyse();
 }
 
@@ -202,12 +186,12 @@ void Dominators::printDomFront(){
             if(bbset.empty()) continue;
             ::std::cout<<b->getName()<<" domf : ";
             for(auto df:bbset){
-                ::std::cout<<df->getName()<<" ";            
+                ::std::cout<<df->getName()<<" ";
             }
             ::std::cout<<::std::endl;
         }
     }
-    
+
 #endif
 }
 void Dominators::printDomSet(){
@@ -219,7 +203,7 @@ void Dominators::printDomSet(){
             if(bbset.empty()) continue;
             ::std::cout<<"\t"<<b->getName()<<" dom : "<<bbset.size()<<"\n";
             for(auto dom:bbset){
-                ::std::cout<<"\t\t"<<dom->getName()<<"\n";            
+                ::std::cout<<"\t\t"<<dom->getName()<<"\n";
             }
             ::std::cout<<::std::endl;
         }
@@ -229,23 +213,23 @@ void Dominators::printDomSet(){
 void Dominators::printDomTree(){
 #ifdef DEBUG
     ::std::cout<<"dominate tree:\n";
-    for(auto f : module_->getFunctions()) { 
+    for(auto f : module_->getFunctions()) {
         ::std::cout<<f->getName()<<"\n";
         for(auto &[b ,bbset]:func_dom_tree_[f]){
             if(bbset.empty()) continue;
             ::std::cout<<"\t"<<b->getName()<<" dom : "<<bbset.size()<<"\n";
             for(auto dom:bbset){
-                ::std::cout<<"\t\t"<<dom->getName()<<"\n";            
+                ::std::cout<<"\t\t"<<dom->getName()<<"\n";
             }
             ::std::cout<<::std::endl;
-        }    
+        }
     }
-    
+
 #endif
 }
 Dominators::Dominators(Module*module, InfoManager *im): FunctionInfo(module, im) {
-    this->clear();
-    
+    // this->clear();
+
     /*
     // 没有用到，而且当前算法非常影响性能，之后可能要改
     // domAlg();
