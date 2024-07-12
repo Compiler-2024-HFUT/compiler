@@ -172,7 +172,6 @@ void Dominators::analyse(){
             continue;
         analyseOnFunc(f);
     }
-    printDomSet();
     invalid = false;
 }
 void Dominators::reAnalyse(){
