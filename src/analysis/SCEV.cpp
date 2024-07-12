@@ -139,6 +139,9 @@ void SCEV::visitLoop(Loop *loop) {
 void SCEV::visitBlock(BasicBlock *bb, Loop *loop) {
     Value *a, *b;
     for(Instruction *inst : bb->getInstructions()) {
+        if(inst->isPhi() && exprMapping.count(inst) != 0)           // loop-phi
+            continue;
+
         if(inst->isAdd() || inst->isSub() || inst->isMul()) {
             a = inst->getOperand(0);
             b = inst->getOperand(1);
@@ -158,7 +161,7 @@ void SCEV::visitBlock(BasicBlock *bb, Loop *loop) {
             if(inst->getNumOperands() == 4 && inst->getOperand(0) == inst->getOperand(2)) {
                 exprMapping[inst] = getExpr(inst->getOperand(0), loop);
             }
-        } else {
+        } else if(!inst->isVoid()) {
             exprMapping[inst] = SCEVExpr::createUnknown(loop);
         }        
     }
@@ -203,13 +206,14 @@ SCEVExpr *SCEV::getPhiSCEV(PhiInst *phi, Loop *loop) {
 }
 
 string SCEV::print(){
+    module_->print();
     string scevStr = "";
     for(Loop *loop : loops) {
         for(BasicBlock *bb : loop->getBlocks()) {
             for(Instruction *inst : bb->getInstructions()) {
                 if(getExpr(inst, loop) != nullptr) {
-                    if(getExpr(inst, loop)->isUnknown())
-                        continue;
+                    // if(getExpr(inst, loop)->isUnknown())
+                        // continue;
                     scevStr += STRING(inst->print()) + "\n";
                     scevStr += STRING_YELLOW(inst->getName()) + ": " + getExpr(inst, loop)->print() + "\n";
                 }
