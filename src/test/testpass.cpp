@@ -35,15 +35,16 @@ int main(int argc , char**argv){
     pm.add_pass<DeadStoreEli>();
     pm.add_pass<Mem2Reg>();
    // // pm.add_pass<ADCE>();
-   //pm.run();
-   //cout << irgen.getModule()->print();
+  // pm.run();
+   
    pm.add_pass<LIR>();
    pm.add_pass<CIDBB>();
    pm.add_pass<CLND>();
 
     // pm.add_pass<FuncInline>();
     pm.run();
-    AsmGen asm_gen(m);
+   // cout << irgen.getModule()->print()<<endl;;
+   AsmGen asm_gen(m);
     m->accept(asm_gen);
     ::std::string asm_code = asm_gen.getAsmUnit()->print();
     ::std::cout<<asm_code<<::std::endl;

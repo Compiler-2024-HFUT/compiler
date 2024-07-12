@@ -3,6 +3,9 @@
 
 void AsmGen::visit(Module &node){
   //  AsmUnit* asm_unit = new AsmUnit(&node);
+    for(auto global_var: asm_unit->getModuleOfAsmUnit()->getGlobalVariables()){
+        global_variable_labels_table[global_var] = new Label(global_var->getName());
+    }
     auto reg_alloc = new RegAllocDriver(asm_unit->getModuleOfAsmUnit());
     reg_alloc->compute_reg_alloc();
     for(auto func:asm_unit->getModuleOfAsmUnit()->getFunctions()){
@@ -68,7 +71,7 @@ void AsmGen::visit(BasicBlock &node){
             std::vector<std::pair<AddressMode*, AddressMode*>> to_move_iargs = caller_iargs_move(call_inst);
 
             if(!to_move_fargs.empty() || !to_move_iargs.empty())
-                sequence->createCallerParaPass(to_move_fargs, to_move_iargs);
+                sequence->createCallerParaPass( to_move_iargs, to_move_fargs);
 
             int extra_stack_offset = caller_trans_args_stack_offset + cur_tmp_reg_saved_stack_offset + caller_saved_regs_stack_offset; 
             
@@ -100,73 +103,396 @@ void AsmGen::visit(BasicBlock &node){
 
 void AsmGen::visit(BinaryInst &node){
     auto inst_type = node.getInstrType();
+    auto inst = &node;
     if(inst_type == Instruction::OpID::add){
-
+                        auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
+                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
+                if(const_op1 && const_op2) {
+                    sequence->createAdd(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
+                } else if(const_op1) {
+                    sequence->createAdd(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op2), new IConst(const_op1->getValue()));
+                } else if(const_op2) {
+                    sequence->createAdd(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
+                } else {
+                    sequence->createAdd(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
+                }
     }
     else if(inst_type == Instruction::OpID::sub){
-
+                        auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
+                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
+                if(const_op1 && const_op2) {
+                    sequence->createSubw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
+                } else if(const_op1) {
+                    sequence->createSubw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), get_asm_reg(op2));
+                } else if(const_op2) {
+                    sequence->createSubw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
+                } else {
+                    sequence->createSubw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
+                }
     }
     else if(inst_type == Instruction::OpID::mul){
-
+                        auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
+                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
+                if(const_op1 && const_op2) {
+                    sequence->createMulw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()),  new IConst(const_op2->getValue()));
+                } else if(const_op1) {
+                    sequence->createMulw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), get_asm_reg(op2));
+                } else if(const_op2) {
+                    sequence->createMulw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
+                } else {
+                    sequence->createMulw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
+                }
     }
     else if(inst_type == Instruction::OpID::mul64){
-
+                        auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
+                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
+                if(const_op1 && const_op2) {
+                    //LOG(ERROR) << "无法处理";
+                } else if(const_op1) {
+                    sequence->createMuld(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), get_asm_reg(op2));
+                } else if(const_op2) {
+                    sequence->createMuld(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
+                } else {
+                    sequence->createMuld(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
+                }
     }
     else if(inst_type == Instruction::OpID::sdiv){
-
+                        auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
+                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
+                if(const_op1 && const_op2) {
+                    sequence->createDivw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()),  new IConst(const_op2->getValue()));
+                } else if(const_op1) {
+                    sequence->createDivw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()),  get_asm_reg(op2));
+                } else if(const_op2) {
+                    sequence->createDivw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1),  new IConst(const_op2->getValue()));
+                } else {
+                    sequence->createDivw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
+                }
     }
     else if(inst_type == Instruction::OpID::srem){
-
+                auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
+                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
+                if(const_op1 && const_op2) {
+                    sequence->createRemw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()),  new IConst(const_op2->getValue()));
+                } else if(const_op1) {
+                    sequence->createRemw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()),  get_asm_reg(op2));
+                } else if(const_op2) {
+                    sequence->createRemw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1),  new IConst(const_op2->getValue()));
+                } else {
+                    sequence->createRemw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
+                }
     }
     else if(inst_type == Instruction::OpID::asr){
-
+                auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
+                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
+                if(const_op2 == nullptr)
+                    {}//LOG(ERROR) << "出现未预期情况";
+                if(const_op1) {
+                    sequence->createSraw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
+                } else {
+                    sequence->createSraw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
+                }
     }
-    else if(inst_type == Instruction::OpID::mul){
-
+    else if(inst_type == Instruction::OpID::shl){
+                auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
+                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
+                if(const_op2 == nullptr)
+                    {}
+                if(const_op1) {
+                    sequence->createSllw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
+                } else {
+                    sequence->createSllw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
+                }
     }
-    else if(inst_type == Instruction::OpID::mul){
-
+    else if(inst_type == Instruction::OpID::lsr){
+                auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
+                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
+                if(const_op2 == nullptr)
+                    {}
+                if(const_op1) {
+                    sequence->createSrlw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
+                } else {
+                    sequence->createSrlw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
+                }
     }
-    else if(inst_type == Instruction::OpID::mul){
-
+    else if(inst_type == Instruction::OpID::asr64){
+                auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
+                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
+                if(const_op2 == nullptr)
+                    {}
+                if(const_op1) {
+                    sequence->createSra(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
+                } else {
+                    sequence->createSra(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
+                }
     }
-    else if(inst_type == Instruction::OpID::mul){
-
+    else if(inst_type == Instruction::OpID::shl64){
+                auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
+                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
+                if(const_op2 == nullptr)
+                    {}
+                if(const_op1) {
+                    sequence->createSll(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
+                } else {
+                    sequence->createSll(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
+                }
     }
-    else if(inst_type == Instruction::OpID::mul){
-
+    else if(inst_type == Instruction::OpID::lsr64){
+                auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
+                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
+                if(const_op2 == nullptr)
+                    {}
+                if(const_op1) {
+                    sequence->createSrl(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
+                } else {
+                    sequence->createSrl(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
+                }
     }
-    else if(inst_type == Instruction::OpID::mul){
-
+    else if(inst_type == Instruction::OpID::land){
+                auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
+                if(const_op2 == nullptr)
+                    {}
+                sequence->createLand(dynamic_cast<GReg*>(get_asm_reg(inst)),dynamic_cast<GReg*>(get_asm_reg(op1)) , new IConst(const_op2->getValue()));
     }
-    else if(inst_type == Instruction::OpID::mul){
-
+    else if(inst_type == Instruction::OpID::fadd){
+                auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantFP*>(op1);
+                auto const_op2 = dynamic_cast<ConstantFP*>(op2);
+                if(const_op1 && const_op2) {
+                    sequence->createFadd_s(dynamic_cast<FReg*>(get_asm_reg(inst)) , new FConst(const_op1->getValue()), new FConst(const_op2->getValue()));
+                } else if(const_op1) {
+                    sequence->createFadd_s(dynamic_cast<FReg*>(get_asm_reg(inst)), new FConst(const_op1->getValue()), get_asm_reg(op2));
+                } else if(const_op2) {
+                    sequence->createFadd_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), new FConst(const_op2->getValue()));
+                } else {
+                    sequence->createFadd_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
+                }
     }
-    else if(inst_type == Instruction::OpID::mul){
-
+    else if(inst_type == Instruction::OpID::fsub){
+                auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantFP*>(op1);
+                auto const_op2 = dynamic_cast<ConstantFP*>(op2);
+                if(const_op1 && const_op2) {
+                    sequence->createFsub_s(dynamic_cast<FReg*>(get_asm_reg(inst)), new FConst(const_op1->getValue()), new FConst(const_op2->getValue()));
+                } else if(const_op1) {
+                    sequence->createFsub_s(dynamic_cast<FReg*>(get_asm_reg(inst)), new FConst(const_op1->getValue()), get_asm_reg(op2));
+                } else if(const_op2) {
+                    sequence->createFsub_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), new FConst(const_op2->getValue()));
+                } else {
+                    sequence->createFsub_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
+                }
     }
-    else if(inst_type == Instruction::OpID::mul){
-
+    else if(inst_type == Instruction::OpID::fmul){
+                auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantFP*>(op1);
+                auto const_op2 = dynamic_cast<ConstantFP*>(op2);
+                if(const_op1 && const_op2) {
+                    sequence->createFmul_s(dynamic_cast<FReg*>(get_asm_reg(inst)), new FConst(const_op1->getValue()), new FConst(const_op2->getValue()));
+                } else if(const_op1) {
+                    sequence->createFmul_s(dynamic_cast<FReg*>(get_asm_reg(inst)), new FConst(const_op1->getValue()), get_asm_reg(op2));
+                } else if(const_op2) {
+                    sequence->createFmul_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), new FConst(const_op2->getValue()));
+                } else {
+                    sequence->createFmul_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
+                }
     }
-    else if(inst_type == Instruction::OpID::mul){
-
-    }
-    else if(inst_type == Instruction::OpID::mul){
-
-    }
-    else if(inst_type == Instruction::OpID::mul){
-
+    else if(inst_type == Instruction::OpID::fdiv){
+                auto op1 = inst->getOperand(0);
+                auto op2 = inst->getOperand(1);
+                auto const_op1 = dynamic_cast<ConstantFP*>(op1);
+                auto const_op2 = dynamic_cast<ConstantFP*>(op2);
+                if(const_op1 && const_op2) {
+                    sequence->createFdiv_s(dynamic_cast<FReg*>(get_asm_reg(inst)), new FConst(const_op1->getValue()), new FConst(const_op2->getValue()));
+                } else if(const_op1) {
+                    sequence->createFdiv_s(dynamic_cast<FReg*>(get_asm_reg(inst)), new FConst(const_op1->getValue()), get_asm_reg(op2));
+                } else if(const_op2) {
+                    sequence->createFdiv_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), new FConst(const_op2->getValue()));
+                } else {
+                    sequence->createFdiv_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
+                }
     }
     
 }
 
-void AsmGen::visit(CmpInst &node){}
+void AsmGen::visit(CmpInst &node){
+    auto inst = &node;
+                    auto cmp_inst = dynamic_cast<CmpInst*>(inst);
+                auto cmp_op = cmp_inst->getCmpOp();
+                auto cond1 = cmp_inst->getOperand(0);
+                auto cond2 = cmp_inst->getOperand(1);
+                auto const_cond1 = dynamic_cast<ConstantInt*>(cond1);
+                auto const_cond2 = dynamic_cast<ConstantInt*>(cond2);
+                
+                if(const_cond2 && const_cond2->getValue() == 0) {
+                    switch(cmp_op) {
+                        case CmpOp::EQ:
+                            if(const_cond1) {
+                                sequence->createSeqz(dynamic_cast<GReg*>(get_asm_reg(inst)) , new IConst(const_cond1->getValue()));
+                            } else {
+                                sequence->createSeqz(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1));
+                            }
+                            break;
+                        case CmpOp::NE:
+                            if(const_cond1) {
+                                sequence->createSnez(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_cond1->getValue()));
+                            } else {
+                                sequence->createSnez(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1));
+                            }
+                            break;
+                        default:
+                            //LOG(ERROR) << "汇编代码生成出现异常";
+                            break;
+                    }
+                } else {
+                   // LOG(ERROR) << "汇编代码生成出现异常";
+                }
+}
 
-void AsmGen::visit(FCmpInst &node){}
+void AsmGen::visit(FCmpInst &node){
+    auto inst = &node;
+                    auto cond1 = inst->getOperand(0);
+                auto cond2 = inst->getOperand(1);
+                auto cmp_op = (dynamic_cast<FCmpInst*>(inst))->getCmpOp();
+                auto const_cond1 = dynamic_cast<ConstantFP*>(cond1);
+                auto const_cond2 = dynamic_cast<ConstantFP*>(cond2);
+                switch (cmp_op) {
+                    case CmpOp::EQ: {
+                            if(const_cond1 && const_cond2) {
+                                sequence->createFeq_s(dynamic_cast<GReg*>(get_asm_reg(inst)) , new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()));
+                            } else if(const_cond1) {
+                                sequence->createFeq_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), get_asm_reg(cond2));
+                            } else if(const_cond2) {
+                                sequence->createFeq_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), new FConst(const_cond2->getValue()));
+                            } else {
+                                sequence->createFeq_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), get_asm_reg(cond2));
+                            }
+                        }
+                        break;
+                    case CmpOp::GE: {
+                            if(const_cond1 && const_cond2) {
+                                sequence->createFge_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()));
+                            } else if(const_cond1) {
+                                sequence->createFge_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), get_asm_reg(cond2));
+                            } else if(const_cond2) {
+                                sequence->createFge_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), new FConst(const_cond2->getValue()));
+                            } else {
+                                sequence->createFge_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), get_asm_reg(cond2));
+                            }
+                        }
+                        break;
+                    case CmpOp::GT: {
+                            if(const_cond1 && const_cond2) {
+                                sequence->createFgt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()));
+                            } else if(const_cond1) {
+                                sequence->createFgt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), get_asm_reg(cond2));
+                            } else if(const_cond2) {
+                                sequence->createFgt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), new FConst(const_cond2->getValue()));
+                            } else {
+                                sequence->createFgt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), get_asm_reg(cond2));
+                            }
+                        }
+                        break;
 
-void AsmGen::visit(CallInst &node){}
+                    case CmpOp::LE: {
+                            if(const_cond1 && const_cond2) {
+                                sequence->createFle_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()));
+                            } else if(const_cond1) {
+                                sequence->createFle_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), get_asm_reg(cond2));
+                            } else if(const_cond2) {
+                                sequence->createFle_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), new FConst(const_cond2->getValue()));
+                            } else {
+                                sequence->createFle_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), get_asm_reg(cond2));
+                            }
+                        }
+                        break;
 
-void AsmGen::visit(BranchInst &node){}
+                    case CmpOp::LT: {
+                            if(const_cond1 && const_cond2) {
+                                sequence->createFlt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()));
+                            } else if(const_cond1) {
+                                sequence->createFlt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), get_asm_reg(cond2));
+                            } else if(const_cond2) {
+                                sequence->createFlt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), new FConst(const_cond2->getValue()));
+                            } else {
+                                sequence->createFlt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), get_asm_reg(cond2));
+                            }
+                        }
+                        break;
+
+                    case CmpOp::NE: {
+                            if(const_cond1 && const_cond2) {
+                                sequence->createFne_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()));
+                            } else if(const_cond1) {
+                                sequence->createFne_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), get_asm_reg(cond2));
+                            } else if(const_cond2) {
+                                sequence->createFne_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), new FConst(const_cond2->getValue()));
+                            } else {
+                                sequence->createFne_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), get_asm_reg(cond2));
+                            }
+                        }
+                        break;
+                    default:
+                        break;
+                }
+}
+
+void AsmGen::visit(CallInst &node){
+    auto inst = &node;
+                    sequence->createCall(new Label(inst->getOperand(0)->getName()));
+                auto func = dynamic_cast<Function*>(inst->getOperand(0));
+                if(!func->getReturnType()->isVoidType()) {
+                    if(func->getReturnType()->isFloatType()) {
+                        if(fval2interval.find(inst) != fval2interval.end()) {
+                            if(fval2interval[inst]->reg_id >= 0) {
+                                sequence->createCallerSaveResult(new FReg(static_cast<int>(RISCV::FPR::fa0)), new FRA(static_cast<int>(dynamic_cast<FReg*>( get_asm_reg(inst))->getID()) ));
+                            } else {
+                                sequence->createCallerSaveResult(new FReg(static_cast<int>(RISCV::FPR::fa0)), val2stack[inst]);
+                            }
+                        } 
+                    } else {
+                        if(ival2interval.find(inst) != ival2interval.end()) {
+                            if(ival2interval[inst]->reg_id >= 0) {
+                                sequence->createCallerSaveResult(new GReg(static_cast<int>(RISCV::GPR::a0)), new IRA(static_cast<int>(dynamic_cast<GReg*>( get_asm_reg(inst))->getID()) ));
+                            } else {
+                                sequence->createCallerSaveResult(new GReg(static_cast<int>(RISCV::GPR::a0)), val2stack[inst]);
+                            }
+                        }
+                    }
+                } 
+}
+
+void AsmGen::visit(BranchInst &node){
+    //结束
+}
 
 void AsmGen::visit(ReturnInst &node){
             auto inst = &node;
@@ -199,31 +525,171 @@ void AsmGen::visit(ReturnInst &node){
             }
 }
 
-void AsmGen::visit(GetElementPtrInst &node){}
+void AsmGen::visit(GetElementPtrInst &node){
+    auto inst = &node;
+                    auto base_addr = inst->getOperand(0);
+                if(dynamic_cast<GlobalVariable*>(base_addr)) {
+                    auto addr = global_variable_labels_table[dynamic_cast<GlobalVariable*>(base_addr)];
+                    sequence->createLa(dynamic_cast<GReg*>( get_asm_reg(inst)), addr);
+                } else if(dynamic_cast<AllocaInst*>(base_addr)) {
+                    auto addr = val2stack[base_addr];
+                    int offset = addr->getOffset();
+                    auto reg_id = static_cast<int>( addr->getReg());
+                    sequence->createAdd(dynamic_cast<GReg*>( get_asm_reg(inst)), new GReg(reg_id), new IConst(offset));
+                } else if(dynamic_cast<Argument*>(base_addr)) {
+                    sequence->createMv(dynamic_cast<GReg*>( get_asm_reg(inst)), dynamic_cast<GReg*>( get_asm_reg(base_addr)));
+                } else {
+                    sequence->createMv(dynamic_cast<GReg*>( get_asm_reg(inst)), dynamic_cast<GReg*>( get_asm_reg(base_addr)));
+                }
+}
 
-void AsmGen::visit(StoreInst &node){}
+void AsmGen::visit(StoreInst &node){
+    auto inst = &node;
+                    auto global_addr = dynamic_cast<GlobalVariable*>(inst->getOperand(1));
+                auto store_inst = dynamic_cast<StoreInst*>(inst);
+                auto const_int_src = dynamic_cast<ConstantInt*>(store_inst->getOperand(0));
+                auto const_float_src = dynamic_cast<ConstantFP*>(store_inst->getOperand(0));
+                if(global_addr) {
+                    if(global_addr->getType()->getPointerElementType()->isFloatType()) {
+                        if(const_float_src) {
+                            sequence->createFsw_label(new FConst(const_float_src->getValue()), global_variable_labels_table[global_addr]);
+                        } else {
+                            sequence->createFsw_label(get_asm_reg(inst->getOperand(0)), global_variable_labels_table[global_addr]);
+                        }
+                    } else {
+                        if(const_int_src) {
+                            sequence->createSw_label(new IConst(const_int_src->getValue()), global_variable_labels_table[global_addr]);
+                        } else {
+                            sequence->createSw_label(get_asm_reg(inst->getOperand(0)), global_variable_labels_table[global_addr]);
+                        }
+                    }                  
+                } else {
+                  //  LOG(ERROR) << "汇编代码生成出现异常";
+                }
+}
 
-void AsmGen::visit(MemsetInst &node){}
+void AsmGen::visit(MemsetInst &node){
+    //结束
+}
 
-void AsmGen::visit(LoadInst &node){}
+void AsmGen::visit(LoadInst &node){
+    auto inst = &node;
+                    auto global_addr = dynamic_cast<GlobalVariable*>(inst->getOperand(0));
+                if(global_addr) {
+                    if(global_addr->getType()->getPointerElementType()->isFloatType()) {
+                        sequence->createFlw_label(dynamic_cast<FReg*>(get_asm_reg(inst)) , global_variable_labels_table[global_addr]);
+                    } else {
+                        sequence->createLw_label(dynamic_cast<GReg*>(get_asm_reg(inst)) , global_variable_labels_table[global_addr]);
+                    }
+                } else {
+                    //LOG(ERROR) << "汇编代码生成出现异常";
+                }
+}
 
-void AsmGen::visit(AllocaInst &node){}
+void AsmGen::visit(AllocaInst &node){
+    //结束
+}
 
-void AsmGen::visit(ZextInst &node){}
+void AsmGen::visit(ZextInst &node){
+    auto inst = &node;
+    sequence->createZext(dynamic_cast<GReg*>(get_asm_reg(inst)) , dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(0))) );
+}
 
-void AsmGen::visit(SiToFpInst &node){}
+void AsmGen::visit(SiToFpInst &node){
+    auto inst = &node;
+                    auto src = inst->getOperand(0);
+                auto const_src = dynamic_cast<ConstantInt*>(src);
+                if(const_src) {
+                    sequence->createFcvt_s_w(dynamic_cast<FReg*>(get_asm_reg(inst)) , new IConst(const_src->getValue()));
+                } else {
+                    sequence->createFcvt_s_w(dynamic_cast<FReg*>(get_asm_reg(inst)) , get_asm_reg(src));
+                }
+}
 
-void AsmGen::visit(FpToSiInst &node){}
+void AsmGen::visit(FpToSiInst &node){
+    auto inst = &node;
+                    auto src = inst->getOperand(0);
+                auto const_src = dynamic_cast<ConstantFP*>(src);
+                if(const_src) {
+                    sequence->createFcvt_w_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_src->getValue()));
+                } else {
+                    sequence->createFcvt_w_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(src));
+                }
+}
 
-void AsmGen::visit(PhiInst &node){}
+void AsmGen::visit(PhiInst &node){
+    //结束
+}
 
-void AsmGen::visit(CmpBrInst &node){}
+void AsmGen::visit(CmpBrInst &node){
+    //结束
+}
 
-void AsmGen::visit(FCmpBrInst &node){}
+void AsmGen::visit(FCmpBrInst &node){
+    //结束
+}
 
-void AsmGen::visit(LoadOffsetInst &node){}
+void AsmGen::visit(LoadOffsetInst &node){
+    auto inst = &node;
+                    auto loadoffset_inst = dynamic_cast<LoadOffsetInst*>(inst);
+                if(! dynamic_cast<GetElementPtrInst*>(loadoffset_inst->getOperand(0))) {
+                    //LOG(ERROR) << "汇编代码生成出现未预期情况";
+                }
+                auto offset = loadoffset_inst->getOffset();
+                auto const_offset = dynamic_cast<ConstantInt*>(offset);
+                if(loadoffset_inst->getLoadType()->isFloatType()) {
+                    if(const_offset) {
+                        sequence->createFlw(dynamic_cast<FReg*>(get_asm_reg(inst)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(0))), new IConst(const_offset->getValue()));
+                    } else {
+                        sequence->createFlw(dynamic_cast<FReg*>(get_asm_reg(inst)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(0))), get_asm_reg(offset));
+                    }
+                } else {
+                    if(const_offset) {
+                        sequence->createLw(dynamic_cast<GReg*>(get_asm_reg(inst)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(0))), new IConst(const_offset->getValue()));
+                    } else {
+                        sequence->createLw(dynamic_cast<GReg*>(get_asm_reg(inst)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(0))), get_asm_reg(offset));
+                    }
+                }
+}
 
-void AsmGen::visit(StoreOffsetInst &node){}
+void AsmGen::visit(StoreOffsetInst &node){
+    auto inst = &node;
+                    auto storeoffset_inst = dynamic_cast<StoreOffsetInst*>(inst);
+                auto offset = storeoffset_inst->getOffset();
+                auto const_offset = dynamic_cast<ConstantInt*>(offset);
+                auto const_int_src = dynamic_cast<ConstantInt*>(storeoffset_inst->getOperand(0));
+                auto const_float_src = dynamic_cast<ConstantFP*>(storeoffset_inst->getOperand(0));
+                if(storeoffset_inst->getStoreType()->isFloatType()) {
+                    if(const_float_src) {
+                        if(const_offset) {
+                            sequence->createFsw(new FConst(const_float_src->getValue()), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1)))  , new IConst(const_offset->getValue()));
+                        } else {
+                            sequence->createFsw(new FConst(const_float_src->getValue()), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1))), get_asm_reg(offset));
+                        }
+                    } else {
+                        if(const_offset) {
+                            sequence->createFsw(get_asm_reg(inst->getOperand(0)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1))), new IConst(const_offset->getValue()));    
+                        } else {
+                            sequence->createFsw(get_asm_reg(inst->getOperand(0)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1))), get_asm_reg(offset));
+                        }
+                    }
+                } else {
+                    if(const_int_src) {
+                        if(const_offset) {
+                            sequence->createSw(new IConst(const_int_src->getValue()), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1))), new IConst(const_offset->getValue()));
+                        } else {
+                            //! 在addi中使用了s1寄存器
+                            sequence->createSw(new IConst(const_int_src->getValue()), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1))), get_asm_reg(offset));
+                        }
+                    } else {
+                        if(const_offset) {
+                            sequence->createSw(get_asm_reg(inst->getOperand(0)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1))), new IConst(const_offset->getValue()));
+                        } else {
+                            sequence->createSw(get_asm_reg(inst->getOperand(0)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1))), get_asm_reg(offset));
+                        }
+                    }
+                }
+}
 
 
 void AsmGen::linearizing_and_labeling_bbs() {
@@ -235,7 +701,7 @@ void AsmGen::linearizing_and_labeling_bbs() {
     BasicBlock *ret_bb;
     Label* new_label;
     std::string label_str;
-    
+    int mp = 0;
     for(auto bb: linear_bbs_of_func) {
         if(bb == func->getEntryBlock() && bb->getTerminator()->isRet()) {
             bb2label.insert({bb, new Label("")});
@@ -244,7 +710,7 @@ void AsmGen::linearizing_and_labeling_bbs() {
         } else if(bb == func->getEntryBlock()) {
             bb2label.insert({bb, new Label("")});
         } else if(bb != func->getEntryBlock() && !bb->getTerminator()->isRet()) {
-            label_str = func->getName() + "_" + bb->getName();
+            label_str = func->getName() + "_" + ::std::to_string(mp++);
             new_label = new Label(label_str);
             bb2label.insert({bb, new_label});
         } else {

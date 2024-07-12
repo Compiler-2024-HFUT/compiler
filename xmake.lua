@@ -33,7 +33,7 @@ target("irtest")
     add_files("src/test/testir.cpp")
     set_optimize("none")
 
-target("passtest")
+target("targettest")
     set_kind("binary")
     set_languages( "c++17")
     add_includedirs("include")

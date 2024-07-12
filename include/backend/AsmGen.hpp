@@ -178,6 +178,9 @@ class AsmGen : public IRVisitor{
         //& help funcs for asm code gen
     Val *get_asm_reg(Value* val);
 
+        //& global variable label gen for function using these global variable
+    std::map<GlobalVariable*, Label*> global_variable_labels_table;
+
     
 };
 
