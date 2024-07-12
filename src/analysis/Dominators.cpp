@@ -4,10 +4,29 @@
 #include "midend/Function.hpp"
 #include <algorithm>
 #include <functional>
-#include <iostream>
 #include <ostream>
 #include <set>
+//寻找公共祖先
+BasicBlock* Dominators::findLCA(BasicBlock* lbb,BasicBlock*rbb){
+    auto findPathToRoot=[this](BasicBlock* block) {
+        std::vector<BasicBlock*> path;
+        while (block) {
+            path.push_back(block);
+            block = this->getIDom(block);
+        }
+        return path;
+    };
+    auto pathl = findPathToRoot(lbb);
+    auto pathr = findPathToRoot(rbb);
 
+     std::set<BasicBlock*> ancestors_l(pathl.begin(), pathl.end());
+     for (auto block : pathr) {
+         if (ancestors_l.count(block)) {
+             return block;
+         }
+     }
+     return nullptr;  // 如果没有找到公共祖先，返回 nullptr
+}
 void Dominators::post(Function *func_){
     auto bbs=func_->getBasicBlocks();
     // int id=0;
@@ -75,24 +94,13 @@ void Dominators::sFastIDomAlg(Function *func_){
 }
 
 void Dominators::domAlg(Function *func_){
-    // for (auto bb : func_->getBasicBlocks()) {
-    //     auto idom = getIDom(bb);
-    //     if (idom != bb&&idom!=nullptr) {
-    //         addDomSet(idom, bb);
-    //     }
-    // }
     std::function<::std::set<BasicBlock*>(BasicBlock*)> getdoms=[&,this](BasicBlock*bb){
         auto &dom_set=func_dom_set_.find(func_)->second.find(bb)->second;
         auto b_set=getDomTree(bb);
         if(b_set.empty())return std::set<BasicBlock*>{};
-        auto work_list{b_set};
-        auto visited{b_set};
+        ::std::vector<BasicBlock*> work_list(b_set.begin(),b_set.end());
         for(auto tree_node:work_list){
             auto b=getdoms(tree_node);
-            if(!visited.count(tree_node)){
-                visited.insert(tree_node);
-                work_list.insert(tree_node);
-            }
             if(b.empty())continue;
             std::copy(b.begin(),b.end(),inserter(b_set, b_set.end()));
         }
@@ -164,6 +172,7 @@ void Dominators::analyse(){
             continue;
         analyseOnFunc(f);
     }
+    printDomSet();
     invalid = false;
 }
 void Dominators::reAnalyse(){

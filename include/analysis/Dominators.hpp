@@ -53,6 +53,7 @@ public:
     Dominators(Module*module, InfoManager *im);
     virtual ~Dominators(){}
     void clear();
+    BasicBlock* findLCA(BasicBlock* lbb,BasicBlock*rbb);
     virtual void analyse() override;
     virtual void reAnalyse() override;
     virtual void analyseOnFunc(Function *func) override;
