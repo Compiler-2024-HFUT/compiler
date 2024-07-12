@@ -11,7 +11,7 @@ using std::string;
 
 class Info {
 protected:
-    bool invalid = true;                    // 如果当前info无效，从其获取数据前需要reanalyze，分析完成设为true
+    bool invalid = true;                    // 如果当前info无效，从其获取数据前需要reanalyze，分析完成设为false
     InfoManager *infoManager;
 public:
     bool isInvalid() { return invalid; }
@@ -31,6 +31,10 @@ protected:
 public:
     virtual ~ModuleInfo(){}
     ModuleInfo(Module*module, InfoManager *im): Info(im), module_(module) {}
+    virtual void analyse() override;
+    virtual void reAnalyse() override;
+
+    virtual void analyseOnModule(Module *m)=0;
 };
 
 class FunctionInfo: public Info {
@@ -39,7 +43,10 @@ protected:
 public:
     virtual ~FunctionInfo(){}
     FunctionInfo(Module*module, InfoManager *im):Info(im), module_(module) { }
-    
+    virtual void analyse() override;
+    virtual void reAnalyse() override;
+
     virtual void analyseOnFunc(Function *func)=0;
 };
+
 #endif
