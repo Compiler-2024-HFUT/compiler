@@ -24,10 +24,12 @@ private:
 
 public:
     Mem2Reg(Module *m, InfoManager *im) : FunctionPass(m, im){
-        cur_dom_=info_man_->getInfo<Dominators>();
     }
     ~Mem2Reg(){};
     // void run()=default;
+    void init()override{
+        cur_dom_=info_man_->getInfo<Dominators>();
+    }
     void runOnFunc(Function*func)override;
 };
 

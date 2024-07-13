@@ -1,7 +1,7 @@
 /*
- * 
- * 
- * 
+ *
+ *
+ *
  */
 
 
@@ -43,8 +43,9 @@ class FunctionPass: public Pass {
 public:
     FunctionPass(Module* m, InfoManager *im) : Pass(m, im){ }
     // FunctionPass(Module* m): Pass(m) { }    // delete after
-
+    virtual void init(){}
     virtual void run()final{
+        init();
         for(auto f:module_->getFunctions())
             runOnFunc(f);
     }
@@ -56,8 +57,8 @@ class PassManager{
         PassManager(Module* m) : module_(m){
             infoManager = new InfoManager(m);
         }
-        
-        template<typename PassType> 
+
+        template<typename PassType>
         void addPass(bool print_ir=false){
             // assert(std::is_base_of<Pass, PassType>::value && "must be passtype")
             passes_.push_back(std::pair<Pass*,bool>(new PassType(module_, infoManager), print_ir));
