@@ -1,17 +1,23 @@
 #ifndef  VAL_NUM_HPP
 #define VAL_NUM_HPP
+#include "analysis/Dominators.hpp"
+#include "midend/Instruction.hpp"
 #include "midend/Module.hpp"
 #include "midend/Value.hpp"
 #include "optimization/PassManager.hpp"
 struct Expr{
-    enum class ExprOp:int32_t{
+    enum ExprOp:int32_t{
         ILLEGAL=-1,EMPTY=0,
         ADD,SUB,MUL,DIV,FADD,FSUB,FMUL,FDIV,REM,
+        //预防与cmpop冲突
+        EXPR_EQ,EXPR_NE,EXPR_GT,EXPR_GE,EXPR_LT,EXPR_LE,
         ZEXT,SITOFP,FPTOSI,
+        AND,OR,XOR,
+        ASR,SHL,LSR,ASR64,SHL64,LSR64,
     }op_;
     uint32_t lhs,rhs,unuse;
-    Type* type_; 
-    
+    Type* type_;
+
     bool operator==(Expr const &other)const{
         if(this->op_!=other.op_||type_!=other.type_||lhs!=other.lhs||rhs!=other.rhs)//||unuse!=other.unuse)
             return false;
@@ -25,7 +31,7 @@ struct Expr{
             return true;
         return false;
     }
-    Expr():op_(ExprOp::EMPTY){}
+    Expr():op_(ExprOp::EMPTY),type_(nullptr),lhs(0),rhs(0){}
     Expr(ExprOp _op,Type*type,uint32_t first=0,uint32_t second=0):op_(_op),type_(type),lhs(first),rhs(second){}
 
 public:
@@ -35,13 +41,15 @@ struct ValueTable{
     uint32_t next_num=1;
     ::std::map<Value*,uint32_t> value_hash;
     ::std::map<Expr,uint32_t> expressing_hash;
-    ::std::vector<Value*> number_value{0};
+    ::std::vector<::std::vector<Value*>> number_value;
 public:
     Expr creatExpr(BinaryInst* bin);
     Expr creatExpr(FpToSiInst* ins);
     Expr creatExpr(SiToFpInst* ins);
     Expr creatExpr(ZextInst* ins);
-    Value* getNumVal(uint32_t num){
+    Expr creatExpr(CmpInst* ins);
+    Expr creatExpr(FCmpInst* ins);
+    ::std::vector<Value*>& getNumVal(uint32_t num){
         return  number_value[num];
     }
     uint32_t getValueNum(Value*v);
@@ -50,12 +58,13 @@ public:
         value_hash.clear();
         expressing_hash.clear();
         number_value.clear();
-        number_value.push_back(0);
+        number_value.push_back({});
     }
 };
 
 class ValNumbering:public FunctionPass{
     ValueTable vn_table_;
+    Dominators*dom;
     // ::std::map<BasicBlock*,::std::set<Value*>> basic_value_;
     __attribute__((__always_inline__)) void clear(){
         vn_table_.clear();
@@ -66,7 +75,9 @@ public:
     bool dvnt(Function*func,BasicBlock*bb);
     virtual void runOnFunc(Function *func) override;
     // using FunctionPass::FunctionPass;
-    ValNumbering(Module *m, InfoManager *im) : FunctionPass(m, im){}
+    ValNumbering(Module *m, InfoManager *im) : FunctionPass(m, im){
+        dom=info_man_->getInfo<Dominators>();
+    }
     ~ValNumbering(){};
     // virtual ~ValNumbering(){}
 
