@@ -78,19 +78,17 @@ void LiveVar::findFixedPoint(Function *func_) {
             }
         }
 
-        
         for(Value *v : PhiUses[bb]) {
             if(v->getType()->isFloatType()) {
-                liveIn[bb].second.insert(v);
+                liveOut[bb].second.insert(v);
             } else {
-                liveIn[bb].first.insert(v);
+                liveOut[bb].first.insert(v);
             }
         }
         
     }
     
     bool changed = true;
-
     while(changed) {
         changed = false;
         for(BB *bb : func_->getBasicBlocks()) {
@@ -149,7 +147,7 @@ string LiveVar::print() {
                 lvStr += STRING_YELLOW(v->getName());  lvStr += ' ';
             }
 
-            
+            /*
             lvStr += STRING_RED("\n;Defs:\n;");
             for(Value *v : Defs[bb]) {
                 lvStr += STRING_YELLOW(v->getName());  lvStr += ' ';
@@ -166,7 +164,7 @@ string LiveVar::print() {
             for(Value *v : PhiUses[bb]) {
                 lvStr += STRING_YELLOW(v->getName());  lvStr += ' ';
             }
-            
+            */
             lvStr += '\n'; 
         }
     }
