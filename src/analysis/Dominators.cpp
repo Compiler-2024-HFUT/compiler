@@ -21,9 +21,9 @@ BasicBlock* Dominators::findLCA(BasicBlock* lbb,BasicBlock*rbb){
 
      std::set<BasicBlock*> ancestors_l(pathl.begin(), pathl.end());
      for (auto block : pathr) {
-         if (ancestors_l.count(block)) {
-             return block;
-         }
+        if (ancestors_l.count(block)) {
+            return block;
+        }
      }
      return nullptr;  // 如果没有找到公共祖先，返回 nullptr
 }
@@ -46,7 +46,7 @@ void Dominators::post(Function *func_){
 }
 
 void Dominators::sFastIDomAlg(Function *func_){
-    idom_.clear();
+    // idom_.clear();
     post_order_id_.clear();
     reverse_post_order_.clear();
     post(func_);
@@ -111,14 +111,15 @@ void Dominators::domAlg(Function *func_){
     getdoms(func_->getEntryBlock());
 }
 void Dominators::domTreeAlg(Function *func_){
+    auto &domtree=func_dom_tree_[func_];
     for (auto bb : func_->getBasicBlocks()) {
         auto idom = getIDom(bb);
         if (idom != bb&&idom!=nullptr) {
-            auto tree_iter=func_dom_tree_[func_].find(idom);
-            if(tree_iter!=func_dom_tree_[func_].end())
+            auto tree_iter=domtree.find(idom);
+            if(tree_iter!=domtree.end())
                 tree_iter->second.insert(bb);
             else
-                func_dom_tree_[func_].insert({idom,{bb}});
+                domtree.insert({idom,{bb}});
         }
     }
 }
@@ -155,7 +156,7 @@ void Dominators::clear(){
     func_dom_frontier_.clear();
 
     for(Function *f : module_->getFunctions()) {
-        if(f->getBasicBlocks().size() == 0)
+        if(f->getBasicBlocks().empty())
             continue;
         for(BasicBlock *bb : f->getBasicBlocks()) {
             func_dom_tree_[f].insert({bb,{}});
