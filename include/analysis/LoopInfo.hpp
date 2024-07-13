@@ -42,15 +42,23 @@ class Loop {
     uset<BB*> blocks;                 // 组成natural loop的集合
     Loop *outer;                        // 外层循环
     vector<Loop*> inners;               // 内循环
-    int depth = 1;                      // 循环深度
+    int depth;                      // 循环深度
 public:
-    Loop(BB *tail, BB *head): latchs({tail}), header(head) {}
+    Loop(BB *tail, BB *head): latchs({tail}), header(head), depth(1) {}
     
     BB* const &getHeader() { return header; }
     int getDepth() { return depth; }
     Loop *getOuter() { return outer; }
     void setDepth(int d) { depth = d; }
     void setOuter(Loop *l) { outer = l; }
+
+    // 自身及子循环深度+1
+    void updateDepth() {
+        depth += 1;
+        for(Loop *l : inners) {
+            l->updateDepth();
+        }
+    }
 
     vector<BB*> const &getExits()   { return exits; }
     vector<BB*> const &getLatchs()  { return latchs; }
@@ -82,8 +90,8 @@ public:
 
         if(inners.size() != 0) {
             loop += STRING_YELLOW("inners") + ":\n";
-            for(auto l : inners) {
-                loop += STRING("outer's header: ") + STRING_RED(header->getName()) + STRING(" inner's depth: ") + STRING_NUM(depth);
+            for(Loop *l : inners) {
+                loop += STRING("outer's header: ") + STRING_RED(header->getName()) + STRING(" inner's depth: ") + STRING_NUM(l->getDepth());
                 loop += "\n" + l->print() + "\n";
             }
         }
