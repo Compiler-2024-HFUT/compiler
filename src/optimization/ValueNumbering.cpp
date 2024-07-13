@@ -4,7 +4,6 @@
 #include "midend/Instruction.hpp"
 #include "midend/BasicBlock.hpp"
 #include "midend/Value.hpp"
-#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <map>
@@ -40,6 +39,7 @@ Expr::ExprOp Expr::instop2exprop(Instruction::OpID instrop){
         {Instruction::OpID::asr64,ExprOp::ASR64},
         {Instruction::OpID::shl64,ExprOp::SHL64},
         {Instruction::OpID::lsr64,ExprOp::LSR64},
+        {Instruction::OpID::getelementptr,ExprOp::GEP},
     };
     auto iter=i_e.find(instrop);
     if(iter==i_e.end())
@@ -66,6 +66,8 @@ uint32_t ValueTable::getValueNum(Value*v){
             e=creatExpr(cmp);
         }else if(auto fcmp=dynamic_cast<FCmpInst*>(ins)){
             e=creatExpr(fcmp);
+        }else if(auto gep=dynamic_cast<GetElementPtrInst*>(ins)){
+            e=creatExpr(gep);
         }
         //alloc call phi br ret store load cmpbr fcmpbr loadoffset storeoffset select
     }
@@ -96,12 +98,12 @@ void ValNumbering::runOnFunc(Function*func){
     if(func->getBasicBlocks().empty())return;
     auto runvn=[this](Function*func)->void{
         auto entry=func->getEntryBlock();
-        std::vector<BasicBlock*> work_list{entry};
+        std::list<BasicBlock*> work_list{entry};
         while(!work_list.empty()){
-            auto b=work_list.back();
-            work_list.pop_back();
+            auto b=work_list.front();
+            work_list.pop_front();
             for(auto ins:b->getInstructions()){
-                if(ins->isCall()||ins->isBr()||ins->isRet()||ins->isStore()||ins->isLoad()||ins->isGep())
+                if(ins->isCall()||ins->isBr()||ins->isRet()||ins->isStore()||ins->isLoad())
                     continue;
                 else if(ins->isPhi())
                     continue;
@@ -109,10 +111,10 @@ void ValNumbering::runOnFunc(Function*func){
                     vn_table_.getValueNum(ins);
             }
             auto &b_tree=dom->getDomTree(b);
-            std::copy(b_tree.begin(),b_tree.end(),work_list.end());
-            // for(auto bb:b_tree){
-            //     work_list.push_back(bb);
-            // }
+            // std::copy(b_tree.begin(),b_tree.end(),work_list.end());
+            for(auto bb:b_tree){
+                work_list.push_back(bb);
+            }
         }
         auto size=vn_table_.next_num;
         for(uint32_t id=1;id<size;++id){
@@ -130,7 +132,6 @@ void ValNumbering::runOnFunc(Function*func){
                     lca = dom->findLCA(lca, inst->getParent());
                 }
             }
-            // std::cout<<block->getName()<<std::endl;
             Instruction* replace_instr = nullptr;
             for (auto _instr : vals) {
                 auto instr=(Instruction*)_instr;
@@ -140,6 +141,16 @@ void ValNumbering::runOnFunc(Function*func){
                 }
             }
             if(replace_instr==nullptr){
+                bool valid_ins=true;
+                auto base = (Instruction*)(vals.front());
+                for (auto operand : base->getOperands())
+                    if(auto op_ins=dynamic_cast<Instruction*>(operand);op_ins&&!dom->isLdomR(op_ins->getParent(),lca)){
+                        valid_ins = false;
+                        break;
+                    }
+                if (!valid_ins)
+                    continue;
+
                 auto ins=(Instruction*)(vals.front());
                 auto &inss=lca->getInstructions();
                 auto br=inss.back();
@@ -154,6 +165,7 @@ void ValNumbering::runOnFunc(Function*func){
                     }
                 }
                 replace_instr=ins->copyInst(lca);
+                vals.push_back(replace_instr);
                 if(is_cmp){
                     inss.push_back(is_cmp);
                 }
@@ -166,8 +178,8 @@ void ValNumbering::runOnFunc(Function*func){
                 vals.pop_back();
                 if(replace_instr!=inst){
                     inst->replaceAllUseWith(replace_instr);
-                    inst->getParent()->deleteInstr(inst);
-                    delete inst;
+                    // inst->getParent()->deleteInstr(inst);
+                    // delete inst;
                 }
             }
             vals.push_back(replace_instr);
@@ -210,4 +222,15 @@ Expr ValueTable::creatExpr(CmpInst*ins){
 Expr ValueTable::creatExpr(FCmpInst*ins){
     Expr::ExprOp op=static_cast<Expr::ExprOp>(ins->getCmpOp()+(int32_t)Expr::EXPR_EQ-CmpOp::EQ);
     return Expr(op,ins->getType(),getValueNum(ins->getOperand(0)),getValueNum(ins->getOperand(1)));
+}
+Expr ValueTable::creatExpr(GetElementPtrInst*ins){
+    if(ins->getNumOperands()==3){
+        auto cons=dynamic_cast<ConstantInt*>(ins->getOperand(1));
+        assert(cons);
+        assert(cons->getValue()==0);
+        auto ret= Expr(Expr::ExprOp::GEP,ins->getType(),getValueNum(ins->getOperand(0)),getValueNum(ins->getOperand(1)),getValueNum(ins->getOperand(2)));
+        return ret;
+    }else{
+        return Expr(Expr::ExprOp::GEP,ins->getType(),getValueNum(ins->getOperand(0)),getValueNum(ins->getOperand(1)));
+    }
 }
