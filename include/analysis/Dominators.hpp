@@ -68,11 +68,17 @@ public:
 
     BasicBlock* getIDom(BasicBlock*b){
         auto it=idom_.find(b);
-        if(it==idom_.end())
-            assert(0);
+        // if(it==idom_.end())
+        //     assert(0);
         return it->second;
     }
-
+    //左边支配右边?
+    bool isLdomR(BasicBlock*l,BasicBlock*r){
+        auto & l_set=func_dom_set_[l->getParent()].find(l)->second;
+        if(l_set.count(r))
+            return true;
+        return false;
+    }
 };
 
 #endif

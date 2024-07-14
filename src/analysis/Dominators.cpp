@@ -65,9 +65,9 @@ void Dominators::sFastIDomAlg(Function *func_){
     auto intersect=[this](BasicBlock *b1, BasicBlock *b2){
         while (b1 != b2) {
             if (post_order_id_[b1] < post_order_id_[b2]) {
-                b1 = getIDom(b1);
+                b1 = idom_[b1];
             }else{
-                b2=getIDom(b2);
+                b2=idom_[b2];
             }
         }
         return b1;
@@ -85,8 +85,8 @@ void Dominators::sFastIDomAlg(Function *func_){
                 for(;b_it!=pre_l.end();b_it++)
                     new_idom=intersect(new_idom,*b_it);
             }
-            if(getIDom(bb)!=new_idom){
-                setIDom(bb,new_idom);
+            if(idom_[bb]!=new_idom){
+                idom_[bb]=new_idom;
                 changed=true;
             }
         }
