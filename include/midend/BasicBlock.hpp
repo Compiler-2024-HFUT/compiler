@@ -10,7 +10,7 @@
 class Function;
 class Instruction;
 class Module;
-
+class IRVisitor;
 class BasicBlock : public Value {
 public:
     static BasicBlock *create(const std::string &name, Function *parent);
@@ -113,6 +113,12 @@ public:
     //         delete ins;
     //     }
     // }
+
+
+
+
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
 
 private:
     explicit BasicBlock(const std::string &name, Function *parent);

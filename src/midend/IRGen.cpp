@@ -87,13 +87,13 @@ bool inWhileStmt(){
 }
 
 void IRGen::visit(ast::CompunitNode &node) {
-    global_init_block = BasicBlock::create( "init", dynamic_cast<Function*>(scope.findFunc("global_var_init")) );
+    // global_init_block = BasicBlock::create( module.get(), "init", dynamic_cast<Function*>(scope.findFunc("global_var_init")) );
 
     for (auto &decl : node.global_defs) {
         decl->accept(*this);
     }
 
-    ReturnInst::createVoidRet(global_init_block);
+    // ReturnInst::createVoidRet(global_init_block);
 }
 
 void IRGen::visit(ast::FuncDef &node) {
@@ -125,22 +125,22 @@ void IRGen::visit(ast::FuncDef &node) {
     cur_fun = fun;
     
     // call global_init in main func
-    if(node.name == "main"){
-        auto globalVarInitBB = BasicBlock::create("global_init_"+node.name, fun);
-        CallInst::createCall( dynamic_cast<Function*>(scope.findFunc("global_var_init")), {}, globalVarInitBB);
-        
+    // if(node.name == "main"){
+    //     auto globalVarInitBB = BasicBlock::create(module.get(), "global_init", fun);
+    //     CallInst::createCall( dynamic_cast<Function*>(scope.findFunc("global_var_init")), {}, globalVarInitBB);
+    //     
+    //     // create entry block, which alloc params
+    //     auto entryBB = BasicBlock::create(module.get(), "entry", fun);
+    //     cur_block_of_cur_fun = entryBB;
+    //     cur_basic_block_list.push_back(entryBB);
+    //
+    //     BranchInst::createBr(entryBB, globalVarInitBB);
+    // }else{
         // create entry block, which alloc params
         auto entryBB = BasicBlock::create( "entry_"+node.name, fun);
         cur_block_of_cur_fun = entryBB;
         cur_basic_block_list.push_back(entryBB);
-
-        BranchInst::createBr(entryBB, globalVarInitBB);
-    }else{
-        // create entry block, which alloc params
-        auto entryBB = BasicBlock::create( "entry_"+node.name, fun);
-        cur_block_of_cur_fun = entryBB;
-        cur_basic_block_list.push_back(entryBB);
-    }
+    // }
 
     // alloc params, it should be in vist funcParams!!!!!
     vector<Value *> args;
@@ -317,8 +317,9 @@ void IRGen::visit(ast::ValDefStmt &node) {
 
     // alloc var
     if(scope.inGlobal()) {
-        // GlobalVar's init_val must be const ?? fix after!!
-        auto var = GlobalVariable::create(node.name, module.get(), cur_type, false, dynamic_cast<Constant *>(tmp_val));
+        Constant* tmp_const = dynamic_cast<Constant *>(tmp_val);
+        assert(tmp_const != nullptr && "global var init must use const!");
+        auto var = GlobalVariable::create(node.name, module.get(), cur_type, false, tmp_const);
         scope.push(node.name, var);
     } else {
         auto var = AllocaInst::createAlloca(cur_type, cur_block_of_cur_fun);
@@ -420,7 +421,11 @@ void IRGen::visit(ast::ArrDefStmt &node) {
 
     if(scope.inGlobal()) {
         // zeroinitializer, global array is inited in global_var_init
-        auto initializer = ConstantZero::get(array_type);
+        Constant* initializer = ConstantZero::get(array_type);
+        if(node.initializers){
+            node.initializers->accept(*this);
+            initializer = ConstantArray::get(array_type, init_val_map, arr_total_size);
+        }
         auto var = GlobalVariable::create(node.name, module.get(), array_type, false, initializer);
         scope.push(node.name, var);
         scope.pushSize(node.name, array_sizes);
@@ -590,6 +595,7 @@ void IRGen::visit(ast::InitializerExpr &node) {
     // it's an Initializer, but process as a value 
     if(array_sizes.size()-1 < cur_depth){
         node.initializers[0]->accept(*this);
+        assert( ( !scope.inGlobal() || dynamic_cast<Constant*>(tmp_val)!=nullptr ) && "global array's initval must be const!" );
         cur_depth--;
         if(array_sizes.size()-1 == cur_depth){
             init_val_map[cur_pos] = tmp_val;
@@ -605,6 +611,7 @@ void IRGen::visit(ast::InitializerExpr &node) {
     array_pos.push_back( {cur_pos, array_sizes[cur_depth-1]} );
     for(auto &initializer : node.initializers){
         initializer->accept(*this);
+        assert( ( !scope.inGlobal() || dynamic_cast<Constant*>(tmp_val)!=nullptr ) && "global array's initval must be const!" );
 
         if(dynamic_cast<ast::InitializerExpr*>(initializer.get()) != nullptr)
             continue;
@@ -1564,6 +1571,7 @@ IRGen::IRGen() {
                 "memset_f",
                 module.get());
 
+    /*
     std::vector<Type *>().swap(input_params);
     auto gvi_type = FunctionType::get(VOID_T, input_params);
     auto global_var_init =
@@ -1571,6 +1579,7 @@ IRGen::IRGen() {
                 gvi_type,
                 "global_var_init",
                 module.get());
+    */
 
     scope.enter();
     scope.pushFunc("getint", get_int);
@@ -1588,5 +1597,5 @@ IRGen::IRGen() {
 
     scope.pushFunc("memset_i", memset_i);
     scope.pushFunc("memset_f", memset_f);
-    scope.pushFunc("global_var_init", global_var_init);
+    // scope.pushFunc("global_var_init", global_var_init);
 }
