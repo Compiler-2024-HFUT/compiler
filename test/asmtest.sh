@@ -1,6 +1,6 @@
 #!/bin/bash 
 source import.sh
-f=$(ls testcase/*.sy)
+f=$(ls t/functional/*.sy)
 names=""
 
 rm_file

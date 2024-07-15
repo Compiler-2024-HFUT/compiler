@@ -13,7 +13,7 @@
 #include "analysis/CLND.hpp"
 #include "backend/AsmGen.hpp"
 #include "backend/Asm.hpp"
-
+#include "optimization/AAA.hpp"
 using namespace std;
 
 int main(int argc , char**argv){
@@ -32,7 +32,7 @@ int main(int argc , char**argv){
     // fstream os;
     // os.open(str_out,ios_base::out);
     PassManager pm{m};
-    pm.add_pass<DeadStoreEli>();
+  //  pm.add_pass<DeadStoreEli>();
     pm.add_pass<Mem2Reg>();
    // // pm.add_pass<ADCE>();
   // pm.run();
@@ -40,10 +40,10 @@ int main(int argc , char**argv){
    pm.add_pass<LIR>();
    pm.add_pass<CIDBB>();
    pm.add_pass<CLND>();
-
+   pm.add_pass<ActiveVar>();
     // pm.add_pass<FuncInline>();
     pm.run();
-   // cout << irgen.getModule()->print()<<endl;;
+    cout << irgen.getModule()->print()<<endl;;
    AsmGen asm_gen(m);
     m->accept(asm_gen);
     ::std::string asm_code = asm_gen.getAsmUnit()->print();

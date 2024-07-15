@@ -403,7 +403,7 @@
 }
 
  ::std::string Zext::print(){
-    return RISCVInst::addi(rd, rs1, 1);
+    return RISCVInst::andi(rd, rs1, 1);
 }
 
  ::std::string Snez::print(){
@@ -423,10 +423,9 @@
 
  ::std::string Seqz::print(){
     auto iconst_cond = dynamic_cast<IConst*>(cond);
-    auto fconst_cond = dynamic_cast<FConst*>(cond);
     auto ireg = dynamic_cast<GReg*>(cond);
-    if(iconst_cond || fconst_cond){
-        if(iconst_cond->getIConst()==0 || fconst_cond->getFConst()==0)
+    if(iconst_cond){
+        if(iconst_cond->getIConst()==0)
             return RISCVInst::seqz(rd, new GReg(static_cast<int>(RISCV::GPR::zero)));
         else    
             return RISCVInst::snez(rd, new GReg(static_cast<int>(RISCV::GPR::zero)));
@@ -2658,11 +2657,12 @@
             else{
                 asm_insts+=RISCVInst::ld(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_src->getReg())), src_offset);
             }
-            int target_offset = iria_target->getOffset();
+           
             if(ireg_target){
                 asm_insts+=RISCVInst::mv(new GReg(static_cast<int>(ireg_target->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)));
             }
             else if(iria_target){
+                 int target_offset = iria_target->getOffset();
                 if(target_offset<-2048||target_offset>2047){
                     asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(iria_target->getReg())), target_offset)+
                                RISCVInst::sd(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::s1)), 0);

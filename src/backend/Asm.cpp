@@ -270,8 +270,8 @@
     insts.push_back(inst);
     return inst;
 }
- CalleeSaveRegs* Sequence::createCalleeSaveRegs(::std::vector<::std::pair<FRA*, IRIA*>> caller_fregs_save){
-    auto inst = new CalleeSaveRegs(caller_fregs_save, this);
+ CalleeSaveRegs* Sequence::createCalleeSaveRegs(::std::vector<::std::pair<FRA*, IRIA*>> callee_fregs_save){
+    auto inst = new CalleeSaveRegs(callee_fregs_save, this);
     insts.push_back(inst);
     return inst;
 }

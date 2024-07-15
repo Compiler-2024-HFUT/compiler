@@ -132,8 +132,8 @@ void LIR::breakGEP(::std::vector<BasicBlock*> BBs){
     for(auto bb : BBs){
         auto & inst_list = getInstList(bb);
         for(auto iter=inst_list.begin(); iter!=inst_list.end(); iter++){
-            if((*iter)->isGep() &&((*iter)->getOperand((*iter)->getNumOperands()-1)!=ConstantInt::get(0))){
-                auto size = ConstantInt::get((*iter)->getType()->getPointerElementType()->getSize());//后一个参数不为0才行，避免对初始化做修改
+            if((*iter)->isGep() &&((*iter)->getOperand((*iter)->getNumOperands()-1)!=ConstantInt::get(0))){//后一个条件的目的是：后一个参数不为0的gep才行，避免对初始化做修改
+                auto size = ConstantInt::get((*iter)->getType()->getPointerElementType()->getSize());
                 //gep指令的格式不是固定的
                 int offset_op = (*iter)->getNumOperands()-1;
                 auto offset = (*iter)->getOperand(offset_op);   //取偏移量

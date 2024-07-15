@@ -861,8 +861,10 @@ void AsmGen::callee_stack_prologue(int stack_size) {
         }
     }
 
-    sequence->createCalleeSaveRegs(to_save_iregs);
-    sequence->createCalleeSaveRegs(to_save_fregs);
+    if(!to_save_iregs.empty())
+        sequence->createCalleeSaveRegs(to_save_iregs);
+    if(!to_save_fregs.empty())
+        sequence->createCalleeSaveRegs(to_save_fregs);
     sequence->createCalleeStackFrameInitialize(stack_size);
 }
 
@@ -2930,14 +2932,14 @@ Val *AsmGen::get_asm_reg(Value *val) {
     if(val->getType()->isFloatType()) {
         auto iter = fval2interval.find(val);
         if(iter != fval2interval.end()) {
-            return new FReg(iter->second->reg_id);
+            return new FReg(static_cast<int>( iter->second->reg_id));
         } else {
            // LOG(ERROR) << "该值不存在活跃区间";
         }
     } else {
         auto iter = ival2interval.find(val);
         if(iter != ival2interval.end()) {
-            return new GReg(iter->second->reg_id);
+            return new GReg(static_cast<int>( iter->second->reg_id) );
         } else {
            // LOG(ERROR) << "该值不存在活跃区间";
         }
