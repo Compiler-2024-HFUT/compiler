@@ -479,8 +479,17 @@ void IRGen::visit(ast::ArrDefStmt &node) {
         scope.push(node.name, var);
         scope.pushSize(node.name, array_sizes);
     }else{
-        auto var = AllocaInst::createAlloca(array_type, cur_block_of_cur_fun);
-        
+        auto first=cur_block_of_cur_fun->getParent()->getEntryBlock();
+        Instruction*ter;
+        //如果当前就是first则还没有没有terminator指令
+        if(first!=cur_block_of_cur_fun){
+            ter=first->getTerminator();
+            first->getInstructions().pop_back();
+        }
+        auto var = AllocaInst::createAlloca(array_type, first);
+        if(first!=cur_block_of_cur_fun){
+            first->addInstruction(ter);
+        }
         if(node.initializers) {
             auto memsetFunc = (cur_type == INT32_T) ? scope.findFunc("memset_i") : scope.findFunc("memset_f");
             auto arr_addr = GetElementPtrInst::createGep(var, { CONST_INT(0), CONST_INT(0) }, cur_block_of_cur_fun);
@@ -558,7 +567,17 @@ void IRGen::visit(ast::ConstArrDefStmt &node) {
             scope.pushConst(node.name, initializer);
         }
     } else {
-        auto var = AllocaInst::createAlloca(array_type, cur_block_of_cur_fun);
+        auto first=cur_block_of_cur_fun->getParent()->getEntryBlock();
+        Instruction*ter;
+        //如果当前就是first则还没有没有terminator指令
+        if(first!=cur_block_of_cur_fun){
+            ter=first->getTerminator();
+            first->getInstructions().pop_back();
+        }
+        auto var = AllocaInst::createAlloca(array_type, first);
+        if(first!=cur_block_of_cur_fun){
+            first->addInstruction(ter);
+        }
         
         auto memsetFunc = (cur_type == INT32_T) ? scope.findFunc("memset_i") : scope.findFunc("memset_f");
         auto arr_addr = GetElementPtrInst::createGep(var, { CONST_INT(0), CONST_INT(0) }, cur_block_of_cur_fun);
