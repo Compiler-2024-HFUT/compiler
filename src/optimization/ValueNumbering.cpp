@@ -43,7 +43,7 @@ Expr::ExprOp Expr::instop2exprop(Instruction::OpID instrop){
     };
     auto iter=i_e.find(instrop);
     if(iter==i_e.end())
-        return ExprOp::ILLEGAL;
+        assert(0);
     return iter->second;
 }
 uint32_t ValueTable::getValueNum(Value*v){
@@ -97,6 +97,7 @@ void ValNumbering::runOnFunc(Function*func){
     clear();
     if(func->getBasicBlocks().empty())return;
     auto runvn=[this](Function*func)->void{
+        std::vector<std::pair<PhiInst*,std::vector<Value*>>> phi_ins;
         auto entry=func->getEntryBlock();
         std::list<BasicBlock*> work_list{entry};
         while(!work_list.empty()){
@@ -178,8 +179,8 @@ void ValNumbering::runOnFunc(Function*func){
                 vals.pop_back();
                 if(replace_instr!=inst){
                     inst->replaceAllUseWith(replace_instr);
-                    // inst->getParent()->deleteInstr(inst);
-                    // delete inst;
+                    inst->getParent()->deleteInstr(inst);
+                    delete inst;
                 }
             }
             vals.push_back(replace_instr);
@@ -187,20 +188,20 @@ void ValNumbering::runOnFunc(Function*func){
     };
     runvn(func);
 }
-static std::set<BasicBlock*> visited;
-bool ValNumbering::dvnt(Function*func,BasicBlock*bb){
-    if(visited.count(bb))
-        return false;
-    visited.insert(bb);
-    if(bb==func->getEntryBlock()){
-        for(auto arg:func->getArgs()){
-            vn_table_.getValueNum(arg);
-        }
-    }
-    for(auto ins:bb->getInstructions()){
-        // if()
-    }
-}
+// static std::set<BasicBlock*> visited;
+// bool ValNumbering::dvnt(Function*func,BasicBlock*bb){
+//     if(visited.count(bb))
+//         return false;
+//     visited.insert(bb);
+//     if(bb==func->getEntryBlock()){
+//         for(auto arg:func->getArgs()){
+//             vn_table_.getValueNum(arg);
+//         }
+//     }
+//     for(auto ins:bb->getInstructions()){
+//         // if()
+//     }
+// }
 
 Expr ValueTable::creatExpr(BinaryInst*bin){
     return Expr(Expr::instop2exprop(bin->getInstrType()),bin->getType(),getValueNum(bin->getOperand(0)),getValueNum(bin->getOperand(1)));

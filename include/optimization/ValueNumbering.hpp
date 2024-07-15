@@ -80,7 +80,7 @@ class ValNumbering:public FunctionPass{
     }
     bool proInstr(Instruction*instr);
 public:
-    bool dvnt(Function*func,BasicBlock*bb);
+    // bool dvnt(Function*func,BasicBlock*bb);
     virtual void runOnFunc(Function *func) override;
     using FunctionPass::FunctionPass;
     void init()override{
