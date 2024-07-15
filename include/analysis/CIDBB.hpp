@@ -1,6 +1,7 @@
 #ifndef CREATECFGA_HPP
 #define CREATECFGA_HPP
 
+#include "analysis/InfoManager.hpp"
 #include "optimization/PassManager.hpp"
 #include <vector>
 #include <map>
@@ -20,7 +21,7 @@ class CIDBB : public FunctionPass{
 
 
     public:
-        CIDBB(Module *m): FunctionPass(m){}
+        CIDBB(Module *m,InfoManager*im): FunctionPass(m,im){}
         ~CIDBB(){};
         void runOnFunc(Function *func) override;
 };

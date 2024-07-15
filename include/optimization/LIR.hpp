@@ -3,6 +3,7 @@
 #ifndef LIR_HPP
 #define LIR_HPP
 
+#include "analysis/InfoManager.hpp"
 #include "midend/Module.hpp"
 #include "optimization/PassManager.hpp"
 
@@ -27,7 +28,7 @@ class LIR : public FunctionPass{
         void handleAdd(BinaryInst* inst_ptr, ::std::list<Instruction*>& inst_list, ::std::list<Instruction*>::iterator& inst_pos, BasicBlock* bb, bool flag);
 
     public:
-        LIR(Module *m): FunctionPass(m){}
+        LIR(Module *m,InfoManager*im): FunctionPass(m,im){}
         ~LIR(){};
         void runOnFunc(Function *function) override;
 };

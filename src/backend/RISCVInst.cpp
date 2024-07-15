@@ -1,5 +1,6 @@
 #include "backend/RISCVInst.hpp"
-
+#include "backend/AsmString.hpp"
+#include "backend/Asm.hpp"
 //---------------------I_Begin------------------------
 //2 reg 
 ::std::string RISCVInst::seqz(GReg *rd, GReg *rs1){

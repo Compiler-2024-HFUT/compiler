@@ -1,4 +1,6 @@
 #include "optimization/LIR.hpp"
+#include "midend/BasicBlock.hpp"
+
 //oppositeJ一定在mergeJJ前面，肯定是先反转J，再合并，不然合并了怎么反转
 void LIR::runOnFunc(Function *function){
 

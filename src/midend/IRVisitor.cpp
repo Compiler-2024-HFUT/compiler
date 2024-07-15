@@ -1,4 +1,5 @@
 #include "midend/IRVisitor.hpp"
+#include "midend/BasicBlock.hpp"
 
 void Module::accept(IRVisitor &visitor){
     visitor.visit(*this);

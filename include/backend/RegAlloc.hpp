@@ -7,7 +7,7 @@
 
 #include "midend/Module.hpp"
 #include "midend/Instruction.hpp"
-#include "midend/Value.hpp"
+#include "midend/BasicBlock.hpp"
 
 struct Range {
     int from;

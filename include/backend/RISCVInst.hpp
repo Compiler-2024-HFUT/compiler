@@ -1,8 +1,8 @@
 #ifndef RISCVINST_HPP
 #define RISCVINST_HPP
 
-#include "Asm.hpp"
 #include "AsmString.hpp"
+#include <cstdint>
 #include <string>
 class GReg;
 class FReg;

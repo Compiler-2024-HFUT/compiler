@@ -1,4 +1,5 @@
 #include "analysis/CIDBB.hpp"
+#include "midend/BasicBlock.hpp"
 
 void CIDBB::runOnFunc(Function *func){
     auto func_initial = initialFunction(func);

@@ -43,7 +43,7 @@ class CLND : public FunctionPass{
 
 
     public:
-        CLND(Module *m): FunctionPass(m){}
+        CLND(Module *m,InfoManager*im): FunctionPass(m,im){}
         ~CLND(){};
         void runOnFunc(Function*func) override;
 

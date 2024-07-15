@@ -1,4 +1,5 @@
 #include "analysis/CLND.hpp"
+#include "midend/BasicBlock.hpp"
 
 void CLND::runOnFunc(Function*func){
     auto initialfunc = initialFunction(func);
