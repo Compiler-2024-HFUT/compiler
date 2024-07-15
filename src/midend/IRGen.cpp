@@ -47,7 +47,7 @@ static Function *cur_fun = nullptr;    //& function that is being built
 static BasicBlock *cur_block_of_cur_fun;   //& used for add instruction 
 
 // static bool has_global_init;
-static BasicBlock *global_init_block;
+// static BasicBlock *global_init_block;
 
 static bool is_init_const_array = false;
 static int arr_total_size = 1;
@@ -197,8 +197,6 @@ void IRGen::visit(ast::FuncDef &node) {
         ret_addr = AllocaInst::createAlloca(FLOAT_T, cur_block_of_cur_fun);
     else if(ret_type == INT32_T)
         ret_addr = AllocaInst::createAlloca(INT32_T, cur_block_of_cur_fun);
-
-   
 
     // build return BB    
     ret_BB = BasicBlock::create( "ret_"+node.name, fun);
@@ -422,7 +420,7 @@ void IRGen::visit(ast::ArrDefStmt &node) {
     if(scope.inGlobal()) {
         // zeroinitializer, global array is inited in global_var_init
         Constant* initializer = ConstantZero::get(array_type);
-        if(node.initializers){
+        if(node.initializers && node.initializers->initializers.size() > 0){
             node.initializers->accept(*this);
             initializer = ConstantArray::get(array_type, init_val_map, arr_total_size);
         }
@@ -430,20 +428,20 @@ void IRGen::visit(ast::ArrDefStmt &node) {
         scope.push(node.name, var);
         scope.pushSize(node.name, array_sizes);
 
-        BasicBlock *tmp_block = cur_block_of_cur_fun;
-        cur_block_of_cur_fun = global_init_block;
+        // BasicBlock *tmp_block = cur_block_of_cur_fun;
+        // cur_block_of_cur_fun = global_init_block;
 
-        if(node.initializers) {
-            node.initializers->accept(*this);
-        }
+        // if(node.initializers) {
+        //     node.initializers->accept(*this);
+        // }
 
-        for(auto [offset, value] : init_val_map){
-            if(offset == -1)    continue;
-            auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(offset)}, cur_block_of_cur_fun);
-            StoreInst::createStore(value, elem_addr, cur_block_of_cur_fun);
-        }
-
-        cur_block_of_cur_fun = tmp_block;
+        // for(auto [offset, value] : init_val_map){
+        //     if(offset == -1)    continue;
+        //     auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(offset)}, cur_block_of_cur_fun);
+        //     StoreInst::createStore(value, elem_addr, cur_block_of_cur_fun);
+        // }
+ 
+        // cur_block_of_cur_fun = tmp_block;
     } else if(cur_fun->getName()=="main"){
         //main则在第一个bb初始化数组
 
