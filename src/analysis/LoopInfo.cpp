@@ -145,7 +145,7 @@ void LoopInfo::producedNestLoops(Function *func_) {
 
                 (*iter2)->addInner( (*iter1) );
                 (*iter1)->setOuter( (*iter2) );
-                (*iter1)->setDepth( (*iter2)->getDepth() + 1 );
+                (*iter1)->updateDepth();
                 
                 // 标记移除已经被识别为子循环的iter1
                 erased = true;
