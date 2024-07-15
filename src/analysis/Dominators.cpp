@@ -237,6 +237,7 @@ void Dominators::printDomTree(){
 #endif
 }
 Dominators::Dominators(Module*module, InfoManager *im): FunctionInfo(module, im) {
+    mod.modify_bb=true;
     // this->clear();
 
     /*

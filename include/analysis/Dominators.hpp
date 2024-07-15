@@ -2,7 +2,6 @@
 #define DOMINATORS_HPP
 #include "analysis/Info.hpp"
 #include "midend/BasicBlock.hpp"
-#include <cassert>
 #include <map>
 #include <set>
 #include <unordered_set>

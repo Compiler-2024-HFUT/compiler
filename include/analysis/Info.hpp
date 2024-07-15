@@ -8,12 +8,39 @@ class Module;
 
 #include <string>
 using std::string;
+struct Modify{
+    bool modify_instr;
+    bool modify_bb;
+    bool modify_call;
+    bool unused[5];
+    Modify():modify_instr(0),modify_bb(0),modify_call(0),unused{0}{}
+    struct Modify operator|(const Modify &other){
+        Modify ret;
+        ret.modify_instr=this->modify_instr|other.modify_instr;
+        ret.modify_bb=this->modify_bb|other.modify_bb;
+        ret.modify_call=this->modify_call|other.modify_call;
+        return ret;
+    }
+    bool operator&&(const Modify &other){
+        Modify m;
+        bool ret=false;
+        ret|=this->modify_instr&other.modify_instr;
+        ret|=this->modify_bb&other.modify_bb;
+        ret|=this->modify_call&other.modify_call;
+        return ret;
+    }
 
+};
 class Info {
 protected:
     bool invalid = true;                    // 如果当前info无效，从其获取数据前需要reanalyze，分析完成设为false
+    Modify mod;
     InfoManager *infoManager;
 public:
+    void isInvalidate(Modify pass_modify){
+        //原来是true也还是true
+        invalid|=pass_modify&&mod;
+    }
     bool isInvalid() { return invalid; }
     void invalidate() { invalid = true; }
     
