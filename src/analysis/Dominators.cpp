@@ -6,6 +6,15 @@
 #include <functional>
 #include <ostream>
 #include <set>
+int Dominators::getDomDepth(BasicBlock* bb){
+    int ret=0;
+    bb=getIDom(bb);
+    while(bb!=0){
+        ++ret;
+        bb=getIDom(bb);
+    }
+    return ret;
+}
 //寻找公共祖先
 BasicBlock* Dominators::findLCA(BasicBlock* lbb,BasicBlock*rbb){
     auto findPathToRoot=[this](BasicBlock* block) {

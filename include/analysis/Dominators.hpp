@@ -53,7 +53,6 @@ public:
     Dominators(Module*module, InfoManager *im);
     virtual ~Dominators(){}
     void clear();
-    BasicBlock* findLCA(BasicBlock* lbb,BasicBlock*rbb);
     virtual void analyse() override;
     virtual void reAnalyse() override;
     virtual void analyseOnFunc(Function *func) override;
@@ -65,6 +64,10 @@ public:
     ::std::unordered_set<BasicBlock*> &getDomSet(BasicBlock* bb){ return func_dom_set_[bb->getParent()].find(bb)->second; }
     ::std::set<BasicBlock*> &getDomTree(BasicBlock* dominator){ return func_dom_tree_[dominator->getParent()].find(dominator)->second; }
 
+
+    BasicBlock* findLCA(BasicBlock* lbb,BasicBlock*rbb);
+    //entry为0,依次递增
+    int getDomDepth(BasicBlock* bb);
     BasicBlock* getIDom(BasicBlock*b){
         auto it=idom_.find(b);
         // if(it==idom_.end())
