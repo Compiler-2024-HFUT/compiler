@@ -9,6 +9,7 @@
 #ifndef CONST_PROP_HPP
 #define CONST_PROP_HPP
 
+#include "analysis/InfoManager.hpp"
 #include "midend/BasicBlock.hpp"
 #include "midend/Module.hpp"
 #include "midend/Function.hpp"
@@ -18,7 +19,6 @@
 #include "PassManager.hpp"
 #include <utility>
 #include <vector>
-#include <set>
 #include <map>
 
 // namespace transform ??
@@ -97,7 +97,7 @@ class SCCP : public FunctionPass {
 
     bool runOnFunction(Function *f);
 public:
-    SCCP(Module *m) : FunctionPass(m) {}
+    SCCP(Module *m,InfoManager*im) : FunctionPass(m,im) {}
     ~SCCP() {}
     
     // void run() override;
