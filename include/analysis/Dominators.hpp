@@ -77,9 +77,7 @@ public:
     //左边支配右边?
     bool isLdomR(BasicBlock*l,BasicBlock*r){
         auto & l_set=func_dom_set_[l->getParent()].find(l)->second;
-        if(l_set.count(r))
-            return true;
-        return false;
+        return l_set.count(r);
     }
 };
 
