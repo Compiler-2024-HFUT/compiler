@@ -2169,7 +2169,7 @@
         }
         else{
             int src_offset_value = iria_src_para->getOffset();
-            int target_offset_value = iria_target_para->getOffset();
+         
             if(src_offset_value<-2048||src_offset_value>2047){
                 asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_src_para->getReg())), src_offset_value)+
                            RISCVInst::ld(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
@@ -2181,6 +2181,7 @@
                 asm_insts+=RISCVInst::mv(new GReg(static_cast<int>(ira_target_para->getReg())), new GReg(static_cast<int>(RISCV::GPR::ra)));
             }
             else if(iria_target_para){
+                   int target_offset_value = iria_target_para->getOffset();
                 if(target_offset_value<-2048||target_offset_value>2047){
                     asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(iria_target_para->getReg())), target_offset_value)+
                                RISCVInst::sd(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::s1)), 0);
@@ -2240,7 +2241,7 @@
         }
         else{
             int src_offset_value = iria_src_para->getOffset();
-            int target_offset_value = iria_target_para->getOffset();
+         
             if(src_offset_value<-2048||src_offset_value>2047){
                 asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_src_para->getReg())), src_offset_value)+
                            RISCVInst::flw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
@@ -2252,6 +2253,7 @@
                 asm_insts+=RISCVInst::fmv_s(new FReg(static_cast<int>(fra_target_para->getReg())), new FReg(static_cast<int>(RISCV::FPR::fs1)));
             }
             else if(iria_target_para){
+                   int target_offset_value = iria_target_para->getOffset();
                 if(target_offset_value<-2048||target_offset_value>2047){
                     asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target_para->getReg())), target_offset_value)+
                                RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);

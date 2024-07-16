@@ -1,5 +1,6 @@
 #include "frontend/parser.hpp"
 #include <iostream>
+#include <fstream>
 #include <memory>
 #include <string>
 #include "midend/IRGen.hpp"
@@ -43,11 +44,18 @@ int main(int argc , char**argv){
    pm.add_pass<ActiveVar>();
     // pm.add_pass<FuncInline>();
     pm.run();
-    cout << irgen.getModule()->print()<<endl;;
+    ::std::ofstream output;
+    output.open("/home/mcq/jbfq/compiler/test/tt.ll",::std::ios::out);
+    output<<irgen.getModule()->print()+"\n";
+    output.close();
    AsmGen asm_gen(m);
     m->accept(asm_gen);
     ::std::string asm_code = asm_gen.getAsmUnit()->print();
+        output.open("/home/mcq/jbfq/compiler/test/tt.s",::std::ios::out);
+        output<<asm_code+"\n";
+    output.close();
     ::std::cout<<asm_code<<::std::endl;
+
 
 
     delete (p);

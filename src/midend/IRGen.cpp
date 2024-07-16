@@ -6,7 +6,7 @@
 #include "midend/Instruction.hpp"
 #include "midend/Module.hpp"
 #include "midend/Type.hpp"
-#include <stack>
+#include <vector>
 
 #define LOG(msg) assert(0 && msg);
 
@@ -47,7 +47,7 @@ static Function *cur_fun = nullptr;    //& function that is being built
 static BasicBlock *cur_block_of_cur_fun;   //& used for add instruction 
 
 // static bool has_global_init;
-static BasicBlock *global_init_block;
+// static BasicBlock *global_init_block;
 
 static bool is_init_const_array = false;
 static int arr_total_size = 1;
@@ -72,7 +72,20 @@ enum class IfWhileEnum{
     IN_WHILE=514,
 };
 static bool real_ret=0;
-static std::stack<IfWhileEnum> if_while_stack;
+static std::vector<IfWhileEnum> if_while_stack;
+
+//当前指令是否在if或while里
+bool inIfStmt(){
+    if(find(if_while_stack.begin(),if_while_stack.end(),IfWhileEnum::IN_IF)!=if_while_stack.end())
+        return true;
+    return false;
+}
+bool inWhileStmt(){
+    if(find(if_while_stack.begin(),if_while_stack.end(),IfWhileEnum::IN_WHILE)!=if_while_stack.end())
+        return true;
+    return false;
+}
+
 void IRGen::visit(ast::CompunitNode &node) {
     // global_init_block = BasicBlock::create( module.get(), "init", dynamic_cast<Function*>(scope.findFunc("global_var_init")) );
 
@@ -124,7 +137,7 @@ void IRGen::visit(ast::FuncDef &node) {
     //     BranchInst::createBr(entryBB, globalVarInitBB);
     // }else{
         // create entry block, which alloc params
-        auto entryBB = BasicBlock::create( "entry", fun);
+        auto entryBB = BasicBlock::create( "entry_"+node.name, fun);
         cur_block_of_cur_fun = entryBB;
         cur_basic_block_list.push_back(entryBB);
     // }
@@ -145,12 +158,12 @@ void IRGen::visit(ast::FuncDef &node) {
             StoreInst::createStore(args[i], alloc, cur_block_of_cur_fun);
             scope.push(node.func_f_params[i]->name, alloc);
         } else {
-            Value* alloc_array;
+         //   Value* alloc_array;
             // int total_size = 1;
 
-            alloc_array = AllocaInst::createAlloca(param_types[i], cur_block_of_cur_fun);
-            StoreInst::createStore(args[i], alloc_array, cur_block_of_cur_fun);
-            scope.push(node.func_f_params[i]->name, alloc_array);
+        //    alloc_array = AllocaInst::createAlloca(param_types[i], cur_block_of_cur_fun);
+        //    StoreInst::createStore(args[i], alloc_array, cur_block_of_cur_fun);
+            scope.push(node.func_f_params[i]->name, args[i]);
             array_bounds.clear();
 
             // array_bounds = {1, array_dimensions_list, 1}
@@ -185,10 +198,8 @@ void IRGen::visit(ast::FuncDef &node) {
     else if(ret_type == INT32_T)
         ret_addr = AllocaInst::createAlloca(INT32_T, cur_block_of_cur_fun);
 
-   
-
     // build return BB    
-    ret_BB = BasicBlock::create( "ret", fun);
+    ret_BB = BasicBlock::create( "ret_"+node.name, fun);
 
      // build func block
     node.body->accept(*this);
@@ -360,6 +371,9 @@ void IRGen::visit(ast::ArrDefStmt &node) {
     arr_total_size = 1;
     ArrayType * array_type;
 
+    bool is_in_whilestmt=inWhileStmt();
+    bool is_in_ifstmt=inIfStmt();
+
     array_bounds.clear();
     // array_bounds = {1, array_dimensions_list, 1}
     array_bounds.push_back(1);      
@@ -396,11 +410,17 @@ void IRGen::visit(ast::ArrDefStmt &node) {
     for(auto i:init_val_map){
         init_val.push_back((Constant*)i.second);
     }
+    //一个删除instruction的lambda
+    auto deleteIns=[](BasicBlock*bb,Instruction*ins)->void{
+        ins->removeUseOfOps();
+        bb->deleteInstr(ins);
+        delete ins;
+    };
 
     if(scope.inGlobal()) {
         // zeroinitializer, global array is inited in global_var_init
         Constant* initializer = ConstantZero::get(array_type);
-        if(node.initializers){
+        if(node.initializers && node.initializers->initializers.size() > 0){
             node.initializers->accept(*this);
             initializer = ConstantArray::get(array_type, init_val_map, arr_total_size);
         }
@@ -410,33 +430,80 @@ void IRGen::visit(ast::ArrDefStmt &node) {
 
         // BasicBlock *tmp_block = cur_block_of_cur_fun;
         // cur_block_of_cur_fun = global_init_block;
-        // 
+
         // if(node.initializers) {
         //     node.initializers->accept(*this);
         // }
-        // 
+
         // for(auto [offset, value] : init_val_map){
         //     if(offset == -1)    continue;
         //     auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(offset)}, cur_block_of_cur_fun);
         //     StoreInst::createStore(value, elem_addr, cur_block_of_cur_fun);
         // }
-        // 
+ 
         // cur_block_of_cur_fun = tmp_block;
-    } else {
-        auto var = AllocaInst::createAlloca(array_type, cur_block_of_cur_fun);
-        
-        auto memsetFunc = (cur_type == INT32_T) ? scope.findFunc("memset_i") : scope.findFunc("memset_f");
-        auto arr_addr = GetElementPtrInst::createGep(var, { CONST_INT(0), CONST_INT(0) }, cur_block_of_cur_fun);
-        CallInst::createCall(dynamic_cast<Function*>(memsetFunc), {arr_addr, CONST_INT( arr_total_size )}, cur_block_of_cur_fun);
+    } else if(cur_fun->getName()=="main"){
+        //main则在第一个bb初始化数组
 
-        if(node.initializers) {
+        //第一个bb
+        auto first=cur_block_of_cur_fun->getParent()->getEntryBlock();
+        Instruction*ter;
+        //如果当前就是first则还没有没有terminator指令
+        if(first!=cur_block_of_cur_fun){
+            ter=first->getTerminator();
+            first->getInstructions().pop_back();
+        }
+        auto var = AllocaInst::createAlloca(array_type, first);
+        if(node.initializers){
+            auto memsetFunc = (cur_type == INT32_T) ? scope.findFunc("memset_i") : scope.findFunc("memset_f");
+            
+            BasicBlock* insert_bb=is_in_whilestmt?cur_block_of_cur_fun:first;
+            auto arr_addr = GetElementPtrInst::createGep(var, { CONST_INT(0), CONST_INT(0) }, insert_bb);
+            auto call_memset=CallInst::createCall(dynamic_cast<Function*>(memsetFunc), {arr_addr, CONST_INT( arr_total_size )}, insert_bb);
             node.initializers->accept(*this);
+            //数目相等则不用memset
+            if(arr_total_size==init_val_map.size()-1){
+                deleteIns(insert_bb, call_memset);
+                deleteIns(insert_bb,arr_addr);
+            }    
+            for(auto [offset, value] : init_val_map){
+                if(offset == -1)    continue;
+                auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(offset)}, cur_block_of_cur_fun);
+                StoreInst::createStore(value, elem_addr, cur_block_of_cur_fun);
+            }
+        }
+        if(first!=cur_block_of_cur_fun){
+            first->addInstruction(ter);
         }
 
-        for(auto [offset, value] : init_val_map){
-            if(offset == -1)    continue;
-            auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(offset)}, cur_block_of_cur_fun);
-            StoreInst::createStore(value, elem_addr, cur_block_of_cur_fun);
+        scope.push(node.name, var);
+        scope.pushSize(node.name, array_sizes);
+    }else{
+        auto first=cur_block_of_cur_fun->getParent()->getEntryBlock();
+        Instruction*ter;
+        //如果当前就是first则还没有没有terminator指令
+        if(first!=cur_block_of_cur_fun){
+            ter=first->getTerminator();
+            first->getInstructions().pop_back();
+        }
+        auto var = AllocaInst::createAlloca(array_type, first);
+        if(first!=cur_block_of_cur_fun){
+            first->addInstruction(ter);
+        }
+        if(node.initializers) {
+            auto memsetFunc = (cur_type == INT32_T) ? scope.findFunc("memset_i") : scope.findFunc("memset_f");
+            auto arr_addr = GetElementPtrInst::createGep(var, { CONST_INT(0), CONST_INT(0) }, cur_block_of_cur_fun);
+            auto call_memset=CallInst::createCall(dynamic_cast<Function*>(memsetFunc), {arr_addr, CONST_INT( arr_total_size )}, cur_block_of_cur_fun);
+            node.initializers->accept(*this);
+            if(arr_total_size==init_val_map.size()-1){
+                deleteIns(cur_block_of_cur_fun, call_memset);            
+                deleteIns(cur_block_of_cur_fun,arr_addr);
+            }
+            for(auto [offset, value] : init_val_map){
+                if(offset == -1)    continue;
+                auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(offset)}, cur_block_of_cur_fun);
+                StoreInst::createStore(value, elem_addr, cur_block_of_cur_fun);
+            }
         }
 
         scope.push(node.name, var);
@@ -500,7 +567,17 @@ void IRGen::visit(ast::ConstArrDefStmt &node) {
             scope.pushConst(node.name, initializer);
         }
     } else {
-        auto var = AllocaInst::createAlloca(array_type, cur_block_of_cur_fun);
+        auto first=cur_block_of_cur_fun->getParent()->getEntryBlock();
+        Instruction*ter;
+        //如果当前就是first则还没有没有terminator指令
+        if(first!=cur_block_of_cur_fun){
+            ter=first->getTerminator();
+            first->getInstructions().pop_back();
+        }
+        auto var = AllocaInst::createAlloca(array_type, first);
+        if(first!=cur_block_of_cur_fun){
+            first->addInstruction(ter);
+        }
         
         auto memsetFunc = (cur_type == INT32_T) ? scope.findFunc("memset_i") : scope.findFunc("memset_f");
         auto arr_addr = GetElementPtrInst::createGep(var, { CONST_INT(0), CONST_INT(0) }, cur_block_of_cur_fun);
@@ -1145,8 +1222,11 @@ void IRGen::visit(ast::LvalExpr &node){
             if(var->getType()->getPointerElementType()->isPointerType()) {
                 auto tmp_load = LoadInst::createLoad(var->getType()->getPointerElementType(),var,cur_block_of_cur_fun);
                 tmp_val = GetElementPtrInst::createGep(tmp_load, {var_index},cur_block_of_cur_fun);
-            } else {
-                tmp_val =  GetElementPtrInst::createGep(var, {CONST_INT(0),var_index},cur_block_of_cur_fun);
+            } else if(var->getType()->getPointerElementType()->isArrayType()){
+                tmp_val = GetElementPtrInst::createGep(var,{CONST_INT(0),var_index} ,cur_block_of_cur_fun);
+            }
+            else {
+                tmp_val =  GetElementPtrInst::createGep(var, {var_index},cur_block_of_cur_fun);
             }
             if(!should_return_lvalue)
                 tmp_val = LoadInst::createLoad(static_cast<PointerType *>(tmp_val->getType())->getElementType(),tmp_val,cur_block_of_cur_fun);
@@ -1154,7 +1234,7 @@ void IRGen::visit(ast::LvalExpr &node){
     }
 }
 void IRGen::visit(ast::IfStmt &node) {
-    if_while_stack.push(IfWhileEnum::IN_IF);
+    if_while_stack.push_back(IfWhileEnum::IN_IF);
     auto true_bb = BasicBlock::create( "", cur_fun);
     auto false_bb = BasicBlock::create( "", cur_fun);
     auto next_bb = BasicBlock::create( "", cur_fun);
@@ -1236,10 +1316,10 @@ void IRGen::visit(ast::IfStmt &node) {
         cur_block_of_cur_fun = true_bb;
         next_bb->eraseFromParent();
     }
-    if_while_stack.pop();
+    if_while_stack.pop_back();
 }
 void IRGen::visit(ast::WhileStmt &node){
-    if_while_stack.push(IfWhileEnum::IN_WHILE);
+    if_while_stack.push_back(IfWhileEnum::IN_WHILE);
     auto pred_bb = BasicBlock::create( "", cur_fun);
     auto iter_bb = BasicBlock::create("", cur_fun);
     auto next_bb = BasicBlock::create("", cur_fun);
@@ -1282,7 +1362,7 @@ void IRGen::visit(ast::WhileStmt &node){
     cur_basic_block_list.push_back(next_bb);
     While_Stack.pop_back();
     
-    if_while_stack.pop();
+    if_while_stack.pop_back();
 }
 void IRGen::visit(ast::CallExpr &node) {
     auto called_func = static_cast<Function*>(scope.findFunc(node.call_name));

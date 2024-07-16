@@ -181,6 +181,7 @@ class AsmGen : public IRVisitor{
         //& global variable label gen for function using these global variable
     std::map<GlobalVariable*, Label*> global_variable_labels_table;
 
+
     
 };
 
