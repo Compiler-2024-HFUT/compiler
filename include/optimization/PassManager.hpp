@@ -23,7 +23,8 @@ public:
     Pass(Module* m, InfoManager *im) : module_(m), info_man_(im) { }
     Pass(Module *m): module_(m), info_man_(nullptr) { }     // delete after
 
-    virtual void run()=0;
+    virtual Modify run()=0;
+    virtual ~Pass()=default;
 protected:
     Module* const module_;
     InfoManager* const info_man_;
@@ -33,10 +34,10 @@ class ModulePass: public Pass {
 public:
     ModulePass(Module* m, InfoManager *im) : Pass(m, im){ }
 
-    virtual void run() final {
-        runOnModule(module_);
+    virtual Modify run() final {
+        return runOnModule(module_);
     }
-    virtual void runOnModule(Module* m)=0;
+    virtual Modify runOnModule(Module* m)=0;
 };
 
 class FunctionPass: public Pass {
@@ -44,12 +45,14 @@ public:
     FunctionPass(Module* m, InfoManager *im) : Pass(m, im){ }
     // FunctionPass(Module* m): Pass(m) { }    // delete after
     virtual void init(){}
-    virtual void run()final{
+    virtual Modify run()final{
         init();
+        Modify ret{};
         for(auto f:module_->getFunctions())
-            runOnFunc(f);
+            ret=ret|runOnFunc(f);
+        return ret;
     }
-    virtual void runOnFunc(Function*func)=0;
+    virtual Modify runOnFunc(Function*func)=0;
 };
 
 class PassManager{
@@ -79,13 +82,17 @@ class PassManager{
         void run(){
             // module_->getInfoMan()->run();    info pass 应该在需要它时再进行分析，而非从一开始将其全部执行
             for(auto pass : passes_){
-                pass.first->run();
+                auto mod=pass.first->run();
+                for(auto i:infoManager->getInfos()){
+                    i->isInvalidate(mod);
+                }
                 if(pass.second){
                     std::cout<<module_->print();
                 }
+                delete pass.first;
             }
         }
-
+        InfoManager const*const getInfoMan(){return infoManager;}
     private:
         Module* module_;
         std::vector<std::pair<Pass*,bool>> passes_;

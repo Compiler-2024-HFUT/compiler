@@ -6,7 +6,7 @@
 #include "PassManager.hpp"
 class DeadPHIEli:public FunctionPass{
 public:
-    void runOnFunc(Function*func)override;
+    Modify runOnFunc(Function*func)override;
     DeadPHIEli(Module *m, InfoManager *im) : FunctionPass(m, im){}
     ~DeadPHIEli(){};
 };

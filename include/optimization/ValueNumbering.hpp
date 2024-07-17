@@ -81,7 +81,7 @@ class ValNumbering:public FunctionPass{
     bool proInstr(Instruction*instr);
 public:
     // bool dvnt(Function*func,BasicBlock*bb);
-    virtual void runOnFunc(Function *func) override;
+    virtual Modify runOnFunc(Function *func) override;
     using FunctionPass::FunctionPass;
     void init()override{
         dom=info_man_->getInfo<Dominators>();

@@ -1,4 +1,5 @@
 #include "optimization/SCCP.hpp"
+#include "analysis/Info.hpp"
 #include "midend/Function.hpp"
 
 bool SCCP::runOnFunction(Function *f) {
@@ -59,10 +60,14 @@ bool SCCP::runOnFunction(Function *f) {
 //             runOnFunction(func);
 //     }
 // }
-void SCCP::runOnFunc(Function*func){
+Modify SCCP::runOnFunc(Function*func){
     // 仅在有定义的函数上执行
+    bool mod=false;
     if(func->getBasicBlocks().size() != 0)
-        runOnFunction(func);
+        mod|=runOnFunction(func);
+    Modify ret{};
+    ret.modify_instr=mod;
+    return ret;
 }
 int SCCP::getExecFlag(Edge e) {
     if(execFlag.find(e) == execFlag.end())

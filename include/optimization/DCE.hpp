@@ -31,7 +31,7 @@ private:
 public:
     DCE(Module *m,InfoManager*im) : FunctionPass(m,im){}
     ~DCE(){};
-    void runOnFunc(Function*func) override;
+    Modify runOnFunc(Function*func) override;
 };
 
 #endif

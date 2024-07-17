@@ -248,12 +248,4 @@ void Dominators::printDomTree(){
 Dominators::Dominators(Module*module, InfoManager *im): FunctionInfo(module, im) {
     mod.modify_bb=true;
     // this->clear();
-
-    /*
-    // 没有用到，而且当前算法非常影响性能，之后可能要改
-    // domAlg();
-    // printDomFront();
-    // printDomSet();
-    // printDomTree();
-     */
 }

@@ -30,7 +30,7 @@ public:
     void init()override{
         cur_dom_=info_man_->getInfo<Dominators>();
     }
-    void runOnFunc(Function*func)override;
+    Modify runOnFunc(Function*func)override;
 };
 
 #endif

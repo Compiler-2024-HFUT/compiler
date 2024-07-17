@@ -7,7 +7,6 @@
 #include <cassert>
 #include <cstdint>
 #include <map>
-#include <set>
 #include <vector>
 #include "optimization/ValueNumbering.hpp"
 Expr::ExprOp Expr::instop2exprop(Instruction::OpID instrop){
@@ -93,10 +92,11 @@ uint32_t ValueTable::getValueNum(Value*v){
     ++next_num;
     return next_num-1;
 }
-void ValNumbering::runOnFunc(Function*func){
+Modify ValNumbering::runOnFunc(Function*func){
     clear();
-    if(func->getBasicBlocks().empty())return;
-    auto runvn=[this](Function*func)->void{
+    if(func->getBasicBlocks().empty())return {};
+    auto runvn=[this](Function*func)->Modify{
+        Modify ret{};
         std::vector<std::pair<PhiInst*,std::vector<Value*>>> phi_ins;
         auto entry=func->getEntryBlock();
         std::list<BasicBlock*> work_list{entry};
@@ -173,6 +173,7 @@ void ValNumbering::runOnFunc(Function*func){
                 inss.push_back(br);
             }
             assert(replace_instr!=nullptr);
+            ret.modify_instr=true;
             while(!vals.empty()){
                 auto val=vals.back();
                 auto inst=(Instruction*)val;
@@ -185,8 +186,9 @@ void ValNumbering::runOnFunc(Function*func){
             }
             vals.push_back(replace_instr);
         }
+        return ret;
     };
-    runvn(func);
+    return runvn(func);
 }
 // static std::set<BasicBlock*> visited;
 // bool ValNumbering::dvnt(Function*func,BasicBlock*bb){

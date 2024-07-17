@@ -97,9 +97,10 @@ bool ConstBr::canFold(BasicBlock*bb){
         return true;
     return false;
 }
-void ConstBr::runOnFunc(Function*func){
+Modify ConstBr::runOnFunc(Function*func){
+    Modify ret{};
     auto &bbs=func->getBasicBlocks();
-    if(bbs.empty())return;
+    if(bbs.empty())return ret;
     erased.clear();
     for(auto iter=bbs.begin();iter!=bbs.end();){
         if(!canFold(*iter)){
@@ -112,6 +113,8 @@ void ConstBr::runOnFunc(Function*func){
     }
     std::vector<Instruction*> to_del;
     for(auto b:erased){
+        ret.modify_instr=true;
+        ret.modify_bb=true;
         std::copy(b->getInstructions().begin(),b->getInstructions().end(),to_del.end());
     }
     for(Instruction* i:to_del){
@@ -124,4 +127,5 @@ void ConstBr::runOnFunc(Function*func){
     for(auto b:erased){
         delete b;
     }
+    return ret;
 }

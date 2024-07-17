@@ -135,11 +135,12 @@ void Mem2Reg::generatePhi(AllocaInst*ai,::std::set<BasicBlock*>&define_bbs,::std
     }
 
 }
-void Mem2Reg::runOnFunc(Function*func){
+Modify Mem2Reg::runOnFunc(Function*func){
         allocas.clear();
         new_phi.clear();
+        Modify ret{};
         auto &bb_list=func->getBasicBlocks();
-        if(bb_list.empty())return;
+        if(bb_list.empty())return ret;
         // ::std::unique_ptr<Dominators> dom=std::make_unique<Dominators>(func);
         // cur_fun_dom=func_dom_.insert({func,std::move(dom)}).first;
 
@@ -150,19 +151,21 @@ void Mem2Reg::runOnFunc(Function*func){
                 }
             }
         }
-        if(allocas.empty())return;
+        if(allocas.empty())return ret;
         for(auto iter=allocas.begin();iter!=allocas.end() ;){
             auto i=iter++;
             auto ai=*i;
             
             //if no use
             if(ai->getUseList().empty()){
+                ret.modify_instr=true;
                 ai->getParent()->deleteInstr(ai);
                 allocas.erase(i);
             }
             //only used in one bb
             else if(auto bb=isOnlyInOneBB(ai)){
                 rmLocallyAlloc(ai,bb);
+                ret.modify_instr=true;
                 ai->getParent()->deleteInstr(ai);
                 allocas.erase(i);
             }
@@ -177,12 +180,13 @@ void Mem2Reg::runOnFunc(Function*func){
         }
 
         if(allocas.empty())
-            return;
+            return ret;
         
         ::std::map<AllocaInst*,Value*> alloc_va;
         for(auto i:allocas){
             alloc_va.insert({i,nullptr});
         }
+        ret.modify_instr=true;
         visited.clear();
         reName(func->getBasicBlocks().front(),nullptr,alloc_va);
 
@@ -193,6 +197,7 @@ void Mem2Reg::runOnFunc(Function*func){
             }
             ai->getParent()->deleteInstr(ai);
         }
+        return ret;
 }
 bool Mem2Reg::isAllocVar(Instruction *instr){
     if(instr->isAlloca()){

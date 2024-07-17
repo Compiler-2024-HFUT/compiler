@@ -20,9 +20,10 @@ void UnReachableBBEli::eraseBB(BasicBlock*bb){
             eraseBB(succ);
     }
 }
-void UnReachableBBEli::runOnFunc(Function*func){
+Modify UnReachableBBEli::runOnFunc(Function*func){
     BasicBlock*entry=func->getEntryBlock();
     auto &bbs=func->getBasicBlocks();
+    Modify ret{};
     for(auto iter=bbs.begin();iter!=bbs.end();){
         auto b=*iter;
         ++iter;
@@ -34,6 +35,8 @@ void UnReachableBBEli::runOnFunc(Function*func){
     }
     std::vector<Instruction*> to_del;
     for(auto b:erased){
+        ret.modify_bb=true;
+        ret.modify_instr=true;
         std::copy(b->getInstructions().begin(),b->getInstructions().end(),to_del.end());
     }
     for(Instruction* i:to_del){
@@ -46,5 +49,5 @@ void UnReachableBBEli::runOnFunc(Function*func){
     for(auto b:erased){
         delete b;
     }
-
+    return ret;
 }

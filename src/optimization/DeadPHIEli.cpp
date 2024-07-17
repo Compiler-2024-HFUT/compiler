@@ -1,3 +1,4 @@
+#include "analysis/Info.hpp"
 #include "midend/BasicBlock.hpp"
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
@@ -33,9 +34,10 @@ bool is_phi_cycle(PhiInst*phi,::std::set<PhiInst*>&phi_set){
 
     return false;
 }
-void DeadPHIEli::runOnFunc(Function*func){
+Modify DeadPHIEli::runOnFunc(Function*func){
+    Modify ret{};
     auto &bb_list=func->getBasicBlocks();
-    if(bb_list.size()<2)return;
+    if(bb_list.size()<2)return ret;
     std::list<PhiInst*> phi_set;
     for(auto b:bb_list){
         for(auto ins:b->getInstructions()){
@@ -81,10 +83,12 @@ void DeadPHIEli::runOnFunc(Function*func){
                     phi->getParent()->deleteInstr(phi);
                     delete  phi;
                     change=true;
+                    ret.modify_instr=true;
                 }
             }
         }
     }
+    return ret;
     // for(auto phi:phi_set){
     //     for(int i=0;i<phi->getNumOperands();i+=2){
     //         if(auto ins=dynamic_cast<Instruction*>(phi)){

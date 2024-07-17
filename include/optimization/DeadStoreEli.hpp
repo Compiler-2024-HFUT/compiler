@@ -17,7 +17,7 @@ private:
 public:
     DeadStoreEli(Module *m, InfoManager *im) : FunctionPass(m, im){}
     ~DeadStoreEli(){};
-    void runOnFunc(Function*func) override;
+    Modify runOnFunc(Function*func) override;
 };
 
 #endif

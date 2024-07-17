@@ -16,7 +16,7 @@ public:
     FuncInline(Module *m, InfoManager *im) : Pass(m, im){}
     // void insertFunc(CallInst* call);
     ~FuncInline(){};
-    void run() override;
+    Modify run() override;
 };
 
 #endif

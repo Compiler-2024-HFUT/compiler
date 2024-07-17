@@ -106,7 +106,7 @@ void  CombinInstrConst::preProcess(Function*cur_func){
         }
     }
 }
-void CombinInstrConst::runOnFunc(Function*func){
+Modify CombinInstrConst::runOnFunc(Function*func){
     preProcess(func);
     for(auto b:func->getBasicBlocks()){
         for(auto instr:b->getInstructions()){
@@ -114,6 +114,7 @@ void CombinInstrConst::runOnFunc(Function*func){
                 work_set_.push_back(instr);
         }
     }
+    Modify ret{};
     while(!work_set_.empty()){
         auto val=work_set_.back();
         work_set_.pop_back();
@@ -124,10 +125,10 @@ void CombinInstrConst::runOnFunc(Function*func){
             delete bin;
             continue;
         }
-        auto modify=combinMullAdd(bin);
-        if(modify){
+        ret.modify_instr=combinMullAdd(bin);
+        if(ret.modify_instr){
             work_set_.push_back(bin);
         }
     }
-
+    return ret;
 }

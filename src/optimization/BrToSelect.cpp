@@ -87,8 +87,9 @@ void BrToSelect::canGenSel(BasicBlock*bb){
     return;
 }
 
-void BrToSelect::runOnFunc(Function*func){
-    if(func->isDeclaration())return;
+Modify BrToSelect::runOnFunc(Function*func){
+    Modify ret;
+    if(func->isDeclaration())return {};
     auto &bbs=func->getBasicBlocks();
     for(auto iter=bbs.begin();iter!=bbs.end();){
         auto b=*iter;
@@ -143,6 +144,8 @@ void BrToSelect::runOnFunc(Function*func){
             _ins->removeUseOfOps();
             delete _ins;
         }
+        ret.modify_instr=true;
+        ret.modify_bb=true;
         phi->getParent()->deleteInstr(phi);
         auto ul=phi->getUseList();
         // for(auto [v,i ]:ul){
@@ -158,4 +161,5 @@ void BrToSelect::runOnFunc(Function*func){
         phi->replaceAllUseWith(sel);
         delete phi;
     }
+    return ret;
 }

@@ -1,4 +1,5 @@
 #include "optimization/inline.hpp"
+#include "analysis/Info.hpp"
 #include "midend/BasicBlock.hpp"
 #include "midend/Function.hpp"
 #include "midend/GlobalVariable.hpp"
@@ -151,13 +152,17 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
     call->getParent()->deleteInstr(call);
     delete call;
 }
-void FuncInline::run(){
+Modify FuncInline::run(){
     func_call_=getCallInfo(module_);
     for(auto call:func_call_){
         if(isEmpty((Function*)call->getOperand(0)))continue;
         insertFunc(call,{call->getParent()->getParent()});
     }
-
+    Modify ret{};
+    ret.modify_instr=true;
+    ret.modify_bb=true;
+    ret.modify_call=true;
+    return ret;
     // auto &fs=module_->getFunctions();
     // for(auto iter_f=fs.begin();iter_f!=fs.end();){
     //     auto cf=iter_f++;

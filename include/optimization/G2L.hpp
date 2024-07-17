@@ -45,7 +45,7 @@ public:
         cur_dom_=info_man_->getInfo<Dominators>();
     }
     ~G2L(){};
-    void run() override;
+    Modify run() override;
 };
 
 #endif

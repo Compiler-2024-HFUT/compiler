@@ -101,7 +101,7 @@ public:
     ~SCCP() {}
     
     // void run() override;
-    void runOnFunc(Function*func) override;
+    Modify runOnFunc(Function*func) override;
 };
 
 #endif
