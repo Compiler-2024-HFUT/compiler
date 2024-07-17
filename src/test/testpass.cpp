@@ -15,6 +15,7 @@
 #include "backend/AsmGen.hpp"
 #include "backend/Asm.hpp"
 #include "optimization/AAA.hpp"
+#include "optimization/CFGAnalyse.hpp"
 using namespace std;
 
 int main(int argc , char**argv){
@@ -39,8 +40,9 @@ int main(int argc , char**argv){
   // pm.run();
    
    pm.add_pass<LIR>();
-   pm.add_pass<CIDBB>();
-   pm.add_pass<CLND>();
+  // pm.add_pass<CIDBB>();
+  // pm.add_pass<CLND>();
+   pm.add_pass<CFGAnalyse>();
    pm.add_pass<ActiveVar>();
     // pm.add_pass<FuncInline>();
     pm.run();

@@ -166,7 +166,7 @@ void LIR::makeOffset(::std::vector<BasicBlock*> BBs){
     for(auto bb:BBs){
         auto &inst_list = getInstList(bb);
         for(auto iter=inst_list.begin(); iter!=inst_list.end(); iter++)
-            if((*iter)->isLoad())   makeOffsetT(dynamic_cast<LoadInst*>(*iter), inst_list, iter, bb);
+            if((*iter)->isLoad())   makeOffsetT(dynamic_cast<LoadInst*>(*iter),inst_list, iter, bb);
             else if((*iter)->isStore()) makeOffsetT(dynamic_cast<StoreInst*>(*iter), inst_list, iter, bb);
 
         
@@ -198,6 +198,7 @@ void LIR::handleGEP(GetElementPtrInst* inst_gep, ::std::list<Instruction*>& inst
         bb->addInstruction(inst_pos--, inst_offset);
         inst->replaceAllUseWith(inst_offset);
         bb->deleteInstr(inst);
+
     }
     else {
         auto inst_offset = StoreOffsetInst::createStoreOffset(dynamic_cast<StoreInst*>(inst)->getRVal(), base, offset, bb);
@@ -205,6 +206,7 @@ void LIR::handleGEP(GetElementPtrInst* inst_gep, ::std::list<Instruction*>& inst
         bb->addInstruction(inst_pos--, inst_offset);
         inst->replaceAllUseWith(inst_offset);
         bb->deleteInstr(inst);
+
     }
      
    
@@ -227,6 +229,14 @@ void LIR::handleAdd(BinaryInst* inst_ptr, ::std::list<Instruction*>& inst_list, 
         bb->addInstruction(inst_pos--, inst_offset);
         inst->replaceAllUseWith(inst_offset);
         bb->deleteInstr(inst);
+       auto inst_add = *inst_pos;
+       inst_pos--;
+    
+       bb->deleteInstr(inst_add);
+       auto inst_mul = *inst_pos;
+       inst_pos--;
+    
+       bb->deleteInstr(inst_mul);
     }
     else {
         auto inst_offset = StoreOffsetInst::createStoreOffset(dynamic_cast<StoreInst*>(inst)->getOperand(0), base, offset, bb);
@@ -234,6 +244,9 @@ void LIR::handleAdd(BinaryInst* inst_ptr, ::std::list<Instruction*>& inst_list, 
         bb->addInstruction(inst_pos--, inst_offset);
         inst->replaceAllUseWith(inst_offset);
         bb->deleteInstr(inst);
+
+
+ 
     }
 
 }
