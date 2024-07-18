@@ -5,7 +5,6 @@
 #include "optimization/util.hpp"
 #include <cassert>
 #include <list>
-using namespace  std;
 // void CombinBB::runOnFunc(Function*func){
 //     auto &bb_list=func->getBasicBlocks();
 //     if(bb_list.size()<2)return;

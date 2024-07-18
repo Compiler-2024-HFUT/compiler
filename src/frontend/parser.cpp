@@ -45,7 +45,7 @@ Parser::Parser(std::string filename):comp(make_unique<ast::CompunitNode>()),cur_
 					 (std::istreambuf_iterator<char>() ) );
 
 	sysy_file.close();
-    lex= make_unique<Lexer>(content);
+    lex= make_unique<Lexer>(std::move(content));
     
     curTok=lex->nextToken();
     peekTok=lex->nextToken();

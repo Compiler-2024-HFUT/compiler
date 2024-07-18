@@ -51,7 +51,7 @@ function asm_test() {
 
 function pass_test(){
     name=$1
-    ../build/linux/x86_64/debug/passtest "`pwd`/$name.sy" > "$name.ll"
+    ../build/linux/x86_64/debug/compiler "`pwd`/$name.sy" -L -S -O1 -o  "$name.ll" 
     if [ $? -ne 0 ]
     then
         echo "`pwd`$name.sy error 1145141919810" >> "compiler wrong"
