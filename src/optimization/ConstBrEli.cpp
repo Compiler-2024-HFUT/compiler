@@ -115,7 +115,10 @@ Modify ConstBr::runOnFunc(Function*func){
     for(auto b:erased){
         ret.modify_instr=true;
         ret.modify_bb=true;
-        std::copy(b->getInstructions().begin(),b->getInstructions().end(),to_del.end());
+        to_del.assign(b->getInstructions().begin(), b->getInstructions().end());
+        // for(auto ins:b->getInstructions()){
+        //     to_del.push_back(ins);
+        // }
     }
     for(Instruction* i:to_del){
         i->removeUseOfOps();

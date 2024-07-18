@@ -47,7 +47,7 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
     std::set<CallInst*> _incall;
 
     auto iter_inster=++(cur_bb->findInstruction(call));
-    ::std::list<decltype(iter_inster)> _list;
+    ::std::vector<decltype(iter_inster)> _list;
     while(iter_inster!=cur_bb->getInstructions().end()){
         auto cur_iter=iter_inster++;
         _list.push_back(cur_iter);
@@ -122,7 +122,7 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
         ret_bb->addInstruction(instr);
     }
     cur_bb->getSuccBasicBlocks().clear();
-    BranchInst::createBr(*new_bbs.begin(),cur_bb);
+    BranchInst::createBr(new_bbs.front(),cur_bb);
 
     for(auto succ_bb:_succ_bbs){
         succ_bb->removePreBasicBlock(cur_bb);
