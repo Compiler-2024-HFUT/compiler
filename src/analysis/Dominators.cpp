@@ -65,7 +65,7 @@ void Dominators::sFastIDomAlg(Function *func_){
         if (bb == entry)
             continue;
         auto new_idom=*bb->getPreBasicBlocks().begin();
-        setIDom(bb,new_idom);
+        setIDom(bb,entry);
     }
 
     // setIDom(entry,entry);
