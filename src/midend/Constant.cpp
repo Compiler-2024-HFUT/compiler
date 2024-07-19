@@ -1,8 +1,10 @@
+#include <cassert>
 #include <iostream>
 #include <memory>
 #include <sstream>
 
 #include "midend/Constant.hpp"
+#include "midend/Instruction.hpp"
 #include "midend/Type.hpp"
 //& ConstantInt
 ConstManager *Constant::manager_{nullptr};
@@ -22,7 +24,134 @@ ConstantInt *ConstantInt::get(bool val) {
         .get();
 }
 
+Constant* Constant::get(Constant *lhs,Instruction::OpID bin_op,Constant*rhs){
+    Constant*ret=0;
+    if(ConstantInt* ilhs=dynamic_cast<ConstantInt*>(lhs),*irhs=dynamic_cast<ConstantInt*>(rhs);ilhs&&irhs){
+        if(Instruction::OpID::cmp==bin_op)
+        ret=ConstantInt::getFromBin(ilhs,bin_op,irhs);
+    }else if(ConstantFP* flhs=dynamic_cast<ConstantFP*>(lhs),*frhs=dynamic_cast<ConstantFP*>(rhs);flhs&&frhs){
+        ret=ConstantFP::getFromBin(flhs,bin_op,frhs);
+    }
+    return ret;
+}
 
+ConstantInt *ConstantInt::getFromBin(ConstantInt *lhs,Instruction::OpID bin_op,ConstantInt*rhs){
+    ConstantInt* ret;
+    switch (bin_op) {
+    case Instruction::OpID::add:
+        ret=get(lhs->getValue()+rhs->getValue());
+        break;
+    case Instruction::OpID::sub:
+        ret=get(lhs->getValue()-rhs->getValue());
+        break;
+    case Instruction::OpID::mul:
+        ret=get(lhs->getValue()*rhs->getValue());
+        break;
+    case Instruction::OpID::sdiv:
+        ret=get(lhs->getValue()/rhs->getValue());
+        break;
+    case Instruction::OpID::srem:
+        ret=get(lhs->getValue()%rhs->getValue());
+        break;
+    case Instruction::OpID::lor:
+        ret=get(lhs->getValue()|rhs->getValue());
+        break;
+    case Instruction::OpID::lxor:
+        ret=get(lhs->getValue()^rhs->getValue());
+        break;
+    case Instruction::OpID::land:
+        ret=get(lhs->getValue()&rhs->getValue());
+        break;
+    case Instruction::OpID::asr:
+        ret=get(lhs->getValue()>>rhs->getValue());
+        break;
+    case Instruction::OpID::shl:
+        ret=get(lhs->getValue()<<rhs->getValue());
+        break;
+    case Instruction::OpID::lsr:
+        ret=get((int32_t)(((uint32_t)lhs->getValue())>>rhs->getValue()));
+        break;
+    default:
+        ret=0;
+        break;
+    }
+    return ret;
+}
+/*enum CmpOp {
+    EQ, // ==
+    NE, // !=
+    GT, // >
+    GE, // >=
+    LT, // <
+    LE  // <=
+};
+*/
+ConstantInt *ConstantInt::getFromCmp(Constant *lhs,CmpOp cmp_op,Constant*rhs){
+    ConstantInt*ret;
+    if(ConstantInt* ilhs=dynamic_cast<ConstantInt*>(lhs),*irhs=dynamic_cast<ConstantInt*>(rhs);ilhs&&irhs){
+        ret=ConstantInt::getFromCmp(ilhs,cmp_op,irhs);
+    }else if(ConstantFP* flhs=dynamic_cast<ConstantFP*>(lhs),*frhs=dynamic_cast<ConstantFP*>(rhs);flhs&&frhs){
+        ret=ConstantInt::getFromFCmp(flhs,cmp_op,frhs);
+    }else 
+        ret=0;
+    assert(ret!=0);
+    return ret;
+}
+
+ConstantInt *ConstantInt::getFromICmp(ConstantInt *lhs,CmpOp cmp_op,ConstantInt*rhs){
+    ConstantInt* ret;
+    switch (cmp_op) {
+    case CmpOp::EQ:
+        ret=get(lhs->getValue()==rhs->getValue());
+        break;
+    case CmpOp::NE:
+        ret=get(lhs->getValue()!=rhs->getValue());
+        break;
+    case CmpOp::GT:
+        ret=get(lhs->getValue()>rhs->getValue());
+        break;
+    case CmpOp::GE:
+        ret=get(lhs->getValue()>=rhs->getValue());
+        break;
+    case CmpOp::LT:
+        ret=get(lhs->getValue()<rhs->getValue());
+        break;
+    case CmpOp::LE:
+        ret=get(lhs->getValue()<=rhs->getValue());
+        break;
+    default:
+        ret=0;
+        break;
+    }
+    return ret;
+}
+ConstantInt *ConstantInt::getFromFCmp(ConstantFP *lhs,CmpOp cmp_op,ConstantFP*rhs){
+    ConstantInt* ret;
+    switch (cmp_op) {
+    case CmpOp::EQ:
+        ret=get(lhs->getValue()==rhs->getValue());
+        break;
+    case CmpOp::NE:
+        ret=get(lhs->getValue()!=rhs->getValue());
+        break;
+    case CmpOp::GT:
+        ret=get(lhs->getValue()>rhs->getValue());
+        break;
+    case CmpOp::GE:
+        ret=get(lhs->getValue()>=rhs->getValue());
+        break;
+    case CmpOp::LT:
+        ret=get(lhs->getValue()<rhs->getValue());
+        break;
+    case CmpOp::LE:
+        ret=get(lhs->getValue()<=rhs->getValue());
+        break;
+    default:
+        ret=0;
+        break;
+    }
+    return ret;
+}
 std::string ConstantInt::print() {
     std::string const_ir;
     Type *ty = this->getType();
@@ -32,6 +161,26 @@ std::string ConstantInt::print() {
         const_ir += std::to_string(this->getValue());  //& int32
     }
     return const_ir;
+}
+ConstantFP *ConstantFP::getFromBin(ConstantFP *lhs,Instruction::OpID bin_op,ConstantFP*rhs){
+    ConstantFP* ret;
+    switch (bin_op) {
+    case Instruction::OpID::fadd:
+        ret=get(lhs->getValue()+rhs->getValue());
+        break;
+    case Instruction::OpID::fsub:
+        ret=get(lhs->getValue()-rhs->getValue());
+        break;
+    case Instruction::OpID::fmul:
+        ret=get(lhs->getValue()*rhs->getValue());
+        break;
+    case Instruction::OpID::fdiv:
+        ret=get(lhs->getValue()/rhs->getValue());
+        break;
+    default:
+        ret=0;
+    }
+    return ret;
 }
 
 //& ConstantFP
