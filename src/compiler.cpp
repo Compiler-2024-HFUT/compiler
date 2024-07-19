@@ -49,13 +49,17 @@ Compiler::Compiler(int argc, char** argv){
     }
     int ch;
     int op=0;
+    char* op_str;
     while ((ch = getopt(argc, argv, "o:O:SL")) != EOF) {
         switch (ch) {
         case 'o':
             out_name=optarg;
             break;
         case 'O':
-            op=atoi(optarg);
+            op_str=optarg;
+            if(op_str==0||op_str[1]!=0)
+                usage();
+            op=op_str[0]-'0';
             if(op>2||op<0)
                 usage();
             opt_level=(OPT)op;
