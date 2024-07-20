@@ -342,15 +342,19 @@ Modify InstrCombine::runOnFunc(Function*func){
 }
 
 InstrCombine::InstrCombine(Module *m,InfoManager*im):FunctionPass(m,im),combine_map_{
-    {Instruction::OpID::lor,[this](Instruction* instr)->Instruction* { return combineAdd(instr); }},
+    {Instruction::OpID::lor,[this](Instruction* instr)->Instruction* { return combineOr(instr); }},
     {Instruction::OpID::sub,[this](Instruction* instr)->Instruction* { return combineSub(instr); }},
     {Instruction::OpID::add,[this](Instruction* instr)->Instruction* { return combineAdd(instr); }},
     {Instruction::OpID::mul,[this](Instruction* instr)->Instruction* { return combineMul(instr); }},
     {Instruction::OpID::sdiv,[this](Instruction* instr)->Instruction* { return combineDiv(instr); }},
-    {Instruction::OpID::lor,[this](Instruction* instr)->Instruction* { return combineDiv(instr); }},
-    {Instruction::OpID::land,[this](Instruction* instr)->Instruction* { return combineMul(instr); }},
+    {Instruction::OpID::lxor,[this](Instruction* instr)->Instruction* { return combineXor(instr); }},
+    {Instruction::OpID::land,[this](Instruction* instr)->Instruction* { return combineAnd(instr); }},
     {Instruction::OpID::shl,[this](Instruction* instr)->Instruction* { return combineShl(instr); }},
     {Instruction::OpID::asr,[this](Instruction* instr)->Instruction* { return combineAsr(instr); }},
+    // {Instruction::OpID::fsub,[this](Instruction* instr)->Instruction* { return combineFSub(instr); }},
+    {Instruction::OpID::fadd,[this](Instruction* instr)->Instruction* { return combineFAdd(instr); }},
+    {Instruction::OpID::fmul,[this](Instruction* instr)->Instruction* { return combineFMul(instr); }},
+
     // {Instruction::OpID::lsr,[this](Instruction* instr)->Instruction* { return combineMul(instr); }},
     // {Instruction::OpID::fdiv,[this](Instruction* instr)->Instruction* { return combineDiv(instr); }},
 
