@@ -27,7 +27,6 @@ ConstantInt *ConstantInt::get(bool val) {
 Constant* Constant::get(Constant *lhs,Instruction::OpID bin_op,Constant*rhs){
     Constant*ret=0;
     if(ConstantInt* ilhs=dynamic_cast<ConstantInt*>(lhs),*irhs=dynamic_cast<ConstantInt*>(rhs);ilhs&&irhs){
-        if(Instruction::OpID::cmp==bin_op)
         ret=ConstantInt::getFromBin(ilhs,bin_op,irhs);
     }else if(ConstantFP* flhs=dynamic_cast<ConstantFP*>(lhs),*frhs=dynamic_cast<ConstantFP*>(rhs);flhs&&frhs){
         ret=ConstantFP::getFromBin(flhs,bin_op,frhs);
