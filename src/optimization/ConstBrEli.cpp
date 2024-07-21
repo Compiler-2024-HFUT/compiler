@@ -74,8 +74,7 @@ void ConstBr::eraseBB(BasicBlock*bb){
         return;
     if(!bb->getPreBasicBlocks().empty())
         return;
-    if(bb->getTerminator()->isRet())
-        exit(223);
+    assert(!bb->getTerminator()->isRet());
 
     erased.insert(bb);
     std::list<BasicBlock*> succbbs=bb->getSuccBasicBlocks();
@@ -115,10 +114,8 @@ Modify ConstBr::runOnFunc(Function*func){
     for(auto b:erased){
         ret.modify_instr=true;
         ret.modify_bb=true;
-        to_del.assign(b->getInstructions().begin(), b->getInstructions().end());
-        // for(auto ins:b->getInstructions()){
-        //     to_del.push_back(ins);
-        // }
+        // to_del.assign(b->getInstructions().begin(), b->getInstructions().end());
+        to_del.insert(to_del.end(),b->getInstructions().begin(),b->getInstructions().end());
     }
     for(Instruction* i:to_del){
         i->removeUseOfOps();

@@ -95,7 +95,8 @@ uint32_t ValueTable::getValueNum(Value*v){
 Modify ValNumbering::runOnFunc(Function*func){
     clear();
     if(func->getBasicBlocks().empty())return {};
-    auto runvn=[this](Function*func)->Modify{
+    // auto runvn=[this](Function*func)->Modify{
+        std::vector<PhiInst*> phi_set_;
         Modify ret{};
         std::vector<std::pair<PhiInst*,std::vector<Value*>>> phi_ins;
         auto entry=func->getEntryBlock();
@@ -107,7 +108,7 @@ Modify ValNumbering::runOnFunc(Function*func){
                 if(ins->isCall()||ins->isBr()||ins->isRet()||ins->isStore()||ins->isLoad())
                     continue;
                 else if(ins->isPhi())
-                    continue;
+                    phi_set_.push_back((PhiInst*)ins);
                 else
                     vn_table_.getValueNum(ins);
             }
@@ -186,9 +187,46 @@ Modify ValNumbering::runOnFunc(Function*func){
             }
             vals.push_back(replace_instr);
         }
+        // for(auto phi_ins:phi_set_){
+        //     std::vector<Value*> phi_val;
+        //     std::vector<BasicBlock*> phi_bb;
+        //     int val_num=0;
+        //     for(int i=0;i<phi_ins->getNumOperands();i+=2){
+        //         auto v=phi_ins->getOperand(i);
+        //         phi_val.push_back(v);
+        //         phi_bb.push_back((BasicBlock*)(phi_ins->getOperand(i+1)));
+        //         if(val_num==0)
+        //             vn_table_.getValueNum(v);
+        //         else if(vn_table_.getValueNum(v)!=val_num){
+        //             val_num=0;
+        //             break;
+        //         }
+        //     }
+        //     //所有编号都相等则可以进行
+        //     if(val_num==0)continue;
+        //     BasicBlock*lca=phi_bb.back();
+        //     phi_bb.pop_back();
+        //     int offset=phi_bb.size();
+        //     while(!phi_bb.empty()){
+        //         lca=dom->findLCA(phi_bb.back(),lca);
+        //         if(lca==0)
+        //             break;
+
+        //         if(lca==phi_bb.back()){
+        //             offset=phi_bb.size()-1;
+        //         }
+        //         phi_bb.pop_back();
+        //     }
+        //     if(lca){
+        //         LOG_WARNING("gvn_phi");
+        //         ret.modify_instr=true;
+        //         phi_ins->replaceAllUseWith(phi_val[offset]);
+        //     }
+
+        // }
         return ret;
-    };
-    return runvn(func);
+    // };
+    // return runvn(func);
 }
 // static std::set<BasicBlock*> visited;
 // bool ValNumbering::dvnt(Function*func,BasicBlock*bb){

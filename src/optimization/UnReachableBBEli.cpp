@@ -37,7 +37,7 @@ Modify UnReachableBBEli::runOnFunc(Function*func){
     for(auto b:erased){
         ret.modify_bb=true;
         ret.modify_instr=true;
-        std::copy(b->getInstructions().begin(),b->getInstructions().end(),to_del.end());
+        to_del.insert(to_del.end(),b->getInstructions().begin(),b->getInstructions().end());
     }
     for(Instruction* i:to_del){
         i->removeUseOfOps();

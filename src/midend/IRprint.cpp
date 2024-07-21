@@ -2,6 +2,7 @@
 #include "midend/GlobalVariable.hpp"
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
+#include <array>
 #include <cassert>
 #include <string>
 std::string printAsOp(Value *v, bool print_ty) {
@@ -25,29 +26,31 @@ std::string printAsOp(Value *v, bool print_ty) {
 }
 
 std::string printCmpType(CmpOp op) {
-    static std::map<CmpOp,std::string> cmp2str={
-        {CmpOp::GE, "sge"},
-        {CmpOp::GT, "sgt"},
-        {CmpOp::LE, "sle"},
-        {CmpOp::LT, "slt"},
-        {CmpOp::EQ, "eq"},
-        {CmpOp::NE, "ne"},
+    static std::array<std::string,6> const cmp2str={
+        "eq",
+        "ne",
+        "sgt",
+        "sge",
+        "slt",
+        "sle",
     };
-    const auto iter=cmp2str.find(op);
-    assert(iter!=cmp2str.end()&&"wrong cmp op");
-    return iter->second;
+    assert(op>=0&&op<=CmpOp::LE);
+    // const auto iter=cmp2str.find(op);
+    // assert(iter!=cmp2str.end()&&"wrong cmp op");
+    return cmp2str[op];
 }
 
 std::string printFCmpType(CmpOp op) {
-    static std::map<CmpOp,std::string> fcmp2str={
-        {CmpOp::GE,"uge"},
-        {CmpOp::GT,"ugt"},
-        {CmpOp::LE,"ule"},
-        {CmpOp::LT,"ult"},
-        {CmpOp::EQ,"ueq"},
-        {CmpOp::NE,"une"},
+    static std::array<std::string,6> const fcmp2str={
+        "ueq",
+        "une",
+        "ugt",
+        "uge",
+        "ult",
+        "ule",
     };
-    const auto iter=fcmp2str.find(op);
-    assert(iter!=fcmp2str.end()&&"wrong fcmp op");
-    return iter->second;
+    assert(op>=0&&op<=CmpOp::LE);
+    // const auto iter=fcmp2str.find(op);
+    // assert(iter!=fcmp2str.end()&&"wrong fcmp op");
+    return fcmp2str[op];
 }

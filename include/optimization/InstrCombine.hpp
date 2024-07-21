@@ -28,7 +28,7 @@ private:
     Instruction* combineConst(BinaryInst* instr);
     // Instruction* _simplify_bin(BinaryInst*bin_ins);
 
-    // Instruction* replaceInstUsesWith(Instruction*,Value*);
+    Instruction* replaceInstUsesWith(Instruction*,Value*);
     void removeInsWithWorkset(Instruction*ins);
     void  preProcess(Function*cur_func);
     

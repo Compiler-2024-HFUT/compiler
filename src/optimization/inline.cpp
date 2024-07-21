@@ -8,6 +8,7 @@
 #include "midend/Value.hpp"
 #include <list>
 #include <sys/cdefs.h>
+#include <vector>
 using ::std::list,::std::map;
 ::std::set<CallInst *> FuncInline::getCallInfo(Module* m){
 ::std::set<CallInst *>  call_info;
@@ -27,24 +28,25 @@ using ::std::list,::std::map;
             }
     return call_info;
 }
-void insertFunc(CallInst* call,std::list<Function*> calleds){
+//返回内联后增加的指令,可能用不到
+::std::vector<CallInst*> insertFunc(CallInst* call,std::list<Function*> calleds){
     auto call_func=static_cast<Function*>(call->getOperand(0));
     //间接递归
     for(auto called:calleds)
         if(called==call_func)
-            return;
+            return {};
     auto cur_bb=call->getParent();
     auto cur_func=cur_bb->getParent();
     //直接递归
     if(cur_func==call_func)
-        return;
+        return {};
     // ::std::list<BasicBlock*>succ_bbs;
     Instruction *new_instr;
     BasicBlock *new_bb;
     BasicBlock *ret_bb;
     std::map<Value *, Value *> old_new;
     std::vector<BasicBlock *> new_bbs;
-    std::set<CallInst*> _incall;
+    std::vector<CallInst*> _newcall;
 
     auto iter_inster=++(cur_bb->findInstruction(call));
     ::std::vector<decltype(iter_inster)> _list;
@@ -111,7 +113,7 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
                         instr->replaceOperand(i,old_new[instr->getOperand(i)]);
                 }
                 if(instr->isCall())
-                    _incall.insert(static_cast<CallInst*>(instr));
+                    _newcall.push_back(static_cast<CallInst*>(instr));
             }
         }
     }
@@ -151,6 +153,7 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
 
     call->getParent()->deleteInstr(call);
     delete call;
+    return _newcall;
 }
 Modify FuncInline::run(){
     func_call_=getCallInfo(module_);

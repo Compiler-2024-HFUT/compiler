@@ -113,7 +113,10 @@ void  InstrCombine::preProcess(Function*cur_func){
         }
     }
 }
-__attribute__((always_inline))Instruction* replaceInstUsesWith(Instruction*old_instr,Value* new_val){
+Instruction* InstrCombine::replaceInstUsesWith(Instruction*old_instr,Value* new_val){
+    for(auto [v,i]:old_instr->getUseList())
+        if(auto ins=dynamic_cast<Instruction*>(v))
+            work_set_.push_back(ins);
     old_instr->replaceAllUseWith(new_val);
     return old_instr;
 }
@@ -216,15 +219,41 @@ Instruction* InstrCombine::combineAdd(Instruction*instr){
     return ret;
 }
 Instruction* InstrCombine::combineDiv(Instruction*instr){
-    Instruction* ret=nullptr;
     auto lhs=instr->getOperand(0),rhs=instr->getOperand(1);
+    Instruction* ret=nullptr;
+    if(lhs==rhs)
+        return replaceInstUsesWith(instr,ConstantInt::get(1));
+
     auto cl=dynamic_cast<ConstantInt*>(lhs),cr=dynamic_cast<ConstantInt*>(rhs);
+    if(cl){
+        if(cl->getValue()==0)
+            replaceInstUsesWith(instr,cl);
+    }
+
     if(cr!=nullptr){
         if(cr->getValue()==1){
             ret=replaceInstUsesWith(instr,cl);
         }else if(cl){
             ret=replaceInstUsesWith(instr,ConstantInt::get(cl->getValue()/cr->getValue()));
         }else{
+            auto lhs_bin=dynamic_cast<BinaryInst*>(lhs);
+            if(lhs_bin==0)return ret;
+            if(lhs_bin->isMul()){
+
+            }else if(lhs_bin->isDiv()){
+                if(auto lhs_rhs_const=dynamic_cast<ConstantInt*>(lhs_bin->getOperand(1))){
+                    auto new_cr=ConstantInt::getFromBin(lhs_rhs_const,Instruction::OpID::mul,cr);
+                    assert(new_cr!=0);
+                    instr->removeAllOperand();
+                    instr->addOperand(lhs_bin->getOperand(0));
+                    instr->addOperand(new_cr);
+                    ret=instr;
+                }
+            }else if(lhs_bin->isAsr()){
+
+            }else if(lhs_bin->isLsl()){
+
+            }
             // int log2_cr=log2(cr->getValue());
             // if(pow(2,log2_cr)!=cr->getValue()) return ret;
             // ConstantInt* new_cr=ConstantInt::get(log2_cr);
@@ -232,9 +261,6 @@ Instruction* InstrCombine::combineDiv(Instruction*instr){
             //     ret=BinaryInst::create(Instruction::OpID::asr,lhs,new_cr);
             // ret->setParent(instr->getParent());
         }
-    }if(cl){
-        if(cl->getValue()==0)
-            ret=replaceInstUsesWith(instr,cl);
     }
     return ret;
 }
