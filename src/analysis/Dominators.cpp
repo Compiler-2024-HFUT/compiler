@@ -109,6 +109,7 @@ void Dominators::sFastIDomAlg(Function *func_){
             }
         }
     }
+    idom_[entry]=nullptr;
 }
 
 void Dominators::domAlg(Function *func_){
