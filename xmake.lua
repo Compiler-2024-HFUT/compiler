@@ -25,17 +25,17 @@ end
 
 
 
-target("passtest")
-    set_kind("binary")
-    set_languages( "c++17")
-    add_includedirs("include")
-    add_files("src/frontend/*.cpp")
-    add_files("src/midend/*.cpp")
-    add_files("src/backend/*")
-    add_files("src/analysis/*.cpp")
-   -- add_files("src/backend/*.cpp")
-    add_files("src/test/testir.cpp")
-    set_optimize("none")
+-- target("passtest")
+--     set_kind("binary")
+--     set_languages( "c++17")
+--     add_includedirs("include")
+--     add_files("src/frontend/*.cpp")
+--     add_files("src/midend/*.cpp")
+--     add_files("src/backend/*")
+--     add_files("src/analysis/*.cpp")
+--    -- add_files("src/backend/*.cpp")
+--     add_files("src/test/testir.cpp")
+--     set_optimize("none")
 
 target("targettest")
     set_kind("binary")
