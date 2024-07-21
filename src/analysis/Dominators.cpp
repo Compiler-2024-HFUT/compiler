@@ -46,7 +46,7 @@ void Dominators::post(Function *func_){
         auto it=post_order_id_.insert({bb,-1}).first;
         // ++id;
         for(auto succ_bb:bb->getSuccBasicBlocks()){
-            if(post_order_id_.find(succ_bb)==post_order_id_.end())
+            if(!post_order_id_.count(succ_bb))
                 post_order_func(succ_bb);
         }
         // --id;
@@ -54,6 +54,8 @@ void Dominators::post(Function *func_){
         reverse_post_order_.push_back(bb);
     };
     post_order_func(func_->getEntryBlock());
+    reverse_post_order_.pop_back();
+    std::reverse(std::begin(reverse_post_order_), std::end(reverse_post_order_));
 }
 
 void Dominators::sFastIDomAlg(Function *func_){
@@ -64,20 +66,16 @@ void Dominators::sFastIDomAlg(Function *func_){
     auto entry=func_->getEntryBlock();
     bool changed=true;
     for (auto bb : this->reverse_post_order_) {
-        if (bb == entry)
-            continue;
-        auto new_idom=*bb->getPreBasicBlocks().begin();
-        setIDom(bb,entry);
+        setIDom(bb,nullptr);
     }
-
-    // setIDom(entry,entry);
-    setIDom(entry,nullptr);
+    setIDom(entry,entry);
 
     auto intersect=[this](BasicBlock *b1, BasicBlock *b2){
         while (b1 != b2) {
-            if (post_order_id_[b1] < post_order_id_[b2]) {
+            while(post_order_id_[b1] < post_order_id_[b2]) {
                 b1 = idom_[b1];
-            }else{
+            }
+            while(post_order_id_[b1] > post_order_id_[b2]){
                 b2=idom_[b2];
             }
         }
@@ -87,14 +85,23 @@ void Dominators::sFastIDomAlg(Function *func_){
     while (changed) {
         changed = false;
         for (auto bb : this->reverse_post_order_) {
-            if (bb == entry) continue;
+            // if (bb == entry) continue;
             auto &pre_l=bb->getPreBasicBlocks();
-            auto new_idom=*pre_l.begin();
-            if(pre_l.size()>1){
-                auto b_it=pre_l.begin();
-                b_it++;
-                for(;b_it!=pre_l.end();b_it++)
-                    new_idom=intersect(new_idom,*b_it);
+            BasicBlock* new_idom=nullptr;//=*pre_l.begin();
+            for(auto prev : pre_l) {
+                if(idom_[prev] != nullptr) {
+                    new_idom = prev;
+                    break;
+                }
+            }
+            if(new_idom == nullptr)
+                continue;
+            if(pre_l.size()>0){
+                // auto b_it=pre_l.begin();
+                // b_it++;
+                for(auto b_it=pre_l.begin();b_it!=pre_l.end();b_it++)
+                    if(idom_[*b_it]!=0)
+                        new_idom=intersect(new_idom,*b_it);
             }
             if(idom_[bb]!=new_idom){
                 idom_[bb]=new_idom;
@@ -102,6 +109,7 @@ void Dominators::sFastIDomAlg(Function *func_){
             }
         }
     }
+    idom_[entry]=nullptr;
 }
 
 void Dominators::domAlg(Function *func_){
