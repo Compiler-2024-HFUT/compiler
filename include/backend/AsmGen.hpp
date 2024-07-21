@@ -5,6 +5,8 @@
 #include "midend/IRVisitor.hpp"
 #include "Asm.hpp"
 #include "RegAlloc.hpp"
+
+#include <variant>
 /*需要访问的中端数据结构如下：
 module
 function
@@ -33,8 +35,37 @@ storeoffsetinst
 
 class AsmGen : public IRVisitor{
     public:
-        AsmGen(Module* module){
+        AsmGen(Module* module):b_inst_gen_map{
+            {Instruction::OpID::add, [this](BinaryInst* inst)->void{visitAdd(inst);}},
+            {Instruction::OpID::sub, [this](BinaryInst* inst)->void{visitSub(inst);}},
+            {Instruction::OpID::mul, [this](BinaryInst* inst)->void{visitMul(inst);}},
+            {Instruction::OpID::mul64, [this](BinaryInst* inst)->void{visitMul64(inst);}},
+            {Instruction::OpID::sdiv, [this](BinaryInst* inst)->void{visitSDiv(inst);}},
+            {Instruction::OpID::srem, [this](BinaryInst* inst)->void{visitSRem(inst);}},
+            {Instruction::OpID::asr, [this](BinaryInst* inst)->void{visitAsr(inst);}},
+            {Instruction::OpID::shl, [this](BinaryInst* inst)->void{visitShl(inst);}},
+            {Instruction::OpID::lsr, [this](BinaryInst* inst)->void{visitLsr(inst);}},
+            {Instruction::OpID::asr64, [this](BinaryInst* inst)->void{visitAsr64(inst);}},
+            {Instruction::OpID::shl64, [this](BinaryInst* inst)->void{visitShl64(inst);}},
+            {Instruction::OpID::lsr64, [this](BinaryInst* inst)->void{visitLsr64(inst);}},
+            {Instruction::OpID::land, [this](BinaryInst* inst)->void{visitLAnd(inst);}},
+            {Instruction::OpID::fadd, [this](BinaryInst* inst)->void{visitFAdd(inst);}},
+            {Instruction::OpID::fsub, [this](BinaryInst* inst)->void{visitFSub(inst);}},
+            {Instruction::OpID::fmul, [this](BinaryInst* inst)->void{visitFMul(inst);}},
+            {Instruction::OpID::fdiv, [this](BinaryInst* inst)->void{visitFDiv(inst);}}
+        }, cmp_inst_gen_map{
+            {CmpOp::EQ, [this](CmpInst* inst)->void{visitEQ(inst);}}, 
+            {CmpOp::NE, [this](CmpInst* inst)->void{visitNE(inst);}}
+        }, fcmp_inst_gen_map{
+            {CmpOp::EQ, [this](FCmpInst* inst)->void{visitFEQ(inst);}},
+            {CmpOp::GE, [this](FCmpInst* inst)->void{visitFGE(inst);}},
+            {CmpOp::GT, [this](FCmpInst* inst)->void{visitFGT(inst);}},
+            {CmpOp::LE, [this](FCmpInst* inst)->void{visitFLE(inst);}},
+            {CmpOp::LT, [this](FCmpInst* inst)->void{visitFLT(inst);}},
+            {CmpOp::NE, [this](FCmpInst* inst)->void{visitFNE(inst);}}
+        }{
             asm_unit = new AsmUnit(module);
+
         }
         AsmUnit* getAsmUnit(){return asm_unit;}
     
@@ -62,13 +93,53 @@ class AsmGen : public IRVisitor{
         virtual void visit(FCmpBrInst &node) override;
         virtual void visit(LoadOffsetInst &node) override;
         virtual void visit(StoreOffsetInst &node) override;
+    
+    private:
+        void visitAdd(BinaryInst* inst);
+        void visitSub(BinaryInst* inst);
+        void visitMul(BinaryInst* inst);
+        void visitMul64(BinaryInst* inst);
+        void visitSDiv(BinaryInst* inst);
+        void visitSRem(BinaryInst* inst);
+        void visitAsr(BinaryInst* inst);
+        void visitShl(BinaryInst* inst);
+        void visitLsr(BinaryInst* inst);
+        void visitAsr64(BinaryInst* inst);
+        void visitShl64(BinaryInst* inst);
+        void visitLsr64(BinaryInst* inst);
+        void visitLAnd(BinaryInst* inst);
+        void visitFAdd(BinaryInst* inst);
+        void visitFSub(BinaryInst* inst);
+        void visitFMul(BinaryInst* inst);
+        void visitFDiv(BinaryInst* inst);
+
+        void visitEQ(CmpInst* inst);
+        void visitNE(CmpInst* inst);
+
+        void visitFEQ(FCmpInst* inst);
+        void visitFGE(FCmpInst* inst);
+        void visitFGT(FCmpInst* inst);
+        void visitFLE(FCmpInst* inst);
+        void visitFLT(FCmpInst* inst);
+        void visitFNE(FCmpInst* inst);
+
+    
+    private:
+        const ::std::map<Instruction::OpID, ::std::function<void(BinaryInst*)>> b_inst_gen_map;
+        const ::std::map<CmpOp, ::std::function<void(CmpInst*)>> cmp_inst_gen_map;
+        const ::std::map<CmpOp, ::std::function<void(FCmpInst*)>> fcmp_inst_gen_map;
 
     private:
-        //& linearized & labeling bbs
-        void linearizing_and_labeling_bbs();
+        GReg* getGRD(Instruction* inst);
+        FReg* getFRD(Instruction* inst);        
+        Val* getIRS1(Instruction* inst);
+        Val* getIRS2(Instruction* inst);
+        Val* getFRS1(Instruction* inst);
+        Val* getFRS2(Instruction* inst);
 
-        //& stack space alloc 
-        int stack_space_allocation();
+
+    private:
+
     private:
         AsmUnit* asm_unit;
         Subroutine* subroutine;
@@ -100,7 +171,7 @@ class AsmGen : public IRVisitor{
         std::pair<std::set<int>, std::set<int>> used_fregs_pair; 
         
         //& stack alloc 
-        std::map<Value*, IRIA*> val2stack;
+        ::std::map<Value*, IRIA*> val2stack;
 
         const std::set<int> callee_saved_iregs = {
             static_cast<int>(RISCV::GPR::s0),
@@ -137,9 +208,7 @@ class AsmGen : public IRVisitor{
 
         const int arg_reg_base = 10;  //~ reg_a0 or reg_fa0
 
-        //& init or destruct stack space for callee 
-        void callee_stack_prologue(int stack_size);
-        void callee_stack_epilogue(int stack_size);
+
 
         //& args move for callee or caller
         std::vector<std::pair<AddressMode*, AddressMode*>> callee_iargs_move(Function *func);
@@ -149,12 +218,9 @@ class AsmGen : public IRVisitor{
 
         //& temporary use regs for inst(all ops need to be loaded to regs for risc arch)
         void ld_tmp_regs_for_inst(Instruction *inst);
-        void alloc_tmp_regs_for_inst(Instruction *inst);
-        void store_tmp_reg_for_inst(Instruction *inst);
+ 
 
-        //& regs save and restore about func call
-        void caller_reg_store(Function* func,CallInst* call);
-        void caller_reg_restore(Function* func, CallInst* call);
+
 
         std::map<int, IRIA*> caller_saved_ireg_locs;             //// caller在调用函数前保存寄存器的位置
         std::map<int, IRIA*> caller_saved_freg_locs;             //// caller在调用函数前保存寄存器的位置
@@ -168,15 +234,14 @@ class AsmGen : public IRVisitor{
         std::set<Value*> to_store_ivals; 
         std::set<Value*> to_store_fvals;
 
-            //& phi inst gen
-    void phi_union(Instruction *br_inst);
+
     void tmp_regs_restore();
     std::vector<std::pair<AddressMode*, AddressMode*>> idata_move(std::vector<AddressMode*>& src, std::vector<AddressMode*>&dst);
     std::vector<std::pair<AddressMode*, AddressMode*>> fdata_move(std::vector<AddressMode*>& src, std::vector<AddressMode*>&dst);
 
 
         //& help funcs for asm code gen
-    Val *get_asm_reg(Value* val);
+    Val *getAllocaReg(Value* value);
 
         //& global variable label gen for function using these global variable
     std::map<GlobalVariable*, Label*> global_variable_labels_table;

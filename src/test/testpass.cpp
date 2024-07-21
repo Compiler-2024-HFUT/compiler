@@ -40,9 +40,9 @@ int main(int argc , char**argv){
   // pm.run();
    
    pm.add_pass<LIR>();
-  // pm.add_pass<CIDBB>();
-  // pm.add_pass<CLND>();
-   pm.add_pass<CFGAnalyse>();
+   pm.add_pass<CIDBB>();
+   pm.add_pass<CLND>();
+  // pm.add_pass<CFGAnalyse>();
    pm.add_pass<ActiveVar>();
     // pm.add_pass<FuncInline>();
     pm.run();

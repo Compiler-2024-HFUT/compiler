@@ -1,8 +1,7 @@
 #include "backend/AsmGen.hpp"
 
 
-void AsmGen::visit(Module &node){
-  //  AsmUnit* asm_unit = new AsmUnit(&node);
+void AsmGen::visit(Module &node){ 
     for(auto global_var: asm_unit->getModuleOfAsmUnit()->getGlobalVariables()){
         global_variable_labels_table[global_var] = new Label(global_var->getName());
     }
@@ -31,676 +30,15 @@ void AsmGen::visit(Function &node){
     tmp_fregs_loc.clear();          //~ 保存临时寄存器原本值的地址
     free_locs_for_tmp_regs_saved.clear();
 
-    linearizing_and_labeling_bbs();
-    int stack_size = stack_space_allocation();
+    //*************************线性化BB并标号***************************
+    BasicBlock *ret_bb;
+    Label* new_label;
+    std::string label_str;
 
-    subroutine->addSequence(subroutine->getFuncOfSubroutine()->getEntryBlock(), bb2label[subroutine->getFuncOfSubroutine()->getEntryBlock()]);
-    sequence = subroutine->getSequence();
-
-    callee_stack_prologue(stack_size);
-    std::vector<std::pair<AddressMode*, AddressMode*>> to_move_iargs = callee_iargs_move(subroutine->getFuncOfSubroutine());
-    std::vector<std::pair<AddressMode*, AddressMode*>> to_move_fargs = callee_fargs_move(subroutine->getFuncOfSubroutine());
-
-    if(!to_move_iargs.empty() || !to_move_fargs.empty())
-        sequence->createCalleeParaPass(to_move_iargs, to_move_fargs);
-
-    for(auto bb: linear_bbs) {
-        if(bb != subroutine->getFuncOfSubroutine()->getEntryBlock()) 
-            subroutine->addSequence(bb, bb2label[bb]);
-            sequence = subroutine->getSequence();
-            bb->accept(*this);
-    }
-    callee_stack_epilogue(stack_size);
-
-    sequence->createRet();
-}
-
-void AsmGen::visit(BasicBlock &node){
-    Instruction *br_inst = nullptr;
-    for(auto &inst: sequence->getBBOfSeq()->getInstructions()) {
-        if(inst->isTerminator()) {
-            br_inst = inst;
-            break;
-        }
-        ld_tmp_regs_for_inst(inst);
-       if(inst->isCall()) {
-            auto call_inst = dynamic_cast<CallInst*>(inst);
-            caller_reg_store(sequence->getBBOfSeq()->getParent(), call_inst);
-
-            std::vector<std::pair<AddressMode*, AddressMode*>> to_move_fargs = caller_fargs_move(call_inst);
-            std::vector<std::pair<AddressMode*, AddressMode*>> to_move_iargs = caller_iargs_move(call_inst);
-
-            if(!to_move_fargs.empty() || !to_move_iargs.empty())
-                sequence->createCallerParaPass( to_move_iargs, to_move_fargs);
-
-            int extra_stack_offset = caller_trans_args_stack_offset + cur_tmp_reg_saved_stack_offset + caller_saved_regs_stack_offset; 
-            
-            if(extra_stack_offset != 0) 
-                sequence->createCalleeStackFrameExpand(extra_stack_offset);
-            
-            call_inst->accept(*this);
-            
-            if(extra_stack_offset != 0) 
-                sequence->createCalleeStackFrameShrink(-extra_stack_offset);
-            
-            caller_reg_restore(sequence->getBBOfSeq()->getParent(), call_inst);
-            
-            caller_trans_args_stack_offset = 0;
-        } else if(!inst->isPhi()) {
-            alloc_tmp_regs_for_inst(inst);
-            inst->accept(*this);
-            store_tmp_reg_for_inst(inst);
-        } 
-}
-    ld_tmp_regs_for_inst(br_inst);
-
-    if(br_inst->isRet()) {
-        br_inst->accept(*this);
-    } else {
-        phi_union(br_inst);
-    }
-}
-
-void AsmGen::visit(BinaryInst &node){
-    auto inst_type = node.getInstrType();
-    auto inst = &node;
-    if(inst_type == Instruction::OpID::add){
-                        auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
-                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
-                if(const_op1 && const_op2) {
-                    sequence->createAdd(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
-                } else if(const_op1) {
-                    sequence->createAdd(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op2), new IConst(const_op1->getValue()));
-                } else if(const_op2) {
-                    sequence->createAdd(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
-                } else {
-                    sequence->createAdd(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
-                }
-    }
-    else if(inst_type == Instruction::OpID::sub){
-                        auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
-                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
-                if(const_op1 && const_op2) {
-                    sequence->createSubw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
-                } else if(const_op1) {
-                    sequence->createSubw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), get_asm_reg(op2));
-                } else if(const_op2) {
-                    sequence->createSubw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
-                } else {
-                    sequence->createSubw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
-                }
-    }
-    else if(inst_type == Instruction::OpID::mul){
-                        auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
-                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
-                if(const_op1 && const_op2) {
-                    sequence->createMulw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()),  new IConst(const_op2->getValue()));
-                } else if(const_op1) {
-                    sequence->createMulw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), get_asm_reg(op2));
-                } else if(const_op2) {
-                    sequence->createMulw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
-                } else {
-                    sequence->createMulw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
-                }
-    }
-    else if(inst_type == Instruction::OpID::mul64){
-                        auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
-                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
-                if(const_op1 && const_op2) {
-                    //LOG(ERROR) << "无法处理";
-                } else if(const_op1) {
-                    sequence->createMuld(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), get_asm_reg(op2));
-                } else if(const_op2) {
-                    sequence->createMuld(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
-                } else {
-                    sequence->createMuld(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
-                }
-    }
-    else if(inst_type == Instruction::OpID::sdiv){
-                        auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
-                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
-                if(const_op1 && const_op2) {
-                    sequence->createDivw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()),  new IConst(const_op2->getValue()));
-                } else if(const_op1) {
-                    sequence->createDivw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()),  get_asm_reg(op2));
-                } else if(const_op2) {
-                    sequence->createDivw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1),  new IConst(const_op2->getValue()));
-                } else {
-                    sequence->createDivw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
-                }
-    }
-    else if(inst_type == Instruction::OpID::srem){
-                auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
-                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
-                if(const_op1 && const_op2) {
-                    sequence->createRemw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()),  new IConst(const_op2->getValue()));
-                } else if(const_op1) {
-                    sequence->createRemw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()),  get_asm_reg(op2));
-                } else if(const_op2) {
-                    sequence->createRemw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1),  new IConst(const_op2->getValue()));
-                } else {
-                    sequence->createRemw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
-                }
-    }
-    else if(inst_type == Instruction::OpID::asr){
-                auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
-                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
-                if(const_op2 == nullptr)
-                    {}//LOG(ERROR) << "出现未预期情况";
-                if(const_op1) {
-                    sequence->createSraw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
-                } else {
-                    sequence->createSraw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
-                }
-    }
-    else if(inst_type == Instruction::OpID::shl){
-                auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
-                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
-                if(const_op2 == nullptr)
-                    {}
-                if(const_op1) {
-                    sequence->createSllw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
-                } else {
-                    sequence->createSllw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
-                }
-    }
-    else if(inst_type == Instruction::OpID::lsr){
-                auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
-                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
-                if(const_op2 == nullptr)
-                    {}
-                if(const_op1) {
-                    sequence->createSrlw(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
-                } else {
-                    sequence->createSrlw(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
-                }
-    }
-    else if(inst_type == Instruction::OpID::asr64){
-                auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
-                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
-                if(const_op2 == nullptr)
-                    {}
-                if(const_op1) {
-                    sequence->createSra(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
-                } else {
-                    sequence->createSra(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
-                }
-    }
-    else if(inst_type == Instruction::OpID::shl64){
-                auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
-                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
-                if(const_op2 == nullptr)
-                    {}
-                if(const_op1) {
-                    sequence->createSll(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
-                } else {
-                    sequence->createSll(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
-                }
-    }
-    else if(inst_type == Instruction::OpID::lsr64){
-                auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantInt*>(op1);
-                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
-                if(const_op2 == nullptr)
-                    {}
-                if(const_op1) {
-                    sequence->createSrl(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_op1->getValue()), new IConst(const_op2->getValue()));
-                } else {
-                    sequence->createSrl(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(op1), new IConst(const_op2->getValue()));
-                }
-    }
-    else if(inst_type == Instruction::OpID::land){
-                auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op2 = dynamic_cast<ConstantInt*>(op2);
-                if(const_op2 == nullptr)
-                    {}
-                sequence->createLand(dynamic_cast<GReg*>(get_asm_reg(inst)),dynamic_cast<GReg*>(get_asm_reg(op1)) , new IConst(const_op2->getValue()));
-    }
-    else if(inst_type == Instruction::OpID::fadd){
-                auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantFP*>(op1);
-                auto const_op2 = dynamic_cast<ConstantFP*>(op2);
-                if(const_op1 && const_op2) {
-                    sequence->createFadd_s(dynamic_cast<FReg*>(get_asm_reg(inst)) , new FConst(const_op1->getValue()), new FConst(const_op2->getValue()));
-                } else if(const_op1) {
-                    sequence->createFadd_s(dynamic_cast<FReg*>(get_asm_reg(inst)), new FConst(const_op1->getValue()), get_asm_reg(op2));
-                } else if(const_op2) {
-                    sequence->createFadd_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), new FConst(const_op2->getValue()));
-                } else {
-                    sequence->createFadd_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
-                }
-    }
-    else if(inst_type == Instruction::OpID::fsub){
-                auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantFP*>(op1);
-                auto const_op2 = dynamic_cast<ConstantFP*>(op2);
-                if(const_op1 && const_op2) {
-                    sequence->createFsub_s(dynamic_cast<FReg*>(get_asm_reg(inst)), new FConst(const_op1->getValue()), new FConst(const_op2->getValue()));
-                } else if(const_op1) {
-                    sequence->createFsub_s(dynamic_cast<FReg*>(get_asm_reg(inst)), new FConst(const_op1->getValue()), get_asm_reg(op2));
-                } else if(const_op2) {
-                    sequence->createFsub_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), new FConst(const_op2->getValue()));
-                } else {
-                    sequence->createFsub_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
-                }
-    }
-    else if(inst_type == Instruction::OpID::fmul){
-                auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantFP*>(op1);
-                auto const_op2 = dynamic_cast<ConstantFP*>(op2);
-                if(const_op1 && const_op2) {
-                    sequence->createFmul_s(dynamic_cast<FReg*>(get_asm_reg(inst)), new FConst(const_op1->getValue()), new FConst(const_op2->getValue()));
-                } else if(const_op1) {
-                    sequence->createFmul_s(dynamic_cast<FReg*>(get_asm_reg(inst)), new FConst(const_op1->getValue()), get_asm_reg(op2));
-                } else if(const_op2) {
-                    sequence->createFmul_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), new FConst(const_op2->getValue()));
-                } else {
-                    sequence->createFmul_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
-                }
-    }
-    else if(inst_type == Instruction::OpID::fdiv){
-                auto op1 = inst->getOperand(0);
-                auto op2 = inst->getOperand(1);
-                auto const_op1 = dynamic_cast<ConstantFP*>(op1);
-                auto const_op2 = dynamic_cast<ConstantFP*>(op2);
-                if(const_op1 && const_op2) {
-                    sequence->createFdiv_s(dynamic_cast<FReg*>(get_asm_reg(inst)), new FConst(const_op1->getValue()), new FConst(const_op2->getValue()));
-                } else if(const_op1) {
-                    sequence->createFdiv_s(dynamic_cast<FReg*>(get_asm_reg(inst)), new FConst(const_op1->getValue()), get_asm_reg(op2));
-                } else if(const_op2) {
-                    sequence->createFdiv_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), new FConst(const_op2->getValue()));
-                } else {
-                    sequence->createFdiv_s(dynamic_cast<FReg*>(get_asm_reg(inst)), get_asm_reg(op1), get_asm_reg(op2));
-                }
-    }
-    
-}
-
-void AsmGen::visit(CmpInst &node){
-    auto inst = &node;
-                    auto cmp_inst = dynamic_cast<CmpInst*>(inst);
-                auto cmp_op = cmp_inst->getCmpOp();
-                auto cond1 = cmp_inst->getOperand(0);
-                auto cond2 = cmp_inst->getOperand(1);
-                auto const_cond1 = dynamic_cast<ConstantInt*>(cond1);
-                auto const_cond2 = dynamic_cast<ConstantInt*>(cond2);
-                
-                if(const_cond2 && const_cond2->getValue() == 0) {
-                    switch(cmp_op) {
-                        case CmpOp::EQ:
-                            if(const_cond1) {
-                                sequence->createSeqz(dynamic_cast<GReg*>(get_asm_reg(inst)) , new IConst(const_cond1->getValue()));
-                            } else {
-                                sequence->createSeqz(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1));
-                            }
-                            break;
-                        case CmpOp::NE:
-                            if(const_cond1) {
-                                sequence->createSnez(dynamic_cast<GReg*>(get_asm_reg(inst)), new IConst(const_cond1->getValue()));
-                            } else {
-                                sequence->createSnez(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1));
-                            }
-                            break;
-                        default:
-                            //LOG(ERROR) << "汇编代码生成出现异常";
-                            break;
-                    }
-                } else {
-                   // LOG(ERROR) << "汇编代码生成出现异常";
-                }
-}
-
-void AsmGen::visit(FCmpInst &node){
-    auto inst = &node;
-                    auto cond1 = inst->getOperand(0);
-                auto cond2 = inst->getOperand(1);
-                auto cmp_op = (dynamic_cast<FCmpInst*>(inst))->getCmpOp();
-                auto const_cond1 = dynamic_cast<ConstantFP*>(cond1);
-                auto const_cond2 = dynamic_cast<ConstantFP*>(cond2);
-                switch (cmp_op) {
-                    case CmpOp::EQ: {
-                            if(const_cond1 && const_cond2) {
-                                sequence->createFeq_s(dynamic_cast<GReg*>(get_asm_reg(inst)) , new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()));
-                            } else if(const_cond1) {
-                                sequence->createFeq_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), get_asm_reg(cond2));
-                            } else if(const_cond2) {
-                                sequence->createFeq_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), new FConst(const_cond2->getValue()));
-                            } else {
-                                sequence->createFeq_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), get_asm_reg(cond2));
-                            }
-                        }
-                        break;
-                    case CmpOp::GE: {
-                            if(const_cond1 && const_cond2) {
-                                sequence->createFge_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()));
-                            } else if(const_cond1) {
-                                sequence->createFge_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), get_asm_reg(cond2));
-                            } else if(const_cond2) {
-                                sequence->createFge_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), new FConst(const_cond2->getValue()));
-                            } else {
-                                sequence->createFge_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), get_asm_reg(cond2));
-                            }
-                        }
-                        break;
-                    case CmpOp::GT: {
-                            if(const_cond1 && const_cond2) {
-                                sequence->createFgt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()));
-                            } else if(const_cond1) {
-                                sequence->createFgt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), get_asm_reg(cond2));
-                            } else if(const_cond2) {
-                                sequence->createFgt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), new FConst(const_cond2->getValue()));
-                            } else {
-                                sequence->createFgt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), get_asm_reg(cond2));
-                            }
-                        }
-                        break;
-
-                    case CmpOp::LE: {
-                            if(const_cond1 && const_cond2) {
-                                sequence->createFle_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()));
-                            } else if(const_cond1) {
-                                sequence->createFle_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), get_asm_reg(cond2));
-                            } else if(const_cond2) {
-                                sequence->createFle_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), new FConst(const_cond2->getValue()));
-                            } else {
-                                sequence->createFle_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), get_asm_reg(cond2));
-                            }
-                        }
-                        break;
-
-                    case CmpOp::LT: {
-                            if(const_cond1 && const_cond2) {
-                                sequence->createFlt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()));
-                            } else if(const_cond1) {
-                                sequence->createFlt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), get_asm_reg(cond2));
-                            } else if(const_cond2) {
-                                sequence->createFlt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), new FConst(const_cond2->getValue()));
-                            } else {
-                                sequence->createFlt_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), get_asm_reg(cond2));
-                            }
-                        }
-                        break;
-
-                    case CmpOp::NE: {
-                            if(const_cond1 && const_cond2) {
-                                sequence->createFne_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()));
-                            } else if(const_cond1) {
-                                sequence->createFne_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_cond1->getValue()), get_asm_reg(cond2));
-                            } else if(const_cond2) {
-                                sequence->createFne_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), new FConst(const_cond2->getValue()));
-                            } else {
-                                sequence->createFne_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(cond1), get_asm_reg(cond2));
-                            }
-                        }
-                        break;
-                    default:
-                        break;
-                }
-}
-
-void AsmGen::visit(CallInst &node){
-    auto inst = &node;
-                    sequence->createCall(new Label(inst->getOperand(0)->getName()));
-                auto func = dynamic_cast<Function*>(inst->getOperand(0));
-                if(!func->getReturnType()->isVoidType()) {
-                    if(func->getReturnType()->isFloatType()) {
-                        if(fval2interval.find(inst) != fval2interval.end()) {
-                            if(fval2interval[inst]->reg_id >= 0) {
-                                sequence->createCallerSaveResult(new FReg(static_cast<int>(RISCV::FPR::fa0)), new FRA(static_cast<int>(dynamic_cast<FReg*>( get_asm_reg(inst))->getID()) ));
-                            } else {
-                                sequence->createCallerSaveResult(new FReg(static_cast<int>(RISCV::FPR::fa0)), val2stack[inst]);
-                            }
-                        } 
-                    } else {
-                        if(ival2interval.find(inst) != ival2interval.end()) {
-                            if(ival2interval[inst]->reg_id >= 0) {
-                                sequence->createCallerSaveResult(new GReg(static_cast<int>(RISCV::GPR::a0)), new IRA(static_cast<int>(dynamic_cast<GReg*>( get_asm_reg(inst))->getID()) ));
-                            } else {
-                                sequence->createCallerSaveResult(new GReg(static_cast<int>(RISCV::GPR::a0)), val2stack[inst]);
-                            }
-                        }
-                    }
-                } 
-}
-
-void AsmGen::visit(BranchInst &node){
-    //结束
-}
-
-void AsmGen::visit(ReturnInst &node){
-            auto inst = &node;
-            if(!inst->getOperands().empty()) {
-                auto ret_val = inst->getOperand(0);
-                auto const_int_ret_val = dynamic_cast<ConstantInt*>(ret_val);
-                auto const_float_ret_val = dynamic_cast<ConstantFP*>(ret_val);
-                
-                if(ret_val->getType()->isFloatType()) {
-                    if(const_float_ret_val) {
-                        sequence->createCalleeSaveResult(new FRA(static_cast<int>(RISCV::FPR::fa0)), new FConst(const_float_ret_val->getValue()));
-                    } else {
-                        if(fval2interval[ret_val]->reg_id < 0) {
-                            sequence->createCalleeSaveResult(new FRA(static_cast<int>(RISCV::FPR::fa0)), new Mem( val2stack[ret_val]->getOffset(), static_cast<int>(val2stack[ret_val]->getReg())));
-                        } else {
-                            sequence->createCalleeSaveResult(new FRA(static_cast<int>(RISCV::FPR::fa0)), get_asm_reg(ret_val));
-                        }     
-                    }
-                } else {
-                    if(const_int_ret_val) {
-                        sequence->createCalleeSaveResult(new IRA(static_cast<int>(RISCV::GPR::a0)), new IConst(const_int_ret_val->getValue()));
-                    } else {
-                        if(ival2interval[ret_val]->reg_id < 0) {
-                            sequence->createCalleeSaveResult(new IRA(static_cast<int>(RISCV::GPR::a0)), new Mem( val2stack[ret_val]->getOffset(), static_cast<int>(val2stack[ret_val]->getReg())));
-                        } else {
-                            sequence->createCalleeSaveResult(new IRA(static_cast<int>(RISCV::GPR::a0)), get_asm_reg(ret_val));
-                        }      
-                    }
-                }
-            }
-}
-
-void AsmGen::visit(GetElementPtrInst &node){
-    auto inst = &node;
-                    auto base_addr = inst->getOperand(0);
-                if(dynamic_cast<GlobalVariable*>(base_addr)) {
-                    auto addr = global_variable_labels_table[dynamic_cast<GlobalVariable*>(base_addr)];
-                    sequence->createLa(dynamic_cast<GReg*>( get_asm_reg(inst)), addr);
-                } else if(dynamic_cast<AllocaInst*>(base_addr)) {
-                    auto addr = val2stack[base_addr];
-                    int offset = addr->getOffset();
-                    auto reg_id = static_cast<int>( addr->getReg());
-                    sequence->createAdd(dynamic_cast<GReg*>( get_asm_reg(inst)), new GReg(reg_id), new IConst(offset));
-                } else if(dynamic_cast<Argument*>(base_addr)) {
-                    sequence->createMv(dynamic_cast<GReg*>( get_asm_reg(inst)), dynamic_cast<GReg*>( get_asm_reg(base_addr)));
-                } else {
-                    sequence->createMv(dynamic_cast<GReg*>( get_asm_reg(inst)), dynamic_cast<GReg*>( get_asm_reg(base_addr)));
-                }
-}
-
-void AsmGen::visit(StoreInst &node){
-    auto inst = &node;
-                    auto global_addr = dynamic_cast<GlobalVariable*>(inst->getOperand(1));
-                auto store_inst = dynamic_cast<StoreInst*>(inst);
-                auto const_int_src = dynamic_cast<ConstantInt*>(store_inst->getOperand(0));
-                auto const_float_src = dynamic_cast<ConstantFP*>(store_inst->getOperand(0));
-                if(global_addr) {
-                    if(global_addr->getType()->getPointerElementType()->isFloatType()) {
-                        if(const_float_src) {
-                            sequence->createFsw_label(new FConst(const_float_src->getValue()), global_variable_labels_table[global_addr]);
-                        } else {
-                            sequence->createFsw_label(get_asm_reg(inst->getOperand(0)), global_variable_labels_table[global_addr]);
-                        }
-                    } else {
-                        if(const_int_src) {
-                            sequence->createSw_label(new IConst(const_int_src->getValue()), global_variable_labels_table[global_addr]);
-                        } else {
-                            sequence->createSw_label(get_asm_reg(inst->getOperand(0)), global_variable_labels_table[global_addr]);
-                        }
-                    }                  
-                } else {
-                  //  LOG(ERROR) << "汇编代码生成出现异常";
-                }
-}
-
-void AsmGen::visit(MemsetInst &node){
-    //结束
-}
-
-void AsmGen::visit(LoadInst &node){
-    auto inst = &node;
-                    auto global_addr = dynamic_cast<GlobalVariable*>(inst->getOperand(0));
-                if(global_addr) {
-                    if(global_addr->getType()->getPointerElementType()->isFloatType()) {
-                        sequence->createFlw_label(dynamic_cast<FReg*>(get_asm_reg(inst)) , global_variable_labels_table[global_addr]);
-                    } else {
-                        sequence->createLw_label(dynamic_cast<GReg*>(get_asm_reg(inst)) , global_variable_labels_table[global_addr]);
-                    }
-                } else {
-                    //LOG(ERROR) << "汇编代码生成出现异常";
-                }
-}
-
-void AsmGen::visit(AllocaInst &node){
-    //结束
-}
-
-void AsmGen::visit(ZextInst &node){
-    auto inst = &node;
-    sequence->createZext(dynamic_cast<GReg*>(get_asm_reg(inst)) , dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(0))) );
-}
-
-void AsmGen::visit(SiToFpInst &node){
-    auto inst = &node;
-                    auto src = inst->getOperand(0);
-                auto const_src = dynamic_cast<ConstantInt*>(src);
-                if(const_src) {
-                    sequence->createFcvt_s_w(dynamic_cast<FReg*>(get_asm_reg(inst)) , new IConst(const_src->getValue()));
-                } else {
-                    sequence->createFcvt_s_w(dynamic_cast<FReg*>(get_asm_reg(inst)) , get_asm_reg(src));
-                }
-}
-
-void AsmGen::visit(FpToSiInst &node){
-    auto inst = &node;
-                    auto src = inst->getOperand(0);
-                auto const_src = dynamic_cast<ConstantFP*>(src);
-                if(const_src) {
-                    sequence->createFcvt_w_s(dynamic_cast<GReg*>(get_asm_reg(inst)), new FConst(const_src->getValue()));
-                } else {
-                    sequence->createFcvt_w_s(dynamic_cast<GReg*>(get_asm_reg(inst)), get_asm_reg(src));
-                }
-}
-
-void AsmGen::visit(PhiInst &node){
-    //结束
-}
-
-void AsmGen::visit(CmpBrInst &node){
-    //结束
-}
-
-void AsmGen::visit(FCmpBrInst &node){
-    //结束
-}
-
-void AsmGen::visit(LoadOffsetInst &node){
-    auto inst = &node;
-                    auto loadoffset_inst = dynamic_cast<LoadOffsetInst*>(inst);
-                if(! dynamic_cast<GetElementPtrInst*>(loadoffset_inst->getOperand(0))) {
-                    //LOG(ERROR) << "汇编代码生成出现未预期情况";
-                }
-                auto offset = loadoffset_inst->getOffset();
-                auto const_offset = dynamic_cast<ConstantInt*>(offset);
-                if(loadoffset_inst->getLoadType()->isFloatType()) {
-                    if(const_offset) {
-                        sequence->createFlw(dynamic_cast<FReg*>(get_asm_reg(inst)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(0))), new IConst(const_offset->getValue()));
-                    } else {
-                        sequence->createFlw(dynamic_cast<FReg*>(get_asm_reg(inst)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(0))), get_asm_reg(offset));
-                    }
-                } else {
-                    if(const_offset) {
-                        sequence->createLw(dynamic_cast<GReg*>(get_asm_reg(inst)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(0))), new IConst(const_offset->getValue()));
-                    } else {
-                        sequence->createLw(dynamic_cast<GReg*>(get_asm_reg(inst)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(0))), get_asm_reg(offset));
-                    }
-                }
-}
-
-void AsmGen::visit(StoreOffsetInst &node){
-    auto inst = &node;
-                    auto storeoffset_inst = dynamic_cast<StoreOffsetInst*>(inst);
-                auto offset = storeoffset_inst->getOffset();
-                auto const_offset = dynamic_cast<ConstantInt*>(offset);
-                auto const_int_src = dynamic_cast<ConstantInt*>(storeoffset_inst->getOperand(0));
-                auto const_float_src = dynamic_cast<ConstantFP*>(storeoffset_inst->getOperand(0));
-                if(storeoffset_inst->getStoreType()->isFloatType()) {
-                    if(const_float_src) {
-                        if(const_offset) {
-                            sequence->createFsw(new FConst(const_float_src->getValue()), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1)))  , new IConst(const_offset->getValue()));
-                        } else {
-                            sequence->createFsw(new FConst(const_float_src->getValue()), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1))), get_asm_reg(offset));
-                        }
-                    } else {
-                        if(const_offset) {
-                            sequence->createFsw(get_asm_reg(inst->getOperand(0)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1))), new IConst(const_offset->getValue()));    
-                        } else {
-                            sequence->createFsw(get_asm_reg(inst->getOperand(0)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1))), get_asm_reg(offset));
-                        }
-                    }
-                } else {
-                    if(const_int_src) {
-                        if(const_offset) {
-                            sequence->createSw(new IConst(const_int_src->getValue()), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1))), new IConst(const_offset->getValue()));
-                        } else {
-                            //! 在addi中使用了s1寄存器
-                            sequence->createSw(new IConst(const_int_src->getValue()), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1))), get_asm_reg(offset));
-                        }
-                    } else {
-                        if(const_offset) {
-                            sequence->createSw(get_asm_reg(inst->getOperand(0)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1))), new IConst(const_offset->getValue()));
-                        } else {
-                            sequence->createSw(get_asm_reg(inst->getOperand(0)), dynamic_cast<GReg*>(get_asm_reg(inst->getOperand(1))), get_asm_reg(offset));
-                        }
-                    }
-                }
-}
-
-
-void AsmGen::linearizing_and_labeling_bbs() {
     bb2label.clear();
     linear_bbs.clear();
     auto func = subroutine->getFuncOfSubroutine();
     std::list<BasicBlock*> linear_bbs_of_func = func->getBasicBlocks();
-    
-    BasicBlock *ret_bb;
-    Label* new_label;
-    std::string label_str;
     int mp = 0;
     for(auto bb: linear_bbs_of_func) {
         if(bb == func->getEntryBlock() && bb->getTerminator()->isRet()) {
@@ -723,16 +61,14 @@ void AsmGen::linearizing_and_labeling_bbs() {
     new_label = new Label(label_str);
     bb2label.insert({ret_bb, new_label});
     linear_bbs.push_back(ret_bb);
-}
+    //*************************线性化BB并标号***************************
 
 
-//& stack HAsm2Asm::space alloc
-int AsmGen::stack_space_allocation() {
+    //*************************栈空间的开辟***************************
     int total_size = 0;
     int iargs_size = 0;
     int fargs_size = 0;
 
-    auto func = subroutine->getFuncOfSubroutine();
 
     used_iregs_pair.first.clear();
     used_iregs_pair.second.clear();
@@ -837,12 +173,14 @@ int AsmGen::stack_space_allocation() {
         val2stack[static_cast<Value*>(alloc)] = new IRIA(static_cast<int>(RISCV::GPR::s0), -total_size);
     }
 
+    int stack_size = ((total_size + 7) / 8) * 8;
+    //*************************栈空间的开辟***************************
 
+    subroutine->addSequence(subroutine->getFuncOfSubroutine()->getEntryBlock(), bb2label[subroutine->getFuncOfSubroutine()->getEntryBlock()]);
+    sequence = subroutine->getSequence();
 
-    return ((total_size + 7) / 8) * 8;
-}
-
-void AsmGen::callee_stack_prologue(int stack_size) {
+ 
+    //*************************被调用函数的栈帧初始化***************************
     int cur_offset = 0;
 
     std::vector<std::pair<IRA*, IRIA*>> to_save_iregs;
@@ -866,7 +204,1564 @@ void AsmGen::callee_stack_prologue(int stack_size) {
     if(!to_save_fregs.empty())
         sequence->createCalleeSaveRegs(to_save_fregs);
     sequence->createCalleeStackFrameInitialize(stack_size);
+    //*************************被调用函数的栈帧初始化***************************
+
+
+    std::vector<std::pair<AddressMode*, AddressMode*>> to_move_iargs = callee_iargs_move(subroutine->getFuncOfSubroutine());
+    std::vector<std::pair<AddressMode*, AddressMode*>> to_move_fargs = callee_fargs_move(subroutine->getFuncOfSubroutine());
+
+    if(!to_move_iargs.empty() || !to_move_fargs.empty())
+        sequence->createCalleeParaPass(to_move_iargs, to_move_fargs);
+
+    for(auto bb: linear_bbs) {
+        if(bb != subroutine->getFuncOfSubroutine()->getEntryBlock()) 
+            subroutine->addSequence(bb, bb2label[bb]);
+            sequence = subroutine->getSequence();
+            bb->accept(*this);
+    }
+
+   //*************************被调用函数的栈帧收尾***************************
+    
+    std::vector<std::pair<IRA*, IRIA*>> to_load_iregs;
+    std::vector<std::pair<FRA*, IRIA*>> to_load_fregs;
+    
+    sequence->createCalleeStackFrameClear(stack_size);
+    
+    int num_of_all_restore_regs = used_iregs_pair.second.size() + used_fregs_pair.second.size();
+    cur_offset = - reg_size * num_of_all_restore_regs;
+    if(!used_fregs_pair.second.empty()) {
+        for(auto iter = used_fregs_pair.second.rbegin(); iter != used_fregs_pair.second.rend(); iter++) {
+            to_load_fregs.push_back(std::make_pair(new FRA(*iter), new IRIA(static_cast<int>(RISCV::GPR::sp), cur_offset)));
+            cur_offset += reg_size; 
+        }
+    }
+    
+    if(!used_iregs_pair.second.empty()) {
+        for(auto iter = used_iregs_pair.second.rbegin(); iter != used_iregs_pair.second.rend(); iter++) {
+            to_load_iregs.push_back(std::make_pair(new IRA(*iter), new IRIA(static_cast<int>(RISCV::GPR::sp), cur_offset)));
+            cur_offset += reg_size; 
+        }
+    }
+    sequence->createCalleeRestoreRegs(to_load_iregs);
+    sequence->createCalleeRestoreRegs(to_load_fregs);
+    //*************************被调用函数的栈帧收尾***************************
+
+    sequence->createRet();
 }
+
+void AsmGen::visit(BasicBlock &node){
+    Instruction *br_inst = nullptr;
+    for(auto &inst: sequence->getBBOfSeq()->getInstructions()) {
+        if(inst->isTerminator()) {
+            br_inst = inst;
+            break;
+        }
+
+ 
+        //********************************************加载指令需要的临时寄存器***********************
+        ld_tmp_regs_for_inst(inst);
+        //********************************************加载指令需要的临时寄存器***********************
+
+       if(inst->isCall()) {
+            auto call_inst = dynamic_cast<CallInst*>(inst);
+            
+            //************************************调用前，保存caller寄存器************************
+            caller_saved_ireg_locs.clear();
+            caller_saved_freg_locs.clear();
+            caller_save_iregs.clear();
+            caller_save_fregs.clear();
+
+            std::vector<std::pair<IRA*, IRIA*>> to_store_iregs;
+            std::vector<std::pair<FRA*, IRIA*>> to_store_fregs;
+
+            int call_inst_reg = -1;
+            bool is_float_call = call_inst->getType()->isFloatType();
+            bool is_void_call = call_inst->getType()->isVoidType();
+            bool is_int_call = !is_float_call && !is_void_call;
+
+            if(!is_void_call) {
+                if(is_float_call && fval2interval.find(call_inst) != fval2interval.end()) {
+                    call_inst_reg = fval2interval[call_inst]->reg_id;
+                } else if(ival2interval.find(call_inst) != ival2interval.end()) {
+                    call_inst_reg = ival2interval[call_inst]->reg_id;
+                }
+            }
+
+            for(auto ireg: used_iregs_pair.first) {
+                if(is_int_call && ireg == call_inst_reg)
+                    continue;
+                caller_save_iregs.push_back(ireg);
+            }
+            for(auto freg: used_fregs_pair.first) {
+                if(is_float_call && freg == call_inst_reg)
+                    continue;
+                caller_save_fregs.push_back(freg);
+            }
+            for(auto reg: caller_save_iregs) {
+                caller_saved_regs_stack_offset -= 8;
+                auto regbase = new IRIA(static_cast<int>(RISCV::GPR::sp), cur_tmp_reg_saved_stack_offset + caller_saved_regs_stack_offset);
+                caller_saved_ireg_locs[reg] = regbase;
+                to_store_iregs.push_back(std::make_pair(new IRA(reg), regbase));
+            }
+            for(auto reg: caller_save_fregs) {
+                caller_saved_regs_stack_offset -= 8;
+                auto regbase = new IRIA(static_cast<int>(RISCV::GPR::sp), cur_tmp_reg_saved_stack_offset + caller_saved_regs_stack_offset);
+                caller_saved_freg_locs[reg] = regbase;
+                to_store_fregs.push_back(std::make_pair(new FRA(reg), regbase));
+            }
+
+            if(! to_store_iregs.empty())
+                sequence->createCallerSaveRegs(to_store_iregs);
+
+            if(! to_store_fregs.empty())
+                sequence->createCallerSaveRegs(to_store_fregs);
+
+
+
+            //************************************调用前，保存caller寄存器************************
+
+            std::vector<std::pair<AddressMode*, AddressMode*>> to_move_fargs = caller_fargs_move(call_inst);
+            std::vector<std::pair<AddressMode*, AddressMode*>> to_move_iargs = caller_iargs_move(call_inst);
+
+            if(!to_move_fargs.empty() || !to_move_iargs.empty())
+                sequence->createCallerParaPass( to_move_iargs, to_move_fargs);
+
+            int extra_stack_offset = caller_trans_args_stack_offset + cur_tmp_reg_saved_stack_offset + caller_saved_regs_stack_offset; 
+            
+            if(extra_stack_offset != 0) 
+                sequence->createCalleeStackFrameExpand(extra_stack_offset);
+            
+            call_inst->accept(*this);
+            
+            if(extra_stack_offset != 0) 
+                sequence->createCalleeStackFrameShrink(-extra_stack_offset);
+            
+       
+            //************************************调用后，恢复caller寄存器******************************
+            std::vector<std::pair<IRA*, IRIA*>> to_restore_iregs;
+            std::vector<std::pair<FRA*, IRIA*>> to_restore_fregs;
+
+            for(auto &[freg, loc]: caller_saved_freg_locs) {
+                to_restore_fregs.push_back(std::make_pair(new FRA(freg), loc));    
+            }
+            for(auto &[ireg, loc]: caller_saved_ireg_locs) {
+                to_restore_iregs.push_back(std::make_pair(new IRA(ireg), loc)); 
+            }
+            caller_saved_regs_stack_offset = 0;
+
+            if(! to_restore_fregs.empty())
+                sequence->createCallerRestoreRegs(to_restore_fregs);
+
+
+            if(! to_restore_iregs.empty())
+                sequence->createCallerRestoreRegs(to_restore_iregs);
+         
+
+            //************************************调用后，恢复caller寄存器******************************
+
+            
+            caller_trans_args_stack_offset = 0;
+        } else if(!inst->isPhi()) {
+            
+            //*************************************为指令分配临时寄存器************************
+            istore_list.clear();
+            fstore_list.clear();
+            use_tmp_regs_interval.clear();
+            std::set<int> inst_ireg_id_set;
+            std::set<int> inst_freg_id_set;
+            std::set<int> used_tmp_iregs;
+            std::set<int> used_tmp_fregs;
+            to_store_ivals.clear();
+            to_store_fvals.clear();
+
+            std::set<Value*> to_ld_ival_set;
+            std::set<Value*> to_ld_fval_set;
+
+            std::vector<std::pair<IRA*, IRIA*>> to_store_iregs;
+            std::vector<std::pair<IRA*, IRIA*>> to_ld_iregs;
+
+            std::vector<std::pair<FRA*, IRIA*>> to_store_fregs;
+            std::vector<std::pair<FRA*, IRIA*>> to_ld_fregs;
+
+            for(auto opr: inst->getOperands()) {
+                if(dynamic_cast<Constant*>(opr) ||
+                dynamic_cast<BasicBlock*>(opr) ||
+                dynamic_cast<GlobalVariable*>(opr) ||
+                dynamic_cast<AllocaInst*>(opr)) {
+                    continue;
+                }
+                if(opr->getType()->isFloatType()) {
+                    if(fval2interval[opr]->reg_id >= 0) {
+                        inst_freg_id_set.insert(fval2interval[opr]->reg_id);
+                    } 
+                } else {
+                    if(ival2interval[opr]->reg_id >= 0) {
+                        inst_ireg_id_set.insert(ival2interval[opr]->reg_id);
+                    } 
+                }
+            }
+
+            //& finding a register to store the result for an instruction
+            if(!inst->isVoid() && !dynamic_cast<AllocaInst*>(inst)) {
+                if(inst->getType()->isFloatType()) {
+                    auto reg_interval = fval2interval[inst];
+                    if(reg_interval->reg_id < 0) {
+                        if(!cur_tmp_fregs.empty()) {
+                            reg_interval->reg_id = *cur_tmp_fregs.begin();
+                            cur_tmp_fregs.erase(reg_interval->reg_id);
+                            used_tmp_fregs.insert(reg_interval->reg_id);
+                        } else {
+                            for(auto freg: all_available_freg_ids) {
+                                if(inst_freg_id_set.find(freg) == inst_freg_id_set.end()) {
+                                    reg_interval->reg_id = freg;
+                                    fstore_list.insert(freg);
+                                    break;
+                                }
+                            }
+                        }
+                        use_tmp_regs_interval.insert(reg_interval);
+                        to_store_fvals.insert(inst);
+                    } 
+                    inst_freg_id_set.insert(reg_interval->reg_id);
+                    if(reg_interval->reg_id < 0) {}
+                     //   LOG(ERROR) << "在为指令生成代码时分配临时寄存器出现异常";
+                } else {
+                    auto reg_interval = ival2interval[inst];
+                    if(reg_interval->reg_id < 0) {
+                        if(!cur_tmp_iregs.empty()) {
+                            reg_interval->reg_id = *cur_tmp_iregs.begin();
+                            cur_tmp_iregs.erase(reg_interval->reg_id);
+                            used_tmp_iregs.insert(reg_interval->reg_id);
+                        } else {
+                            for(auto ireg: all_available_ireg_ids) {
+                                if(inst_ireg_id_set.find(ireg) == inst_ireg_id_set.end()) {
+                                    reg_interval->reg_id = ireg;
+                                    istore_list.insert(ireg);
+                                    break;
+                                }
+                            }
+                        }
+                        use_tmp_regs_interval.insert(reg_interval);
+                        to_store_ivals.insert(inst);
+                    } 
+                    inst_ireg_id_set.insert(reg_interval->reg_id);
+                    if(reg_interval->reg_id < 0) {}
+                     //   LOG(ERROR) << "在为指令生成代码时分配临时寄存器出现异常";
+                }
+            }
+
+            //& finding registers for the operands of an instruction
+            for(auto opr: inst->getOperands()) {
+                if(dynamic_cast<Constant*>(opr) ||
+                dynamic_cast<BasicBlock*>(opr) ||
+                dynamic_cast<GlobalVariable*>(opr) ||
+                dynamic_cast<AllocaInst*>(opr)) {
+                    continue;
+                }
+
+                if(opr->getType()->isFloatType()) {
+                    auto reg_interval = fval2interval[opr];
+                    if(reg_interval->reg_id < 0) {
+                        if(!cur_tmp_fregs.empty()) {
+                            reg_interval->reg_id = *cur_tmp_fregs.begin();
+                            cur_tmp_fregs.erase(reg_interval->reg_id);
+                            used_tmp_fregs.insert(reg_interval->reg_id);
+                            inst_freg_id_set.insert(reg_interval->reg_id);
+                        } else {
+                            for(auto freg: all_available_freg_ids) {
+                                if(inst_freg_id_set.find(freg) == inst_freg_id_set.end()) {
+                                    reg_interval->reg_id = freg;
+                                    fstore_list.insert(freg);
+                                    inst_freg_id_set.insert(freg);
+                                    break;
+                                }
+                            }
+                        }
+                        to_ld_fval_set.insert(opr);
+                        use_tmp_regs_interval.insert(reg_interval);
+                    } 
+                    if(reg_interval->reg_id < 0) {}
+                       // LOG(ERROR) << "在为指令生成代码时分配临时寄存器出现异常";
+                } else {
+                    auto reg_interval = ival2interval[opr];
+                    if(reg_interval->reg_id < 0) {
+                        if(!cur_tmp_iregs.empty()) {
+                            reg_interval->reg_id = *cur_tmp_iregs.begin();
+                            cur_tmp_iregs.erase(reg_interval->reg_id);
+                            used_tmp_iregs.insert(reg_interval->reg_id);
+                            inst_ireg_id_set.insert(reg_interval->reg_id);
+                        } else {
+                            for(auto ireg: all_available_ireg_ids) {
+                                if(inst_ireg_id_set.find(ireg) == inst_ireg_id_set.end()) {
+                                    reg_interval->reg_id = ireg;
+                                    istore_list.insert(ireg);
+                                    inst_ireg_id_set.insert(ireg);
+                                    break;
+                                }
+                            }
+                        }
+                        to_ld_ival_set.insert(opr);
+                        use_tmp_regs_interval.insert(reg_interval);
+                    } 
+                    if(reg_interval->reg_id < 0) {}
+                      //  LOG(ERROR) << "在为指令生成代码时分配临时寄存器出现异常";
+                }
+            }
+
+            //& store the origin values in tmp used regs
+            for(auto reg_id: istore_list) {
+                if(free_locs_for_tmp_regs_saved.empty()) {
+                    cur_tmp_reg_saved_stack_offset -= 8;
+                    IRIA* loc = new IRIA(static_cast<int>(RISCV::GPR::sp), cur_tmp_reg_saved_stack_offset);
+                    tmp_iregs_loc[reg_id] = loc;
+                    to_store_iregs.push_back(std::make_pair(new IRA(reg_id), loc));
+                } else {
+                    IRIA* loc = *free_locs_for_tmp_regs_saved.begin();
+                    free_locs_for_tmp_regs_saved.erase(free_locs_for_tmp_regs_saved.begin());
+                    tmp_iregs_loc[reg_id] = loc;
+                    to_store_iregs.push_back(std::make_pair(new IRA(reg_id), loc));
+                }
+                cur_tmp_iregs.insert(reg_id);
+            }
+
+            for(auto reg_id: fstore_list) {
+                if(free_locs_for_tmp_regs_saved.empty()) {
+                    cur_tmp_reg_saved_stack_offset -= 8;
+                    IRIA* loc = new IRIA(static_cast<int>(RISCV::GPR::sp), cur_tmp_reg_saved_stack_offset);
+                    tmp_fregs_loc[reg_id] = loc;
+                    to_store_fregs.push_back(std::make_pair(new FRA(reg_id), loc));
+                } else {
+                    IRIA* loc = *free_locs_for_tmp_regs_saved.begin();
+                    free_locs_for_tmp_regs_saved.erase(free_locs_for_tmp_regs_saved.begin());
+                    tmp_fregs_loc[reg_id] = loc;
+                    to_store_fregs.push_back(std::make_pair(new FRA(reg_id), loc));
+                }
+                cur_tmp_fregs.insert(reg_id);
+            }
+
+            for(auto tmp_freg: used_tmp_fregs) {
+                cur_tmp_fregs.insert(tmp_freg);
+            }
+
+            for(auto tmp_ireg: used_tmp_iregs) {
+                cur_tmp_iregs.insert(tmp_ireg);
+            }
+
+            //& load the vals on stack
+            for(auto fval: to_ld_fval_set) {
+                IRIA *reg_base = val2stack[fval];
+                to_ld_fregs.push_back(std::make_pair(new FRA(fval2interval[fval]->reg_id), reg_base));
+            }
+
+            for(auto ival: to_ld_ival_set) {
+                IRIA *reg_base = val2stack[ival];
+                to_ld_iregs.push_back(std::make_pair(new IRA(ival2interval[ival]->reg_id), reg_base));
+            }
+
+            if(! to_ld_iregs.empty() || !to_store_iregs.empty())
+                sequence->createAllocaTmpRegs(to_ld_iregs, to_store_iregs );
+
+            if(! to_ld_fregs.empty() || !to_store_fregs.empty())
+                sequence->createAllocaTmpRegs(to_ld_fregs, to_store_fregs );
+            //*************************************为指令分配临时寄存器************************
+
+            inst->accept(*this);
+            
+            //**********************************存储临时寄存器的值到栈中***********************
+   
+             std::vector<std::pair<IRA*, IRIA*>> to_store_iregs__;
+             std::vector<std::pair<FRA*, IRIA*>> to_store_fregs__;
+             
+             if(!to_store_ivals.empty()) {
+                 for(auto ival: to_store_ivals) {
+                     IRIA *regbase = val2stack[ival];
+                     to_store_iregs__.push_back(std::make_pair(new IRA(ival2interval[ival]->reg_id), regbase));
+                 }   
+                 to_store_ivals.clear();
+             } 
+             if(!to_store_fvals.empty()) {
+                 for(auto fval: to_store_fvals) {
+                     IRIA *regbase = val2stack[fval];
+                     to_store_fregs__.push_back(std::make_pair(new FRA(fval2interval[fval]->reg_id), regbase));
+                 }
+                 to_store_fvals.clear();
+             }
+             
+             for(auto inter: use_tmp_regs_interval) {
+                 inter->reg_id = -1;
+             }
+             
+             to_store_ivals.clear();
+             to_store_fvals.clear();
+             use_tmp_regs_interval.clear();
+             
+             if(! to_store_iregs__.empty())
+                 sequence->createStoreTmpRegs(to_store_iregs__);
+             
+             if(! to_store_fregs__.empty())
+             sequence->createStoreTmpRegs(to_store_fregs__);
+
+            //**********************************存储临时寄存器的值到栈中***********************
+        } 
+}
+   
+    //********************************装载临时寄存器到指令********************
+ ld_tmp_regs_for_inst(br_inst);
+    //********************************装载临时寄存器到指令********************
+
+
+    if(br_inst->isRet()) {
+        br_inst->accept(*this);
+    } else {
+       
+        //*****************************处理phi**********************
+            PhiPass *succ_move_inst = nullptr;
+    PhiPass *fail_move_inst = nullptr;
+    PhiPass **move_inst;
+
+    AsmInst *succ_br_inst = nullptr;
+    AsmInst *fail_br_inst = nullptr;
+    
+
+    std::vector<AddressMode*> phi_itargets;
+    std::vector<AddressMode*> phi_isrcs;
+    std::vector<AddressMode*> phi_ftargets;
+    std::vector<AddressMode*> phi_fsrcs;
+
+    //& 保证寄存器地址的唯一性
+    std::map<int, AddressMode*> ireg2loc;
+    std::map<int, AddressMode*> freg2loc;
+
+    bool is_cmpbr = false;
+    bool is_fcmpbr = false;
+
+    BranchInst *br = dynamic_cast<BranchInst*>(br_inst); 
+    CmpBrInst *cmpbr = dynamic_cast<CmpBrInst*>(br_inst);
+    FCmpBrInst *fcmpbr = dynamic_cast<FCmpBrInst*>(br_inst);
+
+    BasicBlock *succ_bb = nullptr;
+    BasicBlock *fail_bb = nullptr;
+
+    bool have_succ_move = false;
+    bool have_fail_move = false;
+
+    tmp_regs_restore();
+
+    if(fcmpbr) {
+        is_fcmpbr = true;   
+        succ_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(2));
+        fail_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(3));
+    } else if(cmpbr) {
+        is_cmpbr = true;
+        succ_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(2));
+        fail_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(3));
+    } else {
+        if(br_inst->getNumOperands() == 1) {
+            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(0));
+        } else {
+            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(1));
+            fail_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(2));
+        }
+    }
+
+    for(auto sux: sequence->getBBOfSeq()->getSuccBasicBlocks()) {
+        bool is_succ_bb;
+        if(sux == succ_bb) {
+            is_succ_bb = true;
+            move_inst = &succ_move_inst;
+        } else {
+            is_succ_bb = false;
+            move_inst = &fail_move_inst;
+        }
+
+        phi_isrcs.clear();
+        phi_fsrcs.clear();
+        phi_itargets.clear();
+        phi_ftargets.clear();
+
+        for(auto inst: sux->getInstructions()) {
+            if(!inst->isPhi()) {
+                break;
+            }
+            Value *lst_val = nullptr;
+            if(inst->getType()->isFloatType()) {
+                int target_reg_id = fval2interval[inst]->reg_id;
+                AddressMode *target_loc_ptr = nullptr;
+                if(target_reg_id >= 0) {
+                    if(freg2loc.find(target_reg_id) == freg2loc.end()) 
+                        freg2loc.insert({target_reg_id, new FRA(target_reg_id)});
+                    target_loc_ptr = freg2loc[target_reg_id];
+                } else {
+                    target_loc_ptr = val2stack[inst];
+                }
+                for(auto opr: inst->getOperands()) {
+                    if(dynamic_cast<BasicBlock*>(opr)) {
+                        auto this_bb = dynamic_cast<BasicBlock*>(opr);
+                        if(this_bb != sequence->getBBOfSeq())
+                            continue;
+                        if(dynamic_cast<ConstantFP*>(lst_val)) {
+                            auto const_val = dynamic_cast<ConstantFP*>(lst_val);
+                            auto src = new FConstPool(const_val->getValue());
+                            phi_fsrcs.push_back(src);
+                            phi_ftargets.push_back(target_loc_ptr);
+                        } else {
+                            int src_reg_id = fval2interval[lst_val]->reg_id;
+                            if(src_reg_id >= 0) {
+                                if(freg2loc.find(src_reg_id) == freg2loc.end())
+                                    freg2loc.insert({src_reg_id, new FRA(src_reg_id)});
+                                auto src = freg2loc[src_reg_id];
+                                phi_fsrcs.push_back(src);
+                                phi_ftargets.push_back(target_loc_ptr);
+                            } else {
+                                auto src = val2stack[lst_val];
+                                phi_fsrcs.push_back(src);
+                                phi_ftargets.push_back(target_loc_ptr);
+                            }
+                        }
+                    } else {
+                        if(opr == nullptr){}
+                            //LOG(ERROR) << "err";
+                        lst_val = opr;
+                    }
+                }
+            } else {
+                int target_reg_id = ival2interval[inst]->reg_id;
+                AddressMode *target_loc_ptr = nullptr;
+                if(target_reg_id >= 0) {
+                    if(ireg2loc.find(target_reg_id) == ireg2loc.end()) 
+                        ireg2loc.insert({target_reg_id, new IRA(target_reg_id)});
+                    target_loc_ptr = ireg2loc[target_reg_id];
+                } else {
+                    target_loc_ptr = val2stack[inst];
+                }
+                for(auto opr: inst->getOperands()) {
+                    if(dynamic_cast<BasicBlock*>(opr)) {
+                        auto this_bb = dynamic_cast<BasicBlock*>(opr);
+                        if(this_bb != sequence->getBBOfSeq()) 
+                            continue;
+                        if(dynamic_cast<ConstantInt*>(lst_val)) {
+                            auto const_val = dynamic_cast<ConstantInt*>(lst_val);
+                            auto src = new IConstPool(const_val->getValue());
+                            phi_isrcs.push_back(src);
+                            phi_itargets.push_back(target_loc_ptr);
+                        } else {
+                            int src_reg_id = ival2interval[lst_val]->reg_id;
+                            if(src_reg_id >= 0) {
+                                if(ireg2loc.find(src_reg_id) == ireg2loc.end()) 
+                                    ireg2loc.insert({src_reg_id, new IRA(src_reg_id)});
+                                auto src = ireg2loc[src_reg_id];
+                                phi_isrcs.push_back(src);
+                                phi_itargets.push_back(target_loc_ptr);
+                            } else {
+                                auto src = val2stack[lst_val];
+                                phi_isrcs.push_back(src);
+                                phi_itargets.push_back(target_loc_ptr);
+                            }
+                        }
+                    } else {
+                        lst_val = opr;
+                    }
+                }
+            }
+
+
+        }
+
+        std::vector<std::pair<AddressMode*, AddressMode*>> to_move_ilocs;
+        std::vector<std::pair<AddressMode*, AddressMode*>> to_move_flocs;
+
+        if(!phi_isrcs.empty()) {
+            to_move_ilocs = idata_move(phi_isrcs, phi_itargets);
+
+            if(is_succ_bb) {
+                have_succ_move = true;
+            } else {
+                have_fail_move = true;
+            }
+        }
+        if(!phi_fsrcs.empty()) {
+            to_move_flocs = fdata_move(phi_fsrcs, phi_ftargets);
+            if(is_succ_bb) {
+                have_succ_move = true;
+            } else {
+                have_fail_move = true;
+            }
+        }
+
+        if(! to_move_ilocs.empty() || ! to_move_flocs.empty()) {
+            *move_inst = sequence->createPhiPass(to_move_ilocs, to_move_flocs);
+            sequence->deleteInst();
+        }
+    }
+
+    if(fcmpbr) {
+        is_fcmpbr = true;   
+        auto cond1 = fcmpbr->getOperand(0);
+        auto cond2 = fcmpbr->getOperand(1);
+        auto cmp_op = fcmpbr->getCmpOp();
+        succ_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(2));
+        fail_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(3));
+        auto const_cond1 = dynamic_cast<ConstantFP*>(cond1);
+        auto const_cond2 = dynamic_cast<ConstantFP*>(cond2);
+
+        switch(cmp_op) {
+            case CmpOp::EQ: {
+                    //& 为了避免修改控制流可能造成的问题，不采取化简
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createFBeq(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                
+                    } else if(const_cond1) {
+                        if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBeq(new FConst(const_cond1->getValue()), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBeq(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBeq(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createFBeq(new Mem(regbase1->getOffset(), static_cast<int>(regbase1->getReg()) ), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBeq(getAllocaReg(cond1), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBeq(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();
+                }
+                break;
+
+            case CmpOp::GE: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createFBge(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                     
+                    } else if(const_cond1) {
+                        if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBge(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBge(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBge(new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBge(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createFBge(new Mem(regbase1->getOffset(), static_cast<int>( regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBge(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBge(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBge(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();
+                }
+                break;
+            case CmpOp::GT: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createFBgt(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                     
+                    } else if(const_cond1) {
+                        if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBgt(new FConst(const_cond1->getValue()), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBgt(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBgt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBgt(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createFBgt(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBgt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBgt(getAllocaReg(cond1), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBgt(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();
+                }
+                break; 
+
+            case CmpOp::LE: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createFBle(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                     
+                    } else if(const_cond1) {
+                        if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBle(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBle(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBle(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBle(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createFBle(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBle(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBle(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBle(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();
+                }
+                break;
+            
+            case CmpOp::LT: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createFBlt(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                     
+                    } else if(const_cond1) {
+                        if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBlt(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBlt(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBlt(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createFBlt(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBlt(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBlt(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();
+                }
+                break;
+
+            case CmpOp::NE: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createFBne(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                     
+                    } else if(const_cond1) {
+                        if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBne(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBne(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBne(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createFBne(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBne(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBne(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();
+                }
+                break; 
+
+            default:
+                break;
+        }
+    } else if(cmpbr) {
+        is_cmpbr = true;
+        auto cond1 = cmpbr->getOperand(0);
+        auto cond2 = cmpbr->getOperand(1);
+        auto cmp_op = cmpbr->getCmpOp();
+        succ_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(2));
+        fail_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(3));
+        auto const_cond1 = dynamic_cast<ConstantInt*>(cond1);
+        auto const_cond2 = dynamic_cast<ConstantInt*>(cond2);
+
+        switch(cmp_op) {
+            case CmpOp::EQ: {
+                    //& 为了避免修改控制流可能造成的问题，不采取化简
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createBeq(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                  
+                    } else if(const_cond1) {
+                        if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBeq(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBeq(new IConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBeq(getAllocaReg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createBeq(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBeq(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBeq(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();  
+                }
+                break;
+
+            case CmpOp::GE: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createBge(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                  
+                    } else if(const_cond1) {
+                        if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBge(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBge(new IConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBge(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBge(getAllocaReg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createBge(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBge(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBge(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBge(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();  
+                }
+                break;
+            case CmpOp::GT: {}
+                //LOG(ERROR) << "phi union出现异常";
+                break; 
+
+            case CmpOp::LE: {}
+               // LOG(ERROR) << "phi union出现异常";
+                break;
+            
+            case CmpOp::LT: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createBlt(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                  
+                    } else if(const_cond1) {
+                        if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBlt(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBlt(new IConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBlt(getAllocaReg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createBlt(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBlt(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBlt(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();  
+                }
+                break;
+
+            case CmpOp::NE: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createBne(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                  
+                    } else if(const_cond1) {
+                        if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBne(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBne(new IConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBne(getAllocaReg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createBne(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBne(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBne(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();  
+                }
+                break;
+
+            default:
+                break;
+        }
+    } else {
+        if(br_inst->getNumOperands() == 1) {
+            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(0));
+            succ_br_inst = sequence->createJump(bb2label[succ_bb]);
+            sequence->deleteInst();
+        } else {
+            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(1));
+            fail_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(2));
+            auto cond = br_inst->getOperand(0);
+            auto const_cond = dynamic_cast<ConstantInt*>(cond);
+            if(const_cond) {
+                succ_br_inst = sequence->createBne(new IConst(const_cond->getValue()), new GReg(static_cast<int>(RISCV::GPR::zero)), bb2label[succ_bb]);
+                sequence->deleteInst();
+            } else if(ival2interval[cond]->reg_id < 0) {
+                auto regbase = val2stack[cond];
+                succ_br_inst = sequence->createBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new GReg(static_cast<int>(RISCV::GPR::zero)), bb2label[succ_bb]);
+                sequence->deleteInst();
+            } else {
+                succ_br_inst = sequence->createBne(getAllocaReg(cond), new GReg(static_cast<int>(RISCV::GPR::zero)), bb2label[succ_bb]);
+                sequence->deleteInst();
+            }
+            fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+            sequence->deleteInst();
+        }
+    }
+
+    if(is_fcmpbr) {
+        if(have_succ_move) {}
+            //LOG(ERROR) << "出现未预期情况";
+        if(succ_br_inst)
+            sequence->appendInst(succ_br_inst);
+        if(fail_move_inst)
+            sequence->appendInst(fail_move_inst);
+        if(fail_br_inst)
+            sequence->appendInst(fail_br_inst);
+        
+    } else if(is_cmpbr) {
+        if(have_succ_move) {}
+        //    LOG(ERROR) << "出现未预期情况";
+
+        if(succ_br_inst)
+            sequence->appendInst(succ_br_inst);
+        if(fail_move_inst)
+            sequence->appendInst(fail_move_inst);
+        if(fail_br_inst)
+            sequence->appendInst(fail_br_inst);
+
+    } else {
+        if(br_inst->getNumOperands() == 1) {
+            if(succ_move_inst)
+                sequence->appendInst(succ_move_inst);
+            if(succ_br_inst)
+                sequence->appendInst(succ_br_inst);
+
+        } else {
+            if(have_succ_move) {}
+               // LOG(ERROR) << "出现未预期情况";
+
+            if(succ_br_inst)
+                sequence->appendInst(succ_br_inst);
+            if(fail_move_inst)
+                sequence->appendInst(fail_move_inst);
+            if(fail_br_inst)
+                sequence->appendInst(fail_br_inst);
+        }
+    }
+
+        //*****************************处理phi**********************
+    }
+}
+
+
+void AsmGen::visit(BinaryInst &node){
+    auto inst = &node;
+    auto pair = b_inst_gen_map.find(node.getInstrType());
+    if(pair==b_inst_gen_map.end()) return;
+    pair->second(inst);
+    
+}
+
+void AsmGen::visit(CmpInst &node){
+    auto inst = &node;
+    auto pair = cmp_inst_gen_map.find(node.getCmpOp());
+    if(pair==cmp_inst_gen_map.end()) return;
+    pair->second(inst);
+}
+
+void AsmGen::visit(FCmpInst &node){
+    auto inst = &node;
+    auto pair = fcmp_inst_gen_map.find(node.getCmpOp());
+    if(pair==fcmp_inst_gen_map.end()) return;
+    pair->second(inst);
+}
+
+void AsmGen::visit(CallInst &node){
+    auto inst = &node;
+    auto target_func = dynamic_cast<Function*>(inst->getOperand(0));
+    ::std::string target_func_name = target_func->getName();
+    sequence->createCall(new Label(target_func_name));
+    if(target_func->getReturnType()->isVoidType()) return;
+    else{
+        if(target_func->getReturnType()->isFloatType()) {
+            if(fval2interval.find(inst) != fval2interval.end()) {
+                auto frs = new FReg(static_cast<int>(RISCV::FPR::fa0));
+                if(fval2interval[inst]->reg_id >= 0) {
+                    auto rd = new FRA(static_cast<int>(dynamic_cast<FReg*>( getAllocaReg(inst))->getID()) );
+                    sequence->createCallerSaveResult(frs, rd);
+                } else {
+                    sequence->createCallerSaveResult(frs, val2stack[inst]);
+             }
+            } 
+        } else {
+            if(ival2interval.find(inst) != ival2interval.end()) {
+                auto irs = new GReg(static_cast<int>(RISCV::GPR::a0));
+                if(ival2interval[inst]->reg_id >= 0) {
+                    auto rd = new IRA(static_cast<int>(dynamic_cast<GReg*>( getAllocaReg(inst))->getID()) );
+                    sequence->createCallerSaveResult(irs, rd);
+                } else {
+                    sequence->createCallerSaveResult(irs, val2stack[inst]);
+                }
+            }
+        }
+    } 
+}
+
+void AsmGen::visit(BranchInst &node){
+    //结束
+}
+
+void AsmGen::visit(ReturnInst &node){
+    auto inst = &node;
+    if(!inst->getOperands().empty()) {
+        auto ret_val = inst->getOperand(0);
+        if(ret_val->getType()->isFloatType()) {
+            auto fconst_ret_val = dynamic_cast<ConstantFP*>(ret_val);
+            auto frs = new FRA(static_cast<int>(RISCV::FPR::fa0));
+            if(fconst_ret_val) {
+                auto dst = new FConst(fconst_ret_val->getValue());
+                sequence->createCalleeSaveResult(frs, dst);
+            }   
+            else {
+                if(fval2interval[ret_val]->reg_id >= 0) {
+                    auto dst_reg = getAllocaReg(ret_val);
+                    sequence->createCalleeSaveResult(frs, dst_reg);
+                } else {
+                    auto dst_mem = new Mem(val2stack[ret_val]->getOffset(), static_cast<int>(val2stack[ret_val]->getReg()));
+                    sequence->createCalleeSaveResult(frs, dst_mem);
+                }     
+            }
+        } 
+        else {
+            auto iconst_ret_val = dynamic_cast<ConstantInt*>(ret_val);
+            auto irs = new IRA(static_cast<int>(RISCV::GPR::a0));
+            if(iconst_ret_val) {
+                auto dst = new IConst(iconst_ret_val->getValue());
+                sequence->createCalleeSaveResult(irs, dst);
+            } else {
+                if(ival2interval[ret_val]->reg_id >= 0) {
+                    auto dst_reg = getAllocaReg(ret_val);
+                    sequence->createCalleeSaveResult(irs, dst_reg);
+                    
+                } else {
+                    auto dst_mem = new Mem( val2stack[ret_val]->getOffset(), static_cast<int>(val2stack[ret_val]->getReg()));
+                    sequence->createCalleeSaveResult(irs, dst_mem);
+                }      
+            }
+        }
+    }
+}   
+
+void AsmGen::visit(GetElementPtrInst &node){
+    auto inst = &node;
+    auto base = inst->getOperand(0);
+    auto global_base = dynamic_cast<GlobalVariable*>(base);
+    auto alloca_base = dynamic_cast<AllocaInst*>(base);
+    auto arg_base = dynamic_cast<Argument*>(base);
+    if(global_base) {
+        auto addr = global_variable_labels_table[global_base];
+        auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
+        sequence->createLa(rd, addr);
+    } 
+    else if(alloca_base) {
+        auto addr = val2stack[base];
+        auto rs1 = new GReg(static_cast<int>(addr->getReg()));
+        auto rs2 = new IConst(addr->getOffset());
+        auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
+        sequence->createAdd(rd, rs1, rs2);
+    } 
+    else{
+        auto rs = dynamic_cast<GReg*>( getAllocaReg(base));
+        auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
+        sequence->createMv(rd, rs);
+    }
+}
+
+void AsmGen::visit(StoreInst &node){
+    auto inst = &node;
+    auto dst = global_variable_labels_table[dynamic_cast<GlobalVariable*>(inst->getOperand(1))];
+    if(dynamic_cast<GlobalVariable*>(inst->getOperand(1))) {
+        if(dynamic_cast<GlobalVariable*>(inst->getOperand(1))->getType()->getPointerElementType()->isFloatType()) {
+            auto frs1 = dynamic_cast<FConst*>(getFRS1(inst))?dynamic_cast<FConst*>(getFRS1(inst)):getFRS1(inst);
+            sequence->createFsw_label(frs1, dst);
+        } 
+        else {
+            auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+            sequence->createSw_label(irs1, dst);     
+        }
+    }
+}
+
+void AsmGen::visit(MemsetInst &node){
+    //结束
+}
+
+void AsmGen::visit(LoadInst &node){
+    auto inst = &node;
+    auto dst = global_variable_labels_table[dynamic_cast<GlobalVariable*>(inst->getOperand(0))];
+    if(dynamic_cast<GlobalVariable*>(inst->getOperand(0))) {
+        if(dynamic_cast<GlobalVariable*>(inst->getOperand(0))->getType()->getPointerElementType()->isFloatType()) {
+            auto frs = dynamic_cast<FReg*>(getAllocaReg(inst));
+            sequence->createFlw_label(frs , dst);
+        } else {
+            auto irs = dynamic_cast<GReg*>(getAllocaReg(inst));
+            sequence->createLw_label(irs , dst);
+        }
+    }
+}
+
+void AsmGen::visit(AllocaInst &node){
+    //结束
+}
+
+void AsmGen::visit(ZextInst &node){
+    auto inst = &node;
+    auto rd = dynamic_cast<GReg*>(getAllocaReg(inst));
+    auto rs = dynamic_cast<GReg*>(getAllocaReg(inst->getOperand(0)));
+    sequence->createZext(rd, rs);
+}
+
+void AsmGen::visit(SiToFpInst &node){
+    auto inst = &node;
+    auto frd = getFRD(inst);
+    auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+    sequence->createFcvt_s_w(frd , irs1);
+
+}
+
+void AsmGen::visit(FpToSiInst &node){
+    auto inst = &node;
+    auto grd = getGRD(inst);
+    auto frs1 = dynamic_cast<FConst*>(getFRS1(inst))?dynamic_cast<FConst*>(getFRS1(inst)):getFRS1(inst);
+    sequence->createFcvt_w_s(grd, frs1);
+}
+
+void AsmGen::visit(PhiInst &node){
+    //结束
+}
+
+void AsmGen::visit(CmpBrInst &node){
+    //结束
+}
+
+void AsmGen::visit(FCmpBrInst &node){
+    //结束
+}
+
+void AsmGen::visit(LoadOffsetInst &node){
+    auto inst = &node;
+    auto rs1 = dynamic_cast<GReg*>(getAllocaReg(inst->getOperand(0)));
+    auto rs2 = dynamic_cast<ConstantInt*>(inst->getOffset())?new IConst(dynamic_cast<ConstantInt*>(inst->getOffset())->getValue()):getAllocaReg(inst->getOffset());
+    if(inst->getLoadType()->isFloatType()) {
+        auto frd = getFRD(inst);
+        sequence->createFlw(frd, rs1, rs2);
+    } else {
+        auto grd = getGRD(inst);
+        sequence->createLw(grd, rs1, rs2);
+    }
+}
+
+void AsmGen::visit(StoreOffsetInst &node){
+    auto inst = &node;
+    auto base = dynamic_cast<GReg*>(getAllocaReg(inst->getOperand(1)));
+    auto offset = dynamic_cast<ConstantInt*>(inst->getOffset())?new IConst(dynamic_cast<ConstantInt*>(inst->getOffset())->getValue()):getAllocaReg(inst->getOffset());
+    if(inst->getStoreType()->isFloatType()) {
+        auto src = dynamic_cast<ConstantFP*>(inst->getOperand(0))?new FConst(dynamic_cast<ConstantFP*>(inst->getOperand(0))->getValue()):getAllocaReg(inst->getOperand(0));
+        sequence->createFsw(src, base, offset);
+    } else {
+        auto src = dynamic_cast<ConstantInt*>(inst->getOperand(0))?new IConst(dynamic_cast<ConstantInt*>(inst->getOperand(0))->getValue()):getAllocaReg(inst->getOperand(0));
+        sequence->createSw(src, base, offset);
+    }
+}
+
+void AsmGen::visitAdd(BinaryInst* inst){
+    auto ird = getGRD(inst);
+    auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+    auto irs2 = dynamic_cast<IConst*>(getIRS2(inst))?dynamic_cast<IConst*>(getIRS2(inst)):getIRS2(inst);
+    sequence->createAdd(ird, irs1, irs2);
+}
+
+void AsmGen::visitSub(BinaryInst* inst){
+    auto ird = getGRD(inst);
+    auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+    auto irs2 = dynamic_cast<IConst*>(getIRS2(inst))?dynamic_cast<IConst*>(getIRS2(inst)):getIRS2(inst);
+    sequence->createSubw(ird, irs1, irs2);
+}
+
+void AsmGen::visitMul(BinaryInst* inst){
+    auto ird = getGRD(inst);
+    auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+    auto irs2 = dynamic_cast<IConst*>(getIRS2(inst))?dynamic_cast<IConst*>(getIRS2(inst)):getIRS2(inst);
+    sequence->createMulw(ird, irs1, irs2);
+}
+
+void AsmGen::visitMul64(BinaryInst* inst){
+    auto ird = getGRD(inst);
+    auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+    auto irs2 = dynamic_cast<IConst*>(getIRS2(inst))?dynamic_cast<IConst*>(getIRS2(inst)):getIRS2(inst);
+    if(dynamic_cast<IConst*>(irs1) && dynamic_cast<IConst*>(irs2))
+        return ;
+    sequence->createMuld(ird, irs1, irs2);
+}
+
+void AsmGen::visitSDiv(BinaryInst* inst){
+    auto ird = getGRD(inst);
+    auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+    auto irs2 = dynamic_cast<IConst*>(getIRS2(inst))?dynamic_cast<IConst*>(getIRS2(inst)):getIRS2(inst);
+    sequence->createDivw(ird, irs1, irs2);
+}
+
+void AsmGen::visitSRem(BinaryInst* inst){
+    auto ird = getGRD(inst);
+    auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+    auto irs2 = dynamic_cast<IConst*>(getIRS2(inst))?dynamic_cast<IConst*>(getIRS2(inst)):getIRS2(inst);
+    sequence->createRemw(ird, irs1, irs2);
+}
+
+void AsmGen::visitAsr(BinaryInst* inst){
+    auto ird = getGRD(inst);
+    auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+    auto irs2 = dynamic_cast<IConst*>(getIRS2(inst));
+    sequence->createSraw(ird, irs1, irs2);
+}
+
+void AsmGen::visitShl(BinaryInst* inst){
+    auto ird = getGRD(inst);
+    auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+    auto irs2 = dynamic_cast<IConst*>(getIRS2(inst));
+    sequence->createSllw(ird, irs1, irs2);
+}
+
+void AsmGen::visitLsr(BinaryInst* inst){
+    auto ird = getGRD(inst);
+    auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+    auto irs2 = dynamic_cast<IConst*>(getIRS2(inst));
+    sequence->createSrlw(ird, irs1, irs2);
+}
+
+void AsmGen::visitAsr64(BinaryInst* inst){
+    auto ird = getGRD(inst);
+    auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+    auto irs2 = dynamic_cast<IConst*>(getIRS2(inst));
+    sequence->createSra(ird, irs1, irs2);
+}
+
+void AsmGen::visitShl64(BinaryInst* inst){
+    auto ird = getGRD(inst);
+    auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+    auto irs2 = dynamic_cast<IConst*>(getIRS2(inst));
+    sequence->createSll(ird, irs1, irs2);
+}
+
+void AsmGen::visitLsr64(BinaryInst* inst){
+    auto ird = getGRD(inst);
+    auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+    auto irs2 = dynamic_cast<IConst*>(getIRS2(inst));
+    sequence->createSrl(ird, irs1, irs2);
+}
+
+void AsmGen::visitLAnd(BinaryInst* inst){
+    auto ird = getGRD(inst);
+    auto irs1 = dynamic_cast<GReg*>(getIRS1(inst));
+    auto irs2 = dynamic_cast<IConst*>(getIRS2(inst));
+    sequence->createLand(ird, irs1, irs2);
+}
+
+void AsmGen::visitFAdd(BinaryInst* inst){
+    auto frd = getFRD(inst);
+    auto frs1 = dynamic_cast<FConst*>(getFRS1(inst))?dynamic_cast<FConst*>(getFRS1(inst)):getFRS1(inst);
+    auto frs2 = dynamic_cast<FConst*>(getFRS2(inst))?dynamic_cast<FConst*>(getFRS2(inst)):getFRS2(inst);
+    sequence->createFadd_s(frd, frs1, frs2);
+}
+
+void AsmGen::visitFSub(BinaryInst* inst){
+    auto frd = getFRD(inst);
+    auto frs1 = dynamic_cast<FConst*>(getFRS1(inst))?dynamic_cast<FConst*>(getFRS1(inst)):getFRS1(inst);
+    auto frs2 = dynamic_cast<FConst*>(getFRS2(inst))?dynamic_cast<FConst*>(getFRS2(inst)):getFRS2(inst);
+    sequence->createFsub_s(frd, frs1, frs2);
+}
+
+void AsmGen::visitFMul(BinaryInst* inst){
+    auto frd = getFRD(inst);
+    auto frs1 = dynamic_cast<FConst*>(getFRS1(inst))?dynamic_cast<FConst*>(getFRS1(inst)):getFRS1(inst);
+    auto frs2 = dynamic_cast<FConst*>(getFRS2(inst))?dynamic_cast<FConst*>(getFRS2(inst)):getFRS2(inst);
+    sequence->createFmul_s(frd, frs1, frs2);
+}
+
+void AsmGen::visitFDiv(BinaryInst* inst){
+    auto frd = getFRD(inst);
+    auto frs1 = dynamic_cast<FConst*>(getFRS1(inst))?dynamic_cast<FConst*>(getFRS1(inst)):getFRS1(inst);
+    auto frs2 = dynamic_cast<FConst*>(getFRS2(inst))?dynamic_cast<FConst*>(getFRS2(inst)):getFRS2(inst);
+    sequence->createFdiv_s(frd, frs1, frs2);
+}
+
+//！！！！！！！！！！！！！不考虑第二个操作数rs2！！！！！！！！！！！！
+void AsmGen::visitEQ(CmpInst* inst){
+    auto grd = getGRD(inst);
+    auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+    sequence->createSeqz(grd,irs1);
+}
+
+void AsmGen::visitNE(CmpInst* inst){
+    auto grd = getGRD(inst);
+    auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);
+    sequence->createSnez(grd,irs1);
+}
+
+void AsmGen::visitFEQ(FCmpInst* inst){
+    auto grd = getGRD(inst);
+    auto frs1 = dynamic_cast<FConst*>(getFRS1(inst))?dynamic_cast<FConst*>(getFRS1(inst)):getFRS1(inst);
+    auto frs2 = dynamic_cast<FConst*>(getFRS2(inst))?dynamic_cast<FConst*>(getFRS2(inst)):getFRS2(inst);
+    sequence->createFeq_s(grd, frs1, frs2);
+}
+
+void AsmGen::visitFGE(FCmpInst* inst){
+    auto grd = getGRD(inst);
+    auto frs1 = dynamic_cast<FConst*>(getFRS1(inst))?dynamic_cast<FConst*>(getFRS1(inst)):getFRS1(inst);
+    auto frs2 = dynamic_cast<FConst*>(getFRS2(inst))?dynamic_cast<FConst*>(getFRS2(inst)):getFRS2(inst);
+    sequence->createFge_s(grd, frs1, frs2);
+}
+
+void AsmGen::visitFGT(FCmpInst* inst){
+    auto grd = getGRD(inst);
+    auto frs1 = dynamic_cast<FConst*>(getFRS1(inst))?dynamic_cast<FConst*>(getFRS1(inst)):getFRS1(inst);
+    auto frs2 = dynamic_cast<FConst*>(getFRS2(inst))?dynamic_cast<FConst*>(getFRS2(inst)):getFRS2(inst);
+    sequence->createFgt_s(grd, frs1, frs2);
+}
+
+void AsmGen::visitFLE(FCmpInst* inst){
+    auto grd = getGRD(inst);
+    auto frs1 = dynamic_cast<FConst*>(getFRS1(inst))?dynamic_cast<FConst*>(getFRS1(inst)):getFRS1(inst);
+    auto frs2 = dynamic_cast<FConst*>(getFRS2(inst))?dynamic_cast<FConst*>(getFRS2(inst)):getFRS2(inst);
+    sequence->createFle_s(grd, frs1, frs2);
+}
+
+void AsmGen::visitFLT(FCmpInst* inst){
+    auto grd = getGRD(inst);
+    auto frs1 = dynamic_cast<FConst*>(getFRS1(inst))?dynamic_cast<FConst*>(getFRS1(inst)):getFRS1(inst);
+    auto frs2 = dynamic_cast<FConst*>(getFRS2(inst))?dynamic_cast<FConst*>(getFRS2(inst)):getFRS2(inst);
+    sequence->createFlt_s(grd, frs1, frs2);
+}
+
+void AsmGen::visitFNE(FCmpInst* inst){
+    auto grd = getGRD(inst);
+    auto frs1 = dynamic_cast<FConst*>(getFRS1(inst))?dynamic_cast<FConst*>(getFRS1(inst)):getFRS1(inst);
+    auto frs2 = dynamic_cast<FConst*>(getFRS2(inst))?dynamic_cast<FConst*>(getFRS2(inst)):getFRS2(inst);
+    sequence->createFne_s(grd, frs1, frs2);
+}
+
+
+
+
+
 
 
 //! 初赛测试中未出现寄存器移动loop的情况
@@ -1104,31 +1999,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::callee_fargs_move(Fun
     return to_move_locs;
 }
 
-void AsmGen::callee_stack_epilogue(int stack_size) {
 
-    std::vector<std::pair<IRA*, IRIA*>> to_load_iregs;
-    std::vector<std::pair<FRA*, IRIA*>> to_load_fregs;
-    
-    sequence->createCalleeStackFrameClear(stack_size);
-    
-    int num_of_all_restore_regs = used_iregs_pair.second.size() + used_fregs_pair.second.size();
-    int cur_offset = - reg_size * num_of_all_restore_regs;
-    if(!used_fregs_pair.second.empty()) {
-        for(auto iter = used_fregs_pair.second.rbegin(); iter != used_fregs_pair.second.rend(); iter++) {
-            to_load_fregs.push_back(std::make_pair(new FRA(*iter), new IRIA(static_cast<int>(RISCV::GPR::sp), cur_offset)));
-            cur_offset += reg_size; 
-        }
-    }
-    
-    if(!used_iregs_pair.second.empty()) {
-        for(auto iter = used_iregs_pair.second.rbegin(); iter != used_iregs_pair.second.rend(); iter++) {
-            to_load_iregs.push_back(std::make_pair(new IRA(*iter), new IRIA(static_cast<int>(RISCV::GPR::sp), cur_offset)));
-            cur_offset += reg_size; 
-        }
-    }
-    sequence->createCalleeRestoreRegs(to_load_iregs);
-    sequence->createCalleeRestoreRegs(to_load_fregs);
-}
 
 
 void AsmGen::ld_tmp_regs_for_inst(Instruction *inst) {
@@ -1221,57 +2092,6 @@ void AsmGen::ld_tmp_regs_for_inst(Instruction *inst) {
 }
 
 
-void AsmGen::caller_reg_store(Function* func, CallInst* call) {
-    caller_saved_ireg_locs.clear();
-    caller_saved_freg_locs.clear();
-    caller_save_iregs.clear();
-    caller_save_fregs.clear();
-
-    std::vector<std::pair<IRA*, IRIA*>> to_store_iregs;
-    std::vector<std::pair<FRA*, IRIA*>> to_store_fregs;
-
-    int call_inst_reg = -1;
-    bool is_float_call = call->getType()->isFloatType();
-    bool is_void_call = call->getType()->isVoidType();
-    bool is_int_call = !is_float_call && !is_void_call;
-
-    if(!is_void_call) {
-        if(is_float_call && fval2interval.find(call) != fval2interval.end()) {
-            call_inst_reg = fval2interval[call]->reg_id;
-        } else if(ival2interval.find(call) != ival2interval.end()) {
-            call_inst_reg = ival2interval[call]->reg_id;
-        }
-    }
-      
-    for(auto ireg: used_iregs_pair.first) {
-        if(is_int_call && ireg == call_inst_reg)
-            continue;
-        caller_save_iregs.push_back(ireg);
-    }
-    for(auto freg: used_fregs_pair.first) {
-        if(is_float_call && freg == call_inst_reg)
-            continue;
-        caller_save_fregs.push_back(freg);
-    }
-    for(auto reg: caller_save_iregs) {
-        caller_saved_regs_stack_offset -= 8;
-        auto regbase = new IRIA(static_cast<int>(RISCV::GPR::sp), cur_tmp_reg_saved_stack_offset + caller_saved_regs_stack_offset);
-        caller_saved_ireg_locs[reg] = regbase;
-        to_store_iregs.push_back(std::make_pair(new IRA(reg), regbase));
-    }
-    for(auto reg: caller_save_fregs) {
-        caller_saved_regs_stack_offset -= 8;
-        auto regbase = new IRIA(static_cast<int>(RISCV::GPR::sp), cur_tmp_reg_saved_stack_offset + caller_saved_regs_stack_offset);
-        caller_saved_freg_locs[reg] = regbase;
-        to_store_fregs.push_back(std::make_pair(new FRA(reg), regbase));
-    }
-    
-    if(! to_store_iregs.empty())
-        sequence->createCallerSaveRegs(to_store_iregs);
-
-    if(! to_store_fregs.empty())
-        sequence->createCallerSaveRegs(to_store_fregs);
-}
 
 
 //! 初赛测试中未出现一个寄存器向多个寄存器中移动的情况
@@ -1667,1010 +2487,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::caller_iargs_move(Cal
 }
 
 
-void AsmGen::alloc_tmp_regs_for_inst(Instruction *inst) {
-    istore_list.clear();
-    fstore_list.clear();
-    use_tmp_regs_interval.clear();
-    std::set<int> inst_ireg_id_set;
-    std::set<int> inst_freg_id_set;
-    std::set<int> used_tmp_iregs;
-    std::set<int> used_tmp_fregs;
-    to_store_ivals.clear();
-    to_store_fvals.clear();
 
-    std::set<Value*> to_ld_ival_set;
-    std::set<Value*> to_ld_fval_set;
-
-    std::vector<std::pair<IRA*, IRIA*>> to_store_iregs;
-    std::vector<std::pair<IRA*, IRIA*>> to_ld_iregs;
-
-    std::vector<std::pair<FRA*, IRIA*>> to_store_fregs;
-    std::vector<std::pair<FRA*, IRIA*>> to_ld_fregs;
-
-    for(auto opr: inst->getOperands()) {
-        if(dynamic_cast<Constant*>(opr) ||
-        dynamic_cast<BasicBlock*>(opr) ||
-        dynamic_cast<GlobalVariable*>(opr) ||
-        dynamic_cast<AllocaInst*>(opr)) {
-            continue;
-        }
-        if(opr->getType()->isFloatType()) {
-            if(fval2interval[opr]->reg_id >= 0) {
-                inst_freg_id_set.insert(fval2interval[opr]->reg_id);
-            } 
-        } else {
-            if(ival2interval[opr]->reg_id >= 0) {
-                inst_ireg_id_set.insert(ival2interval[opr]->reg_id);
-            } 
-        }
-    }
-
-    //& finding a register to store the result for an instruction
-    if(!inst->isVoid() && !dynamic_cast<AllocaInst*>(inst)) {
-        if(inst->getType()->isFloatType()) {
-            auto reg_interval = fval2interval[inst];
-            if(reg_interval->reg_id < 0) {
-                if(!cur_tmp_fregs.empty()) {
-                    reg_interval->reg_id = *cur_tmp_fregs.begin();
-                    cur_tmp_fregs.erase(reg_interval->reg_id);
-                    used_tmp_fregs.insert(reg_interval->reg_id);
-                } else {
-                    for(auto freg: all_available_freg_ids) {
-                        if(inst_freg_id_set.find(freg) == inst_freg_id_set.end()) {
-                            reg_interval->reg_id = freg;
-                            fstore_list.insert(freg);
-                            break;
-                        }
-                    }
-                }
-                use_tmp_regs_interval.insert(reg_interval);
-                to_store_fvals.insert(inst);
-            } 
-            inst_freg_id_set.insert(reg_interval->reg_id);
-            if(reg_interval->reg_id < 0) {}
-             //   LOG(ERROR) << "在为指令生成代码时分配临时寄存器出现异常";
-        } else {
-            auto reg_interval = ival2interval[inst];
-            if(reg_interval->reg_id < 0) {
-                if(!cur_tmp_iregs.empty()) {
-                    reg_interval->reg_id = *cur_tmp_iregs.begin();
-                    cur_tmp_iregs.erase(reg_interval->reg_id);
-                    used_tmp_iregs.insert(reg_interval->reg_id);
-                } else {
-                    for(auto ireg: all_available_ireg_ids) {
-                        if(inst_ireg_id_set.find(ireg) == inst_ireg_id_set.end()) {
-                            reg_interval->reg_id = ireg;
-                            istore_list.insert(ireg);
-                            break;
-                        }
-                    }
-                }
-                use_tmp_regs_interval.insert(reg_interval);
-                to_store_ivals.insert(inst);
-            } 
-            inst_ireg_id_set.insert(reg_interval->reg_id);
-            if(reg_interval->reg_id < 0) {}
-             //   LOG(ERROR) << "在为指令生成代码时分配临时寄存器出现异常";
-        }
-    }
-
-    //& finding registers for the operands of an instruction
-    for(auto opr: inst->getOperands()) {
-        if(dynamic_cast<Constant*>(opr) ||
-        dynamic_cast<BasicBlock*>(opr) ||
-        dynamic_cast<GlobalVariable*>(opr) ||
-        dynamic_cast<AllocaInst*>(opr)) {
-            continue;
-        }
-
-        if(opr->getType()->isFloatType()) {
-            auto reg_interval = fval2interval[opr];
-            if(reg_interval->reg_id < 0) {
-                if(!cur_tmp_fregs.empty()) {
-                    reg_interval->reg_id = *cur_tmp_fregs.begin();
-                    cur_tmp_fregs.erase(reg_interval->reg_id);
-                    used_tmp_fregs.insert(reg_interval->reg_id);
-                    inst_freg_id_set.insert(reg_interval->reg_id);
-                } else {
-                    for(auto freg: all_available_freg_ids) {
-                        if(inst_freg_id_set.find(freg) == inst_freg_id_set.end()) {
-                            reg_interval->reg_id = freg;
-                            fstore_list.insert(freg);
-                            inst_freg_id_set.insert(freg);
-                            break;
-                        }
-                    }
-                }
-                to_ld_fval_set.insert(opr);
-                use_tmp_regs_interval.insert(reg_interval);
-            } 
-            if(reg_interval->reg_id < 0) {}
-               // LOG(ERROR) << "在为指令生成代码时分配临时寄存器出现异常";
-        } else {
-            auto reg_interval = ival2interval[opr];
-            if(reg_interval->reg_id < 0) {
-                if(!cur_tmp_iregs.empty()) {
-                    reg_interval->reg_id = *cur_tmp_iregs.begin();
-                    cur_tmp_iregs.erase(reg_interval->reg_id);
-                    used_tmp_iregs.insert(reg_interval->reg_id);
-                    inst_ireg_id_set.insert(reg_interval->reg_id);
-                } else {
-                    for(auto ireg: all_available_ireg_ids) {
-                        if(inst_ireg_id_set.find(ireg) == inst_ireg_id_set.end()) {
-                            reg_interval->reg_id = ireg;
-                            istore_list.insert(ireg);
-                            inst_ireg_id_set.insert(ireg);
-                            break;
-                        }
-                    }
-                }
-                to_ld_ival_set.insert(opr);
-                use_tmp_regs_interval.insert(reg_interval);
-            } 
-            if(reg_interval->reg_id < 0) {}
-              //  LOG(ERROR) << "在为指令生成代码时分配临时寄存器出现异常";
-        }
-    }
-
-    //& store the origin values in tmp used regs
-    for(auto reg_id: istore_list) {
-        if(free_locs_for_tmp_regs_saved.empty()) {
-            cur_tmp_reg_saved_stack_offset -= 8;
-            IRIA* loc = new IRIA(static_cast<int>(RISCV::GPR::sp), cur_tmp_reg_saved_stack_offset);
-            tmp_iregs_loc[reg_id] = loc;
-            to_store_iregs.push_back(std::make_pair(new IRA(reg_id), loc));
-        } else {
-            IRIA* loc = *free_locs_for_tmp_regs_saved.begin();
-            free_locs_for_tmp_regs_saved.erase(free_locs_for_tmp_regs_saved.begin());
-            tmp_iregs_loc[reg_id] = loc;
-            to_store_iregs.push_back(std::make_pair(new IRA(reg_id), loc));
-        }
-        cur_tmp_iregs.insert(reg_id);
-    }
-
-    for(auto reg_id: fstore_list) {
-        if(free_locs_for_tmp_regs_saved.empty()) {
-            cur_tmp_reg_saved_stack_offset -= 8;
-            IRIA* loc = new IRIA(static_cast<int>(RISCV::GPR::sp), cur_tmp_reg_saved_stack_offset);
-            tmp_fregs_loc[reg_id] = loc;
-            to_store_fregs.push_back(std::make_pair(new FRA(reg_id), loc));
-        } else {
-            IRIA* loc = *free_locs_for_tmp_regs_saved.begin();
-            free_locs_for_tmp_regs_saved.erase(free_locs_for_tmp_regs_saved.begin());
-            tmp_fregs_loc[reg_id] = loc;
-            to_store_fregs.push_back(std::make_pair(new FRA(reg_id), loc));
-        }
-        cur_tmp_fregs.insert(reg_id);
-    }
-
-    for(auto tmp_freg: used_tmp_fregs) {
-        cur_tmp_fregs.insert(tmp_freg);
-    }
-
-    for(auto tmp_ireg: used_tmp_iregs) {
-        cur_tmp_iregs.insert(tmp_ireg);
-    }
-
-    //& load the vals on stack
-    for(auto fval: to_ld_fval_set) {
-        IRIA *reg_base = val2stack[fval];
-        to_ld_fregs.push_back(std::make_pair(new FRA(fval2interval[fval]->reg_id), reg_base));
-    }
-
-    for(auto ival: to_ld_ival_set) {
-        IRIA *reg_base = val2stack[ival];
-        to_ld_iregs.push_back(std::make_pair(new IRA(ival2interval[ival]->reg_id), reg_base));
-    }
-
-    if(! to_ld_iregs.empty() || !to_store_iregs.empty())
-        sequence->createAllocaTmpRegs(to_ld_iregs, to_store_iregs );
-
-    if(! to_ld_fregs.empty() || !to_store_fregs.empty())
-        sequence->createAllocaTmpRegs(to_ld_fregs, to_store_fregs );
-}
-
-void AsmGen::store_tmp_reg_for_inst(Instruction *inst) {
-    std::vector<std::pair<IRA*, IRIA*>> to_store_iregs;
-    std::vector<std::pair<FRA*, IRIA*>> to_store_fregs;
-
-    if(!to_store_ivals.empty()) {
-        for(auto ival: to_store_ivals) {
-            IRIA *regbase = val2stack[ival];
-            to_store_iregs.push_back(std::make_pair(new IRA(ival2interval[ival]->reg_id), regbase));
-        }   
-        to_store_ivals.clear();
-    } 
-    if(!to_store_fvals.empty()) {
-        for(auto fval: to_store_fvals) {
-            IRIA *regbase = val2stack[fval];
-            to_store_fregs.push_back(std::make_pair(new FRA(fval2interval[fval]->reg_id), regbase));
-        }
-        to_store_fvals.clear();
-    }
-
-    for(auto inter: use_tmp_regs_interval) {
-        inter->reg_id = -1;
-    }
-
-    to_store_ivals.clear();
-    to_store_fvals.clear();
-    use_tmp_regs_interval.clear();
-
-    if(! to_store_iregs.empty())
-        sequence->createStoreTmpRegs(to_store_iregs);
-
-    if(! to_store_fregs.empty())
-        sequence->createStoreTmpRegs(to_store_fregs);
-
-    
-}
-
-
-void AsmGen::caller_reg_restore(Function* func, CallInst* call) {
-    std::vector<std::pair<IRA*, IRIA*>> to_restore_iregs;
-    std::vector<std::pair<FRA*, IRIA*>> to_restore_fregs;
-
-    for(auto &[freg, loc]: caller_saved_freg_locs) {
-        to_restore_fregs.push_back(std::make_pair(new FRA(freg), loc));    
-    }
-    for(auto &[ireg, loc]: caller_saved_ireg_locs) {
-        to_restore_iregs.push_back(std::make_pair(new IRA(ireg), loc)); 
-    }
-    caller_saved_regs_stack_offset = 0;
-
-    if(! to_restore_fregs.empty())
-        sequence->createCallerRestoreRegs(to_restore_fregs);
-
-
-    if(! to_restore_iregs.empty())
-        sequence->createCallerRestoreRegs(to_restore_iregs);
-    return ;
-}
-
-void AsmGen::phi_union(Instruction *br_inst) {
-    
-    PhiPass *succ_move_inst = nullptr;
-    PhiPass *fail_move_inst = nullptr;
-    PhiPass **move_inst;
-
-    AsmInst *succ_br_inst = nullptr;
-    AsmInst *fail_br_inst = nullptr;
-    
-
-    std::vector<AddressMode*> phi_itargets;
-    std::vector<AddressMode*> phi_isrcs;
-    std::vector<AddressMode*> phi_ftargets;
-    std::vector<AddressMode*> phi_fsrcs;
-
-    //& 保证寄存器地址的唯一性
-    std::map<int, AddressMode*> ireg2loc;
-    std::map<int, AddressMode*> freg2loc;
-
-    bool is_cmpbr = false;
-    bool is_fcmpbr = false;
-
-    BranchInst *br = dynamic_cast<BranchInst*>(br_inst); 
-    CmpBrInst *cmpbr = dynamic_cast<CmpBrInst*>(br_inst);
-    FCmpBrInst *fcmpbr = dynamic_cast<FCmpBrInst*>(br_inst);
-
-    BasicBlock *succ_bb = nullptr;
-    BasicBlock *fail_bb = nullptr;
-
-    bool have_succ_move = false;
-    bool have_fail_move = false;
-
-    tmp_regs_restore();
-
-    if(fcmpbr) {
-        is_fcmpbr = true;   
-        succ_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(2));
-        fail_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(3));
-    } else if(cmpbr) {
-        is_cmpbr = true;
-        succ_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(2));
-        fail_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(3));
-    } else {
-        if(br_inst->getNumOperands() == 1) {
-            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(0));
-        } else {
-            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(1));
-            fail_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(2));
-        }
-    }
-
-    for(auto sux: sequence->getBBOfSeq()->getSuccBasicBlocks()) {
-        bool is_succ_bb;
-        if(sux == succ_bb) {
-            is_succ_bb = true;
-            move_inst = &succ_move_inst;
-        } else {
-            is_succ_bb = false;
-            move_inst = &fail_move_inst;
-        }
-
-        phi_isrcs.clear();
-        phi_fsrcs.clear();
-        phi_itargets.clear();
-        phi_ftargets.clear();
-
-        for(auto inst: sux->getInstructions()) {
-            if(!inst->isPhi()) {
-                break;
-            }
-            Value *lst_val = nullptr;
-            if(inst->getType()->isFloatType()) {
-                int target_reg_id = fval2interval[inst]->reg_id;
-                AddressMode *target_loc_ptr = nullptr;
-                if(target_reg_id >= 0) {
-                    if(freg2loc.find(target_reg_id) == freg2loc.end()) 
-                        freg2loc.insert({target_reg_id, new FRA(target_reg_id)});
-                    target_loc_ptr = freg2loc[target_reg_id];
-                } else {
-                    target_loc_ptr = val2stack[inst];
-                }
-                for(auto opr: inst->getOperands()) {
-                    if(dynamic_cast<BasicBlock*>(opr)) {
-                        auto this_bb = dynamic_cast<BasicBlock*>(opr);
-                        if(this_bb != sequence->getBBOfSeq())
-                            continue;
-                        if(dynamic_cast<ConstantFP*>(lst_val)) {
-                            auto const_val = dynamic_cast<ConstantFP*>(lst_val);
-                            auto src = new FConstPool(const_val->getValue());
-                            phi_fsrcs.push_back(src);
-                            phi_ftargets.push_back(target_loc_ptr);
-                        } else {
-                            int src_reg_id = fval2interval[lst_val]->reg_id;
-                            if(src_reg_id >= 0) {
-                                if(freg2loc.find(src_reg_id) == freg2loc.end())
-                                    freg2loc.insert({src_reg_id, new FRA(src_reg_id)});
-                                auto src = freg2loc[src_reg_id];
-                                phi_fsrcs.push_back(src);
-                                phi_ftargets.push_back(target_loc_ptr);
-                            } else {
-                                auto src = val2stack[lst_val];
-                                phi_fsrcs.push_back(src);
-                                phi_ftargets.push_back(target_loc_ptr);
-                            }
-                        }
-                    } else {
-                        if(opr == nullptr){}
-                            //LOG(ERROR) << "err";
-                        lst_val = opr;
-                    }
-                }
-            } else {
-                int target_reg_id = ival2interval[inst]->reg_id;
-                AddressMode *target_loc_ptr = nullptr;
-                if(target_reg_id >= 0) {
-                    if(ireg2loc.find(target_reg_id) == ireg2loc.end()) 
-                        ireg2loc.insert({target_reg_id, new IRA(target_reg_id)});
-                    target_loc_ptr = ireg2loc[target_reg_id];
-                } else {
-                    target_loc_ptr = val2stack[inst];
-                }
-                for(auto opr: inst->getOperands()) {
-                    if(dynamic_cast<BasicBlock*>(opr)) {
-                        auto this_bb = dynamic_cast<BasicBlock*>(opr);
-                        if(this_bb != sequence->getBBOfSeq()) 
-                            continue;
-                        if(dynamic_cast<ConstantInt*>(lst_val)) {
-                            auto const_val = dynamic_cast<ConstantInt*>(lst_val);
-                            auto src = new IConstPool(const_val->getValue());
-                            phi_isrcs.push_back(src);
-                            phi_itargets.push_back(target_loc_ptr);
-                        } else {
-                            int src_reg_id = ival2interval[lst_val]->reg_id;
-                            if(src_reg_id >= 0) {
-                                if(ireg2loc.find(src_reg_id) == ireg2loc.end()) 
-                                    ireg2loc.insert({src_reg_id, new IRA(src_reg_id)});
-                                auto src = ireg2loc[src_reg_id];
-                                phi_isrcs.push_back(src);
-                                phi_itargets.push_back(target_loc_ptr);
-                            } else {
-                                auto src = val2stack[lst_val];
-                                phi_isrcs.push_back(src);
-                                phi_itargets.push_back(target_loc_ptr);
-                            }
-                        }
-                    } else {
-                        lst_val = opr;
-                    }
-                }
-            }
-
-
-        }
-
-        std::vector<std::pair<AddressMode*, AddressMode*>> to_move_ilocs;
-        std::vector<std::pair<AddressMode*, AddressMode*>> to_move_flocs;
-
-        if(!phi_isrcs.empty()) {
-            to_move_ilocs = idata_move(phi_isrcs, phi_itargets);
-
-            if(is_succ_bb) {
-                have_succ_move = true;
-            } else {
-                have_fail_move = true;
-            }
-        }
-        if(!phi_fsrcs.empty()) {
-            to_move_flocs = fdata_move(phi_fsrcs, phi_ftargets);
-            if(is_succ_bb) {
-                have_succ_move = true;
-            } else {
-                have_fail_move = true;
-            }
-        }
-
-        if(! to_move_ilocs.empty() || ! to_move_flocs.empty()) {
-            *move_inst = sequence->createPhiPass(to_move_ilocs, to_move_flocs);
-            sequence->deleteInst();
-        }
-    }
-
-    if(fcmpbr) {
-        is_fcmpbr = true;   
-        auto cond1 = fcmpbr->getOperand(0);
-        auto cond2 = fcmpbr->getOperand(1);
-        auto cmp_op = fcmpbr->getCmpOp();
-        succ_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(2));
-        fail_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(3));
-        auto const_cond1 = dynamic_cast<ConstantFP*>(cond1);
-        auto const_cond2 = dynamic_cast<ConstantFP*>(cond2);
-
-        switch(cmp_op) {
-            case CmpOp::EQ: {
-                    //& 为了避免修改控制流可能造成的问题，不采取化简
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createFBeq(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                
-                    } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBeq(new FConst(const_cond1->getValue()), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBeq(new FConst(const_cond1->getValue()), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBeq(get_asm_reg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createFBeq(new Mem(regbase1->getOffset(), static_cast<int>(regbase1->getReg()) ), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBeq(get_asm_reg(cond1), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBeq(get_asm_reg(cond1), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();
-                }
-                break;
-
-            case CmpOp::GE: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createFBge(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                     
-                    } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBge(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBge(new FConst(const_cond1->getValue()), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBge(new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBge(get_asm_reg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createFBge(new Mem(regbase1->getOffset(), static_cast<int>( regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBge(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBge(get_asm_reg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBge(get_asm_reg(cond1), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();
-                }
-                break;
-            case CmpOp::GT: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createFBgt(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                     
-                    } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBgt(new FConst(const_cond1->getValue()), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBgt(new FConst(const_cond1->getValue()), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBgt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBgt(get_asm_reg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createFBgt(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBgt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBgt(get_asm_reg(cond1), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBgt(get_asm_reg(cond1), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();
-                }
-                break; 
-
-            case CmpOp::LE: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createFBle(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                     
-                    } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBle(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBle(new FConst(const_cond1->getValue()), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBle(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBle(get_asm_reg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createFBle(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBle(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBle(get_asm_reg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBle(get_asm_reg(cond1), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();
-                }
-                break;
-            
-            case CmpOp::LT: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createFBlt(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                     
-                    } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBlt(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBlt(new FConst(const_cond1->getValue()), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBlt(get_asm_reg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createFBlt(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBlt(get_asm_reg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBlt(get_asm_reg(cond1), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();
-                }
-                break;
-
-            case CmpOp::NE: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createFBne(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                     
-                    } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBne(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBne(new FConst(const_cond1->getValue()), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBne(get_asm_reg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createFBne(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBne(get_asm_reg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBne(get_asm_reg(cond1), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();
-                }
-                break; 
-
-            default:
-                break;
-        }
-    } else if(cmpbr) {
-        is_cmpbr = true;
-        auto cond1 = cmpbr->getOperand(0);
-        auto cond2 = cmpbr->getOperand(1);
-        auto cmp_op = cmpbr->getCmpOp();
-        succ_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(2));
-        fail_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(3));
-        auto const_cond1 = dynamic_cast<ConstantInt*>(cond1);
-        auto const_cond2 = dynamic_cast<ConstantInt*>(cond2);
-
-        switch(cmp_op) {
-            case CmpOp::EQ: {
-                    //& 为了避免修改控制流可能造成的问题，不采取化简
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createBeq(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                  
-                    } else if(const_cond1) {
-                        if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBeq(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBeq(new IConst(const_cond1->getValue()), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBeq(get_asm_reg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createBeq(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBeq(get_asm_reg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBeq(get_asm_reg(cond1), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();  
-                }
-                break;
-
-            case CmpOp::GE: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createBge(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                  
-                    } else if(const_cond1) {
-                        if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBge(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBge(new IConst(const_cond1->getValue()), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBge(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBge(get_asm_reg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createBge(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBge(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBge(get_asm_reg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBge(get_asm_reg(cond1), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();  
-                }
-                break;
-            case CmpOp::GT: {}
-                //LOG(ERROR) << "phi union出现异常";
-                break; 
-
-            case CmpOp::LE: {}
-               // LOG(ERROR) << "phi union出现异常";
-                break;
-            
-            case CmpOp::LT: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createBlt(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                  
-                    } else if(const_cond1) {
-                        if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBlt(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBlt(new IConst(const_cond1->getValue()), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBlt(get_asm_reg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createBlt(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBlt(get_asm_reg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBlt(get_asm_reg(cond1), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();  
-                }
-                break;
-
-            case CmpOp::NE: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createBne(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                  
-                    } else if(const_cond1) {
-                        if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBne(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBne(new IConst(const_cond1->getValue()), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBne(get_asm_reg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createBne(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBne(get_asm_reg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBne(get_asm_reg(cond1), get_asm_reg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();  
-                }
-                break;
-
-            default:
-                break;
-        }
-    } else {
-        if(br_inst->getNumOperands() == 1) {
-            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(0));
-            succ_br_inst = sequence->createJump(bb2label[succ_bb]);
-            sequence->deleteInst();
-        } else {
-            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(1));
-            fail_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(2));
-            auto cond = br_inst->getOperand(0);
-            auto const_cond = dynamic_cast<ConstantInt*>(cond);
-            if(const_cond) {
-                succ_br_inst = sequence->createBne(new IConst(const_cond->getValue()), new GReg(static_cast<int>(RISCV::GPR::zero)), bb2label[succ_bb]);
-                sequence->deleteInst();
-            } else if(ival2interval[cond]->reg_id < 0) {
-                auto regbase = val2stack[cond];
-                succ_br_inst = sequence->createBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new GReg(static_cast<int>(RISCV::GPR::zero)), bb2label[succ_bb]);
-                sequence->deleteInst();
-            } else {
-                succ_br_inst = sequence->createBne(get_asm_reg(cond), new GReg(static_cast<int>(RISCV::GPR::zero)), bb2label[succ_bb]);
-                sequence->deleteInst();
-            }
-            fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-            sequence->deleteInst();
-        }
-    }
-
-    if(is_fcmpbr) {
-        if(have_succ_move) {}
-            //LOG(ERROR) << "出现未预期情况";
-        if(succ_br_inst)
-            sequence->appendInst(succ_br_inst);
-        if(fail_move_inst)
-            sequence->appendInst(fail_move_inst);
-        if(fail_br_inst)
-            sequence->appendInst(fail_br_inst);
-        
-    } else if(is_cmpbr) {
-        if(have_succ_move) {}
-        //    LOG(ERROR) << "出现未预期情况";
-
-        if(succ_br_inst)
-            sequence->appendInst(succ_br_inst);
-        if(fail_move_inst)
-            sequence->appendInst(fail_move_inst);
-        if(fail_br_inst)
-            sequence->appendInst(fail_br_inst);
-
-    } else {
-        if(br_inst->getNumOperands() == 1) {
-            if(succ_move_inst)
-                sequence->appendInst(succ_move_inst);
-            if(succ_br_inst)
-                sequence->appendInst(succ_br_inst);
-
-        } else {
-            if(have_succ_move) {}
-               // LOG(ERROR) << "出现未预期情况";
-
-            if(succ_br_inst)
-                sequence->appendInst(succ_br_inst);
-            if(fail_move_inst)
-                sequence->appendInst(fail_move_inst);
-            if(fail_br_inst)
-                sequence->appendInst(fail_br_inst);
-        }
-    }
-}
 
 std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::idata_move(std::vector<AddressMode*>&srcs, std::vector<AddressMode*>&dsts) {
  
@@ -2928,25 +2745,58 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::fdata_move(std::vecto
     return to_move_locs;
 }
 
-Val *AsmGen::get_asm_reg(Value *val) {
-    if(val->getType()->isFloatType()) {
-        auto iter = fval2interval.find(val);
+Val* AsmGen::getAllocaReg(Value *value) {
+    if(value->getType()->isFloatType()) {
+        auto iter = fval2interval.find(value);
         if(iter != fval2interval.end()) {
-            return new FReg(static_cast<int>( iter->second->reg_id));
-        } else {
-           // LOG(ERROR) << "该值不存在活跃区间";
-        }
+            int reg_id = static_cast<int>( iter->second->reg_id);
+            return new FReg(reg_id);
+        } 
     } else {
-        auto iter = ival2interval.find(val);
+        auto iter = ival2interval.find(value);
         if(iter != ival2interval.end()) {
-            return new GReg(static_cast<int>( iter->second->reg_id) );
-        } else {
-           // LOG(ERROR) << "该值不存在活跃区间";
+            int reg_id = static_cast<int>( iter->second->reg_id);
+            return new GReg(reg_id);
         }
     }
     return nullptr;
 }
 
+GReg* AsmGen::getGRD(Instruction* inst){
+    return dynamic_cast<GReg*>(getAllocaReg(inst));
+}
+
+FReg* AsmGen::getFRD(Instruction* inst){
+    return dynamic_cast<FReg*>(getAllocaReg(inst));
+} 
+
+Val* AsmGen::getIRS1(Instruction* inst){
+    auto iconst_rs1 = dynamic_cast<ConstantInt*>(inst->getOperand(0));
+    if(iconst_rs1)
+        return new IConst(iconst_rs1->getValue());
+    return getAllocaReg(inst->getOperand(0));
+}
+
+Val* AsmGen::getIRS2(Instruction* inst){
+    auto iconst_rs2 = dynamic_cast<ConstantInt*>(inst->getOperand(1));
+    if(iconst_rs2)
+        return new IConst(iconst_rs2->getValue());
+    return getAllocaReg(inst->getOperand(1));
+}
+
+Val* AsmGen::getFRS1(Instruction* inst){
+    auto fconst_rs1 = dynamic_cast<ConstantFP*>(inst->getOperand(0));
+    if(fconst_rs1)
+        return new FConst(fconst_rs1->getValue());
+    return getAllocaReg(inst->getOperand(0));
+}
+
+Val* AsmGen::getFRS2(Instruction* inst){
+    auto fconst_rs2 = dynamic_cast<ConstantFP*>(inst->getOperand(1));
+    if(fconst_rs2)
+        return new FConst(fconst_rs2->getValue());
+    return getAllocaReg(inst->getOperand(1));
+}
 
 
 
