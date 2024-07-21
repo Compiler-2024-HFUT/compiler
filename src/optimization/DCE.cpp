@@ -67,17 +67,20 @@ void DCE::initInfo(Function*func){
         }
     }
 }
-void DCE::runOnFunc(Function*func){
+Modify DCE::runOnFunc(Function*func){
+    Modify ret{};
     if(func->isDeclaration())
-        return;
+        return ret;
     this->initInfo(func);
     for(auto b:func->getBasicBlocks()){
         auto &instrs=b->getInstructions();
         for(auto _iter=instrs.begin();_iter!=instrs.end();){
             auto curiter=_iter++;
             if(!valid_ins_.count(*curiter)){
+                ret.modify_instr=true;
                 b->eraseInstr(curiter);
             }
         }
     }
+    return ret;
 }

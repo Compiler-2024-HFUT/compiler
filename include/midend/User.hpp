@@ -17,7 +17,7 @@ public:
     void addOperand(Value *v);
 
     std::vector<Value *> &getOperands();
-    unsigned getNumOperands() const;
+    __attribute__((always_inline)) unsigned getNumOperands() const noexcept;
 
     void removeAllOperand();
     void removeOperands(int index1, int index2);
@@ -25,7 +25,7 @@ public:
     
 private:
     std::vector<Value *> operands_;   //& operands of this value
-    unsigned num_ops_;  
+    // unsigned num_ops_;  
 
 };
 

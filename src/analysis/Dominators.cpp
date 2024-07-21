@@ -6,8 +6,19 @@
 #include <functional>
 #include <ostream>
 #include <set>
+int Dominators::getDomDepth(BasicBlock* bb){
+    int ret=0;
+    bb=getIDom(bb);
+    while(bb!=0){
+        ++ret;
+        bb=getIDom(bb);
+    }
+    return ret;
+}
 //寻找公共祖先
 BasicBlock* Dominators::findLCA(BasicBlock* lbb,BasicBlock*rbb){
+    if(lbb==0||rbb==0)
+        return 0;
     auto findPathToRoot=[this](BasicBlock* block) {
         std::vector<BasicBlock*> path;
         while (block) {
@@ -56,7 +67,7 @@ void Dominators::sFastIDomAlg(Function *func_){
         if (bb == entry)
             continue;
         auto new_idom=*bb->getPreBasicBlocks().begin();
-        setIDom(bb,new_idom);
+        setIDom(bb,entry);
     }
 
     // setIDom(entry,entry);
@@ -239,12 +250,4 @@ void Dominators::printDomTree(){
 Dominators::Dominators(Module*module, InfoManager *im): FunctionInfo(module, im) {
     mod.modify_bb=true;
     // this->clear();
-
-    /*
-    // 没有用到，而且当前算法非常影响性能，之后可能要改
-    // domAlg();
-    // printDomFront();
-    // printDomSet();
-    // printDomTree();
-     */
 }

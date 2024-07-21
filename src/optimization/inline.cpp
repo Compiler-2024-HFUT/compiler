@@ -1,4 +1,5 @@
 #include "optimization/inline.hpp"
+#include "analysis/Info.hpp"
 #include "midend/BasicBlock.hpp"
 #include "midend/Function.hpp"
 #include "midend/GlobalVariable.hpp"
@@ -7,6 +8,7 @@
 #include "midend/Value.hpp"
 #include <list>
 #include <sys/cdefs.h>
+#include <vector>
 using ::std::list,::std::map;
 ::std::set<CallInst *> FuncInline::getCallInfo(Module* m){
 ::std::set<CallInst *>  call_info;
@@ -26,27 +28,28 @@ using ::std::list,::std::map;
             }
     return call_info;
 }
-void insertFunc(CallInst* call,std::list<Function*> calleds){
+//返回内联后增加的指令,可能用不到
+::std::vector<CallInst*> insertFunc(CallInst* call,std::list<Function*> calleds){
     auto call_func=static_cast<Function*>(call->getOperand(0));
     //间接递归
     for(auto called:calleds)
         if(called==call_func)
-            return;
+            return {};
     auto cur_bb=call->getParent();
     auto cur_func=cur_bb->getParent();
     //直接递归
     if(cur_func==call_func)
-        return;
+        return {};
     // ::std::list<BasicBlock*>succ_bbs;
     Instruction *new_instr;
     BasicBlock *new_bb;
     BasicBlock *ret_bb;
     std::map<Value *, Value *> old_new;
     std::vector<BasicBlock *> new_bbs;
-    std::set<CallInst*> _incall;
+    std::vector<CallInst*> _newcall;
 
     auto iter_inster=++(cur_bb->findInstruction(call));
-    ::std::list<decltype(iter_inster)> _list;
+    ::std::vector<decltype(iter_inster)> _list;
     while(iter_inster!=cur_bb->getInstructions().end()){
         auto cur_iter=iter_inster++;
         _list.push_back(cur_iter);
@@ -110,7 +113,7 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
                         instr->replaceOperand(i,old_new[instr->getOperand(i)]);
                 }
                 if(instr->isCall())
-                    _incall.insert(static_cast<CallInst*>(instr));
+                    _newcall.push_back(static_cast<CallInst*>(instr));
             }
         }
     }
@@ -121,7 +124,7 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
         ret_bb->addInstruction(instr);
     }
     cur_bb->getSuccBasicBlocks().clear();
-    BranchInst::createBr(*new_bbs.begin(),cur_bb);
+    BranchInst::createBr(new_bbs.front(),cur_bb);
 
     for(auto succ_bb:_succ_bbs){
         succ_bb->removePreBasicBlock(cur_bb);
@@ -150,14 +153,19 @@ void insertFunc(CallInst* call,std::list<Function*> calleds){
 
     call->getParent()->deleteInstr(call);
     delete call;
+    return _newcall;
 }
-void FuncInline::run(){
+Modify FuncInline::run(){
     func_call_=getCallInfo(module_);
     for(auto call:func_call_){
         if(isEmpty((Function*)call->getOperand(0)))continue;
         insertFunc(call,{call->getParent()->getParent()});
     }
-
+    Modify ret{};
+    ret.modify_instr=true;
+    ret.modify_bb=true;
+    ret.modify_call=true;
+    return ret;
     // auto &fs=module_->getFunctions();
     // for(auto iter_f=fs.begin();iter_f!=fs.end();){
     //     auto cf=iter_f++;

@@ -33,6 +33,9 @@ public:
         return res;
     }
 
+    std::vector<Info*>& getInfos() {
+        return infos;
+    }
     template<class InfoType>
     void addInfo() {
         infos.push_back( new InfoType(module_, this) );

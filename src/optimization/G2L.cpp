@@ -277,7 +277,7 @@ void G2L::runGlobal(){
             }
     }
 }
-void G2L::run(){
+Modify G2L::run(){
     for(auto cur_global:module_->getGlobalVariables()){
         if(cur_global->isConst()) continue;
         if(cur_global->getType()!=Type::getInt32PtrType()&&cur_global->getType()!=Type::getFloatPtrType())
@@ -292,7 +292,7 @@ void G2L::run(){
             
         if(!def_list_.empty()){
             runGlobal();
-            return;
+            return{};
         }else if(use_list_.empty()){
             // for(auto u:cur_global->getUseList()){
 
@@ -310,4 +310,5 @@ void G2L::run(){
         calOneGlobal();
         runGlobal();
     }
+    return {};
 }

@@ -18,7 +18,7 @@ b1:
 */
 class CombinBB:public FunctionPass{
 public:
-    virtual void runOnFunc(Function*func)override;
+    virtual Modify runOnFunc(Function*func)override;
     CombinBB(Module *m, InfoManager *im);
     ~CombinBB(){};
 };

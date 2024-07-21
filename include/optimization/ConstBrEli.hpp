@@ -16,7 +16,7 @@ class ConstBr:public FunctionPass{
     bool constCondFold(BasicBlock*bb);
 public:
     static bool canFold(BasicBlock*bb);
-    void runOnFunc(Function*func);
+    virtual Modify runOnFunc(Function*func);
     ConstBr(Module*m, InfoManager *im);
 };
 #endif

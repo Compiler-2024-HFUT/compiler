@@ -1,10 +1,13 @@
 #ifndef CONSTANT_HPP
 #define CONSTANT_HPP
 
+#include <cassert>
+#include <cstdint>
 #include <map>
 
 #include "User.hpp"
 #include "Value.hpp"
+#include "midend/Instruction.hpp"
 #include <memory>
 
 class Type;
@@ -22,6 +25,7 @@ public:
 class Constant : public User {
 public:
     static ConstManager *manager_;
+    static Constant *get(Constant *lhs,Instruction::OpID bin_op,Constant*rhs);
     Constant(Type *ty, const std::string &name="", unsigned num_ops = 0) 
         : User(ty, name, num_ops) {}
     ~Constant() = default;
@@ -33,8 +37,12 @@ public:
     static ConstantInt *get(int val);
     static ConstantInt *get(bool val);
 
-    static int &getValue(ConstantInt *const_val) { return const_val->val_; }
-    int &getValue() { return val_; }
+    static ConstantInt *getFromBin(ConstantInt *lhs,Instruction::OpID bin_op,ConstantInt*rhs);
+    static ConstantInt *getFromCmp(Constant *lhs,CmpOp,Constant*rhs);
+    static ConstantInt *getFromICmp(ConstantInt *lhs,CmpOp,ConstantInt*rhs);
+    static ConstantInt *getFromFCmp(ConstantFP *lhs,CmpOp,ConstantFP*rhs);
+    static int getValue(ConstantInt *const_val) { return const_val->val_; }
+    int getValue() { return val_; }
 
     virtual std::string print() override;
     virtual ~ConstantInt(){}
@@ -50,8 +58,9 @@ class ConstantFP : public Constant {
 
 public:
     static ConstantFP *get(float val);
+    static ConstantFP *getFromBin(ConstantFP *lhs,Instruction::OpID bin_op,ConstantFP*rhs);
 
-    float &getValue() { return val_; }
+    float getValue() { return val_; }
     
     virtual std::string print() override;
     virtual ~ConstantFP(){}

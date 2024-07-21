@@ -4,9 +4,9 @@
 #include "midend/Instruction.hpp"
 #include "midend/Value.hpp"
 
-void ADCE::runOnFunc(Function*func){
+Modify ADCE::runOnFunc(Function*func){
         auto &bb_list=func->getBasicBlocks();
-        if(bb_list.empty())return;
+        if(bb_list.empty())return{};
         cur_func_=func;
         for(auto bb:func->getBasicBlocks()){
             auto &instr_list=bb->getInstructions();

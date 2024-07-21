@@ -19,7 +19,7 @@ class BrToSelect:public FunctionPass{
     void canGenSel(BasicBlock *bb);
 
   public:
-    virtual void runOnFunc(Function*func)override;
+    virtual Modify runOnFunc(Function*func)override;
     // BrToSelect(Module *m, InfoManager *im)
     using FunctionPass::FunctionPass;
     ~BrToSelect(){};

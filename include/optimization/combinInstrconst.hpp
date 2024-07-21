@@ -4,7 +4,7 @@
 #include "optimization/PassManager.hpp"
 #include <vector>
 class CombinInstrConst:public FunctionPass{
-    void runOnFunc(Function*func);
+    Modify runOnFunc(Function*func);
     void preProcess(Function*func);
     bool combinMullAdd(BinaryInst*instr);
     bool combinConstMulAdd(BinaryInst*instr);

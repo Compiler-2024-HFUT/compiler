@@ -2,6 +2,7 @@
 #define ADCE_HPP
 
 
+#include "analysis/Info.hpp"
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include "PassManager.hpp"
@@ -20,7 +21,7 @@ private:
 public:
     ADCE(Module *m, InfoManager *im) : FunctionPass(m, im){}
     ~ADCE(){};
-    void runOnFunc(Function*func) override;
+    Modify runOnFunc(Function*func) override;
 };
 
 #endif

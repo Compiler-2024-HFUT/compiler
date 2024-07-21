@@ -74,8 +74,7 @@ void ConstBr::eraseBB(BasicBlock*bb){
         return;
     if(!bb->getPreBasicBlocks().empty())
         return;
-    if(bb->getTerminator()->isRet())
-        exit(223);
+    assert(!bb->getTerminator()->isRet());
 
     erased.insert(bb);
     std::list<BasicBlock*> succbbs=bb->getSuccBasicBlocks();
@@ -97,9 +96,10 @@ bool ConstBr::canFold(BasicBlock*bb){
         return true;
     return false;
 }
-void ConstBr::runOnFunc(Function*func){
+Modify ConstBr::runOnFunc(Function*func){
+    Modify ret{};
     auto &bbs=func->getBasicBlocks();
-    if(bbs.empty())return;
+    if(bbs.empty())return ret;
     erased.clear();
     for(auto iter=bbs.begin();iter!=bbs.end();){
         if(!canFold(*iter)){
@@ -112,7 +112,10 @@ void ConstBr::runOnFunc(Function*func){
     }
     std::vector<Instruction*> to_del;
     for(auto b:erased){
-        std::copy(b->getInstructions().begin(),b->getInstructions().end(),to_del.end());
+        ret.modify_instr=true;
+        ret.modify_bb=true;
+        // to_del.assign(b->getInstructions().begin(), b->getInstructions().end());
+        to_del.insert(to_del.end(),b->getInstructions().begin(),b->getInstructions().end());
     }
     for(Instruction* i:to_del){
         i->removeUseOfOps();
@@ -124,4 +127,5 @@ void ConstBr::runOnFunc(Function*func){
     for(auto b:erased){
         delete b;
     }
+    return ret;
 }

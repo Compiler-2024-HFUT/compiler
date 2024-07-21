@@ -81,7 +81,7 @@ class ValNumbering:public FunctionPass{
     bool proInstr(Instruction*instr);
 public:
     // bool dvnt(Function*func,BasicBlock*bb);
-    virtual void runOnFunc(Function *func) override;
+    virtual Modify runOnFunc(Function *func) override;
     using FunctionPass::FunctionPass;
     void init()override{
         dom=info_man_->getInfo<Dominators>();
@@ -90,4 +90,43 @@ public:
     // virtual ~ValNumbering(){}
 
 };
+// struct DVNT_Table{
+//     uint32_t next_num=1;
+//     ::std::map<Value*,uint32_t> value_hash;
+//     ::std::map<Expr,uint32_t> expressing_hash;
+//     ::std::vector<Value*> number_value;
+// public:
+//     Expr dVNTExpr(BinaryInst* bin);
+//     Expr dVNTExpr(FpToSiInst* ins);
+//     Expr dVNTExpr(SiToFpInst* ins);
+//     Expr dVNTExpr(ZextInst* ins);
+//     Expr dVNTExpr(CmpInst* ins);
+//     Expr dVNTExpr(FCmpInst* ins);
+//     Expr dVNTExpr(GetElementPtrInst* ins);
+//     Value* getNumVal(uint32_t num){
+//         return  number_value[num];
+//     }
+//     uint32_t getValueNum(Value*v);
+//     void clear(){
+//         next_num=1;
+//         value_hash.clear();
+//         expressing_hash.clear();
+//         number_value.clear();
+//         number_value.push_back(0);
+//     }
+// };
+// class DVNT:public FunctionPass{
+//     Dominators*dom;
+//     bool proInstr(Instruction*instr);
+// public:
+//     // bool dvnt(Function*func,BasicBlock*bb);
+//     virtual Modify runOnFunc(Function *func) override;
+//     using FunctionPass::FunctionPass;
+//     void init()override{
+//         dom=info_man_->getInfo<Dominators>();
+//     }
+//     ~DVNT(){};
+//     // virtual ~ValNumbering(){}
+
+// };
 #endif

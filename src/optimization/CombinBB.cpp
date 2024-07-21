@@ -5,7 +5,6 @@
 #include "optimization/util.hpp"
 #include <cassert>
 #include <list>
-using namespace  std;
 // void CombinBB::runOnFunc(Function*func){
 //     auto &bb_list=func->getBasicBlocks();
 //     if(bb_list.size()<2)return;
@@ -47,9 +46,10 @@ using namespace  std;
 //     // }
 // }
 CombinBB::CombinBB(Module *m, InfoManager *im) : FunctionPass(m, im){}
-void CombinBB::runOnFunc(Function*func){
+Modify CombinBB::runOnFunc(Function*func){
+    Modify ret{};
     auto &bb_list=func->getBasicBlocks();
-    if(bb_list.size()<2)return;
+    if(bb_list.size()<2)return ret;
     bool change=true;
     while(change){
         change=false;
@@ -60,6 +60,8 @@ void CombinBB::runOnFunc(Function*func){
             if(pre_bb->getSuccBasicBlocks().size()!=1) {++iter;continue;}
 
             change=true;
+            ret.modify_instr=true;
+            ret.modify_bb=true;
             {
                 deleteIns(pre_bb,pre_bb->getTerminator());
                 auto &erase_instrs=to_erase->getInstructions();
@@ -96,4 +98,5 @@ void CombinBB::runOnFunc(Function*func){
             }
         }
     }
+    return ret;
 }
