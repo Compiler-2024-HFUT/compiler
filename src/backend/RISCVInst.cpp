@@ -131,7 +131,7 @@
     return DR("fcvt.s.w", rd, rs1);
 }
 ::std::string RISCVInst::fcvt_w_s(GReg *rd, FReg *rs1){
-    return DR("fcvt.w.s", rd, rs1);
+    return FCVTWS("fcvt.w.s", rd, rs1);
 }
 //3 reg alu
 ::std::string RISCVInst::fadd_s(FReg *rd, FReg *rs1, FReg *rs2){

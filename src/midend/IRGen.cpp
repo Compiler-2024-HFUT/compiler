@@ -158,12 +158,12 @@ void IRGen::visit(ast::FuncDef &node) {
             StoreInst::createStore(args[i], alloc, cur_block_of_cur_fun);
             scope.push(node.func_f_params[i]->name, alloc);
         } else {
-            Value* alloc_array;
+         //   Value* alloc_array;
             // int total_size = 1;
 
-            alloc_array = AllocaInst::createAlloca(param_types[i], cur_block_of_cur_fun);
-            StoreInst::createStore(args[i], alloc_array, cur_block_of_cur_fun);
-            scope.push(node.func_f_params[i]->name, alloc_array);
+        //    alloc_array = AllocaInst::createAlloca(param_types[i], cur_block_of_cur_fun);
+        //    StoreInst::createStore(args[i], alloc_array, cur_block_of_cur_fun);
+            scope.push(node.func_f_params[i]->name, args[i]);
             array_bounds.clear();
 
             // array_bounds = {1, array_dimensions_list, 1}
@@ -1222,8 +1222,11 @@ void IRGen::visit(ast::LvalExpr &node){
             if(var->getType()->getPointerElementType()->isPointerType()) {
                 auto tmp_load = LoadInst::createLoad(var->getType()->getPointerElementType(),var,cur_block_of_cur_fun);
                 tmp_val = GetElementPtrInst::createGep(tmp_load, {var_index},cur_block_of_cur_fun);
-            } else {
-                tmp_val =  GetElementPtrInst::createGep(var, {CONST_INT(0),var_index},cur_block_of_cur_fun);
+            } else if(var->getType()->getPointerElementType()->isArrayType()){
+                tmp_val = GetElementPtrInst::createGep(var,{CONST_INT(0),var_index} ,cur_block_of_cur_fun);
+            }
+            else {
+                tmp_val =  GetElementPtrInst::createGep(var, {var_index},cur_block_of_cur_fun);
             }
             if(!should_return_lvalue)
                 tmp_val = LoadInst::createLoad(static_cast<PointerType *>(tmp_val->getType())->getElementType(),tmp_val,cur_block_of_cur_fun);

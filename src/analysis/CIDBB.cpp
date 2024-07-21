@@ -8,6 +8,7 @@ void CIDBB::runOnFunc(Function *func){
         marker[func->getEntryBlock()] = visiting;
         calInDreegeOfBB(func->getEntryBlock());
     }
+    return;
 }
 
 Function* CIDBB::initialFunction(Function *func){
@@ -22,14 +23,17 @@ Function* CIDBB::initialFunction(Function *func){
 }
 
 void CIDBB:: calInDreegeOfBB(BasicBlock* bb){
-    for(auto bb_succ : bb->getSuccBasicBlocks())
+    for(auto bb_succ : bb->getSuccBasicBlocks()){
         if(marker[bb_succ]==unvisited){
             bb_succ->incomingAdd(1);
             marker[bb_succ]=visiting;
             calInDreegeOfBB(bb_succ);
         }
-        else if(marker[bb_succ]==visited)
+        else if(marker[bb_succ]==visited){
             bb_succ->incomingAdd(1);
+        }
+
+    }
     marker[bb] = visited;
-  
+    
 }

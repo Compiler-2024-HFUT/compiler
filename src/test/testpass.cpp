@@ -5,9 +5,22 @@
 #include "utils/Logger.hpp"
 
 #include <iostream>
+#include <fstream>
 #include <memory>
 #include <string>
+#include "midend/IRGen.hpp"
 
+#include "optimization/DeadStoreEli.hpp"
+#include "optimization/Mem2Reg.hpp"
+#include "optimization/PassManager.hpp"
+#include "optimization/LIR.hpp"
+#include "optimization/inline.hpp"
+#include "analysis/CIDBB.hpp"
+#include "analysis/CLND.hpp"
+#include "backend/AsmGen.hpp"
+#include "backend/Asm.hpp"
+#include "optimization/AAA.hpp"
+#include "optimization/CFGAnalyse.hpp"
 using namespace std;
 
 int main(int argc , char**argv){
@@ -21,14 +34,37 @@ int main(int argc , char**argv){
     p->comp->accept(irgen);
     auto m=irgen.getModule();
  
-    PassManager *pm = new PassManager(m);
-    buildTestPassManager(pm);
+    // string str_out=argv[1];
+    // str_out=str_out+".ll";
+    // fstream os;
+    // os.open(str_out,ios_base::out);
+    PassManager pm{m};
+  //  pm.add_pass<DeadStoreEli>();
+    pm.addPass<Mem2Reg>();
+   // // pm.add_pass<ADCE>();
+  // pm.run();
+   
+   pm.addPass<LIR>();
+   pm.addPass<CIDBB>();
+   pm.addPass<CLND>();
+  // pm.add_pass<CFGAnalyse>();
+   pm.addPass<ActiveVar>();
+    // pm.add_pass<FuncInline>();
+    pm.run();
+    ::std::ofstream output;
+    output.open("/home/mcq/jbfq/compiler/test/tt.ll",::std::ios::out);
+    output<<irgen.getModule()->print()+"\n";
+    output.close();
+   AsmGen asm_gen(m);
+    m->accept(asm_gen);
+    ::std::string asm_code = asm_gen.getAsmUnit()->print();
+        output.open("/home/mcq/jbfq/compiler/test/tt.s",::std::ios::out);
+        output<<asm_code+"\n";
+    output.close();
+    ::std::cout<<asm_code<<::std::endl;
 
-    pm->run();
-    cout << irgen.getModule()->print();
-    // pm->getInfo<Dominators>()->printDomSet();
-    // pm->getInfo<Dominators>()->printDomFront();
-    // pm->getInfo<Dominators>()->printDomTree();
-    // delete (p);
+
+
+    delete (p);
 
 }

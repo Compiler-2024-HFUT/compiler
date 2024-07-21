@@ -41,5 +41,7 @@ class AsmString{
 #define RET() (AsmString::space+"ret"+AsmString::newline)
 //call label
 #define CALL(label) (AsmString::space+"call"+AsmString::space+(label)->print()+AsmString::newline)
+//fcvt.w.s
+#define FCVTWS(op, rd, rs1) (AsmString::space + (op) + AsmString::space + (rd)->print() + AsmString::comma +  (rs1)->print() + ", rtz"+AsmString::newline)
 
 #endif

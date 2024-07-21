@@ -134,20 +134,23 @@ void LIR::breakGEP(::std::vector<BasicBlock*> BBs){
     for(auto bb : BBs){
         auto & inst_list = getInstList(bb);
         for(auto iter=inst_list.begin(); iter!=inst_list.end(); iter++){
-            if((*iter)->isGep() &&((*iter)->getOperand((*iter)->getNumOperands()-1)!=ConstantInt::get(0))){
-                auto size = ConstantInt::get((*iter)->getType()->getPointerElementType()->getSize());//后一个参数不为0才行，避免对初始化做修改
+            auto inst_gep = *iter;
+            if(inst_gep->isGep() &&(inst_gep->getOperand(inst_gep->getNumOperands()-1)!=ConstantInt::get(0))){//后一个条件的目的是：后一个参数不为0的gep才行，避免对初始化做修改
+                auto size = ConstantInt::get(inst_gep->getType()->getPointerElementType()->getSize());
                 //gep指令的格式不是固定的
-                int offset_op = (*iter)->getNumOperands()-1;
-                auto offset = (*iter)->getOperand(offset_op);   //取偏移量
-                (*iter)->removeOperands(offset_op,offset_op);   //删除偏移量
-                (*iter)->addOperand(ConstantInt::get(0));   //追加 
+                int offset_op = inst_gep->getNumOperands()-1;
+                auto offset = inst_gep->getOperand(offset_op);   //取偏移量
+                inst_gep->removeOperands(offset_op,offset_op);   //删除偏移量
+                inst_gep->addOperand(ConstantInt::get(0));   //追加 
                 auto inst_mul_offset = BinaryInst::createMul(offset, size, bb); //计算偏移量的指令（offset*element_size）
+                bb->addInstruction(++iter, inst_list.back());
                 inst_list.pop_back();   //消除createMul函数的副作用
-                auto inst_gep = (*iter);
-           //     bb->addInstruction(++iter, inst_mul_offset);s
+               
+                
                 auto inst_first_address_array_add = BinaryInst::createAdd(inst_gep, inst_mul_offset, bb);
+                bb->addInstruction(iter--,  inst_list.back());
                 inst_list.pop_back();
-           //    bb->addInstruction(iter--, inst_first_address_array_add);
+               
              inst_gep->removeUse(inst_first_address_array_add);
              inst_gep->replaceAllUseWith(inst_first_address_array_add);
                 inst_gep->getUseList().clear();
@@ -165,7 +168,7 @@ void LIR::makeOffset(::std::vector<BasicBlock*> BBs){
     for(auto bb:BBs){
         auto &inst_list = getInstList(bb);
         for(auto iter=inst_list.begin(); iter!=inst_list.end(); iter++)
-            if((*iter)->isLoad())   makeOffsetT(dynamic_cast<LoadInst*>(*iter), inst_list, iter, bb);
+            if((*iter)->isLoad())   makeOffsetT(dynamic_cast<LoadInst*>(*iter),inst_list, iter, bb);
             else if((*iter)->isStore()) makeOffsetT(dynamic_cast<StoreInst*>(*iter), inst_list, iter, bb);
 
         
@@ -197,6 +200,7 @@ void LIR::handleGEP(GetElementPtrInst* inst_gep, ::std::list<Instruction*>& inst
         bb->addInstruction(inst_pos--, inst_offset);
         inst->replaceAllUseWith(inst_offset);
         bb->deleteInstr(inst);
+
     }
     else {
         auto inst_offset = StoreOffsetInst::createStoreOffset(dynamic_cast<StoreInst*>(inst)->getRVal(), base, offset, bb);
@@ -204,6 +208,7 @@ void LIR::handleGEP(GetElementPtrInst* inst_gep, ::std::list<Instruction*>& inst
         bb->addInstruction(inst_pos--, inst_offset);
         inst->replaceAllUseWith(inst_offset);
         bb->deleteInstr(inst);
+
     }
      
    
@@ -226,6 +231,14 @@ void LIR::handleAdd(BinaryInst* inst_ptr, ::std::list<Instruction*>& inst_list, 
         bb->addInstruction(inst_pos--, inst_offset);
         inst->replaceAllUseWith(inst_offset);
         bb->deleteInstr(inst);
+       auto inst_add = *inst_pos;
+       inst_pos--;
+    
+       bb->deleteInstr(inst_add);
+       auto inst_mul = *inst_pos;
+       inst_pos--;
+    
+       bb->deleteInstr(inst_mul);
     }
     else {
         auto inst_offset = StoreOffsetInst::createStoreOffset(dynamic_cast<StoreInst*>(inst)->getOperand(0), base, offset, bb);
@@ -233,6 +246,9 @@ void LIR::handleAdd(BinaryInst* inst_ptr, ::std::list<Instruction*>& inst_list, 
         bb->addInstruction(inst_pos--, inst_offset);
         inst->replaceAllUseWith(inst_offset);
         bb->deleteInstr(inst);
+
+
+ 
     }
 
 }
