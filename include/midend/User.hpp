@@ -17,7 +17,7 @@ public:
     void addOperand(Value *v);
 
     std::vector<Value *> &getOperands();
-    __attribute__((always_inline)) unsigned getNumOperands() const noexcept;
+   unsigned getNumOperands() const noexcept;
 
     void removeAllOperand();
     void removeOperands(int index1, int index2);

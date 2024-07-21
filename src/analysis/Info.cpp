@@ -13,7 +13,7 @@ void ModuleInfo::reAnalyse() {
 void FunctionInfo::analyse() {
     for (Function* f : module_->getFunctions()) {
         // skip undefined func
-        if(f->getBasicBlocks().size() == 0) continue;
+        //if(f->getBasicBlocks().size() == 0) continue;
         analyseOnFunc(f);
     }
     invalid = false;    // validate

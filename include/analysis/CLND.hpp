@@ -8,7 +8,7 @@
 using ::std::map, ::std::vector; 
 //计算循环嵌套的深度
 //Calculating loop nesting depth.
-class CLND : public FunctionPass{
+class CLND : public FunctionInfo{
     private:
         //访问控制
         enum state{
@@ -43,9 +43,10 @@ class CLND : public FunctionPass{
 
 
     public:
-        CLND(Module *m,InfoManager*im): FunctionPass(m,im){}
+        CLND(Module *m,InfoManager*im): FunctionInfo(m,im){}
         ~CLND(){};
-        void runOnFunc(Function*func) override;
+        void analyseOnFunc(Function*func) override;
+
 
         //循环优化需要用到的接口
 

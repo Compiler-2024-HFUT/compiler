@@ -71,8 +71,7 @@ public:
     set<Value*> getReachDefIn(BB* bb) { return in[bb]; }
     set<Value*> getReachDefOut(BB* bb) { return out[bb]; }
 
-    virtual void analyse() override;
-    virtual void reAnalyse() override;
+
     virtual void analyseOnFunc(Function *func) override;
 
     ReachDef(Module *m, InfoManager *im): FunctionInfo(m, im) {}

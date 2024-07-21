@@ -30,7 +30,7 @@ class LIR : public FunctionPass{
     public:
         LIR(Module *m,InfoManager*im): FunctionPass(m,im){}
         ~LIR(){};
-        void runOnFunc(Function *function) override;
+        Modify runOnFunc(Function *function) override;
 };
 
 #endif

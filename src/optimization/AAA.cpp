@@ -1,7 +1,7 @@
 #include"optimization/AAA.hpp"
 #include"midend/BasicBlock.hpp"
 
-void ActiveVar::runOnFunc(Function *func){
+Modify ActiveVar::runOnFunc(Function *func){
    
         if(!func->getBasicBlocks().empty()){
             this->func = func;
@@ -42,7 +42,7 @@ void ActiveVar::runOnFunc(Function *func){
             */
         }
     
-    return;
+    
 }
 
 

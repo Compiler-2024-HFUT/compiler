@@ -1,7 +1,7 @@
 #include "analysis/CLND.hpp"
 #include "midend/BasicBlock.hpp"
 
-void CLND::runOnFunc(Function*func){
+void CLND::analyseOnFunc(Function*func){
     auto initialfunc = initialFunction(func);
     if(initialfunc!=nullptr){
         marker.clear();

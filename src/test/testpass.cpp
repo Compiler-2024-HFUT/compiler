@@ -20,7 +20,8 @@
 #include "backend/AsmGen.hpp"
 #include "backend/Asm.hpp"
 #include "optimization/AAA.hpp"
-#include "optimization/CFGAnalyse.hpp"
+#include "analysis/Dominators.hpp"
+
 using namespace std;
 
 int main(int argc , char**argv){
@@ -39,26 +40,39 @@ int main(int argc , char**argv){
     // fstream os;
     // os.open(str_out,ios_base::out);
     PassManager pm{m};
+   
   //  pm.add_pass<DeadStoreEli>();
-    pm.addPass<Mem2Reg>();
+    
    // // pm.add_pass<ADCE>();
   // pm.run();
    
-   pm.addPass<LIR>();
-   pm.addPass<CIDBB>();
-   pm.addPass<CLND>();
+   pm.addInfo<Dominators>();
+
   // pm.add_pass<CFGAnalyse>();
+   
+   pm.addPass<Mem2Reg>();
+   pm.addPass<DeadPHIEli>();
+   pm.addPass<LIR>();
+   pm.addInfo<CIDBB>();
+   pm.addInfo<CLND>();
    pm.addPass<ActiveVar>();
+   
     // pm.add_pass<FuncInline>();
+    auto cidbb = pm.getInfo<CIDBB>();
+    cidbb->analyse();
+    auto clnd = pm.getInfo<CLND>();
+    clnd->analyse();
+
+    
     pm.run();
     ::std::ofstream output;
-    output.open("/home/mcq/jbfq/compiler/test/tt.ll",::std::ios::out);
+    output.open("/home/mcq/testc/compiler/test/tt.ll",::std::ios::out);
     output<<irgen.getModule()->print()+"\n";
     output.close();
    AsmGen asm_gen(m);
     m->accept(asm_gen);
     ::std::string asm_code = asm_gen.getAsmUnit()->print();
-        output.open("/home/mcq/jbfq/compiler/test/tt.s",::std::ios::out);
+        output.open("/home/mcq/testc/compiler/test/tt.s",::std::ios::out);
         output<<asm_code+"\n";
     output.close();
     ::std::cout<<asm_code<<::std::endl;

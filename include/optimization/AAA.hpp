@@ -10,7 +10,7 @@ class ActiveVar : public FunctionPass{
 public:
     ActiveVar(Module *m,InfoManager*im) : FunctionPass(m,im) {}
     ~ActiveVar() {}
-    void runOnFunc(Function *func) override;
+    Modify runOnFunc(Function *func) override;
     void get_def_use();
     void get_in_out_var();
    

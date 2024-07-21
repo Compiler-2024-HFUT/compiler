@@ -1,7 +1,7 @@
 #include "analysis/CIDBB.hpp"
 #include "midend/BasicBlock.hpp"
 
-void CIDBB::runOnFunc(Function *func){
+void CIDBB::analyseOnFunc(Function *func){
     auto func_initial = initialFunction(func);
     if(func_initial!=nullptr){
         marker.clear();

@@ -41,7 +41,7 @@ public:
     static ConstantInt *getFromCmp(Constant *lhs,CmpOp,Constant*rhs);
     static ConstantInt *getFromICmp(ConstantInt *lhs,CmpOp,ConstantInt*rhs);
     static ConstantInt *getFromFCmp(ConstantFP *lhs,CmpOp,ConstantFP*rhs);
-    static int getValue(ConstantInt *const_val) { return const_val->val_; }
+    static int &getValue(ConstantInt *const_val) { return const_val->val_; }
     int getValue() { return val_; }
 
     virtual std::string print() override;
@@ -60,7 +60,7 @@ public:
     static ConstantFP *get(float val);
     static ConstantFP *getFromBin(ConstantFP *lhs,Instruction::OpID bin_op,ConstantFP*rhs);
 
-    float getValue() { return val_; }
+    float &getValue() { return val_; }
     
     virtual std::string print() override;
     virtual ~ConstantFP(){}

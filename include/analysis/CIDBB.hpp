@@ -8,7 +8,7 @@
 
 //计算CFG中各个BB的入度
 //Calculate the in-degree of basic blocks
-class CIDBB : public FunctionPass{
+class CIDBB : public FunctionInfo{
     private:
         enum state{
         unvisited,
@@ -21,9 +21,10 @@ class CIDBB : public FunctionPass{
 
 
     public:
-        CIDBB(Module *m,InfoManager*im): FunctionPass(m,im){}
+        CIDBB(Module *m,InfoManager*im): FunctionInfo(m,im){}
         ~CIDBB(){};
-        void runOnFunc(Function *func) override;
+        void analyseOnFunc(Function *func) override;
+
 };
 
 
