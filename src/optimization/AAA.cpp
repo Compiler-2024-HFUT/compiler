@@ -1,4 +1,5 @@
 #include"optimization/AAA.hpp"
+#include"midend/BasicBlock.hpp"
 
 void ActiveVar::runOnFunc(Function *func){
    

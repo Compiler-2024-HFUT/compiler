@@ -1,5 +1,5 @@
 #include "optimization/CFGAnalyse.hpp"
- 
+#include"midend/BasicBlock.hpp"
 
 void CFGAnalyse::runOnFunc(Function *func){
     

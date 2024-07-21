@@ -1,5 +1,6 @@
 #pragma once
 
+#include "analysis/InfoManager.hpp"
 #include "midend/Module.hpp"
 #include "PassManager.hpp"
 #include<set>
@@ -7,7 +8,7 @@
 
 class ActiveVar : public FunctionPass{
 public:
-    ActiveVar(Module *m) : FunctionPass(m) {}
+    ActiveVar(Module *m,InfoManager*im) : FunctionPass(m,im) {}
     ~ActiveVar() {}
     void runOnFunc(Function *func) override;
     void get_def_use();

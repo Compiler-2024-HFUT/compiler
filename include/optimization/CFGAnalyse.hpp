@@ -5,12 +5,13 @@
 #include<stack>
 #include<set>
 
+#include "analysis/InfoManager.hpp"
 #include"midend/Module.hpp"
 #include"optimization/PassManager.hpp"
 
 class CFGAnalyse : public FunctionPass{
 public:
-    CFGAnalyse(Module *m) : FunctionPass(m) {}
+    CFGAnalyse(Module *m,InfoManager*im) : FunctionPass(m,im) {}
     ~CFGAnalyse() {}
      void runOnFunc(Function *func) override;
     void incoming_find(Function* func);
