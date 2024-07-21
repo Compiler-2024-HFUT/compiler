@@ -17,6 +17,8 @@ int Dominators::getDomDepth(BasicBlock* bb){
 }
 //寻找公共祖先
 BasicBlock* Dominators::findLCA(BasicBlock* lbb,BasicBlock*rbb){
+    if(lbb==0||rbb==0)
+        return 0;
     auto findPathToRoot=[this](BasicBlock* block) {
         std::vector<BasicBlock*> path;
         while (block) {
