@@ -113,20 +113,19 @@ void Dominators::sFastIDomAlg(Function *func_){
 }
 
 void Dominators::domAlg(Function *func_){
-    std::function<::std::set<BasicBlock*>(BasicBlock*)> getdoms=[&,this](BasicBlock*bb){
-        auto &dom_set=func_dom_set_.find(func_)->second.find(bb)->second;
-        auto b_set=getDomTree(bb);
-        if(b_set.empty())return std::set<BasicBlock*>{};
-        ::std::vector<BasicBlock*> work_list(b_set.begin(),b_set.end());
-        for(auto tree_node:work_list){
-            auto b=getdoms(tree_node);
-            if(b.empty())continue;
-            std::copy(b.begin(),b.end(),inserter(b_set, b_set.end()));
+    std::function<void(BasicBlock*)> getdoms=[&,this](BasicBlock*bb){
+        auto &func_dom_set=func_dom_set_.find(func_)->second;
+        auto &dom_set=func_dom_set.find(bb)->second;
+        auto b_tree=getDomTree(bb);
+        if(b_tree.empty())return ;
+        // ::std::vector<BasicBlock*> work_list(b_set.begin(),b_set.end());
+        for(auto tree_node:b_tree){
+            getdoms(tree_node);
+            auto &tree_set=func_dom_set.find(tree_node)->second;
+            if(tree_set.empty())continue;
+            std::copy(tree_set.begin(),tree_set.end(),inserter(dom_set, dom_set.end()));
         }
-        std::copy(b_set.begin(),b_set.end(),inserter(dom_set, dom_set.end()));
-        return b_set;
     };
-
     getdoms(func_->getEntryBlock());
 }
 void Dominators::domTreeAlg(Function *func_){

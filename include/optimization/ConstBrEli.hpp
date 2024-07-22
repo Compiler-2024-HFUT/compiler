@@ -1,5 +1,6 @@
 #ifndef CONSTBR_HPP
 #define CONSTBR_HPP
+#include "analysis/Info.hpp"
 #include "midend/BasicBlock.hpp"
 #include "midend/Function.hpp"
 #include "midend/GlobalVariable.hpp"
@@ -12,6 +13,7 @@ class ConstBr:public FunctionPass{
     ConstantInt* const_false;
     std::set<BasicBlock*>erased;
 
+    Modify unReachableBBEli(Function*func);
     void eraseBB(BasicBlock*bb);
     bool constCondFold(BasicBlock*bb);
 public:

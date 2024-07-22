@@ -4,6 +4,7 @@
 #include "midend/Instruction.hpp"
 #include "midend/Value.hpp"
 #include <set>
+#include <vector>
 #include "optimization/DeadPHIEli.hpp"
 #include "optimization/util.hpp"
 
@@ -11,14 +12,8 @@ void replacePhiWith(PhiInst*old,Value* new_val){
     auto &ul=old->getUseList();
     for(auto __u_iter=ul.begin();__u_iter!=ul.end();){
         auto use=*(__u_iter++);
-        if(auto phi= dynamic_cast<PhiInst*>(use.val_)){
-            phi->replaceOperand(use.arg_no_,new_val);
-            // if(auto instr=dynamic_cast<Instruction*>(use.val_))
-            //     phi->replaceOperand(use.arg_no_+1,instr->getParent());
-        }else{
-            auto instr=(Instruction*)(use.val_);
-            instr->replaceOperand(use.arg_no_,new_val);
-        }
+        auto instr=(Instruction*)(use.val_);
+        instr->replaceOperand(use.arg_no_,new_val);
     }
 }
 bool is_phi_cycle(PhiInst*phi,::std::set<PhiInst*>&phi_set){
@@ -38,19 +33,21 @@ Modify DeadPHIEli::runOnFunc(Function*func){
     Modify ret{};
     auto &bb_list=func->getBasicBlocks();
     if(bb_list.size()<2)return ret;
-    std::list<PhiInst*> phi_set;
+    std::vector<PhiInst*> phi_set;
     for(auto b:bb_list){
         for(auto ins:b->getInstructions()){
             if(auto phi=dynamic_cast<PhiInst*>(ins))
-            phi_set.push_back(phi);
+                phi_set.push_back(phi);
+            else
+                break;
         }
     }
     bool change=true;
     while(change){
         change=false;
-        for(auto __iter=phi_set.begin();__iter!=phi_set.end();){
+        for(auto __iter=phi_set.begin();__iter!=phi_set.end();++__iter){
             auto phi=*__iter;
-            auto iter=__iter++;
+            // auto iter=__iter++;
             std::map<Value*,int> phi_incom{};
             // for(int i=0;i<phi->getNumOperands();i+=2){
             //     if(phi_incom.count(phi->getOperand(i))){
@@ -61,15 +58,20 @@ Modify DeadPHIEli::runOnFunc(Function*func){
             //     else phi_incom.insert({phi->getOperand(i),i});
             //         // if(phi->getOperand(i+1)==phi->getOperand(i).)
             // }
-            // if(phi->getNumOperands()==2&&phi->getOperand(0)!=phi){
-            //     replacePhiWith(phi,phi->getOperand(0));
-            //     change=true;
-            // }
+            if(phi->getNumOperands()==2&&phi->getParent()->getPreBasicBlocks().size()<2){
+                replacePhiWith(phi,phi->getOperand(0));
+                change=true;
+                ret.modify_instr=true;
+            }
             if(phi->useEmpty()){
-                phi_set.erase(iter);
+                *__iter=phi_set.back();
+                --__iter;
+                phi_set.pop_back();
+                // phi_set.erase(iter);
                 phi->getParent()->deleteInstr(phi);
                 delete  phi;
                 change=true;
+                ret.modify_instr=true;
             }else if(phi->useOne()&&dynamic_cast<PhiInst*>(phi->getUseList().back().val_)){
                 std::set<PhiInst*> visited{};
                 if(is_phi_cycle(phi,visited)){
@@ -78,7 +80,9 @@ Modify DeadPHIEli::runOnFunc(Function*func){
                     ins->removeOperands(u.arg_no_,u.arg_no_+1);
                     fixPhiOpUse(ins);
 
-                    phi_set.erase(iter);
+                    *__iter=phi_set.back();
+                    --__iter;
+                    phi_set.pop_back();
                     visited.erase(phi);
                     phi->getParent()->deleteInstr(phi);
                     delete  phi;
