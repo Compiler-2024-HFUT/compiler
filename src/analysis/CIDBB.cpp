@@ -14,7 +14,7 @@ void CIDBB::analyseOnFunc(Function *func){
 Function* CIDBB::initialFunction(Function *func){
     if(func->getNumBasicBlocks()!=0){
         for(auto bb: func->getBasicBlocks())
-            bb->incomingReset();
+            inDegreeInitialize(bb);
         return func; 
     }
     return nullptr;
@@ -25,12 +25,12 @@ Function* CIDBB::initialFunction(Function *func){
 void CIDBB:: calInDreegeOfBB(BasicBlock* bb){
     for(auto bb_succ : bb->getSuccBasicBlocks()){
         if(marker[bb_succ]==unvisited){
-            bb_succ->incomingAdd(1);
+            inDegreeUpdate(bb_succ, 1);
             marker[bb_succ]=visiting;
             calInDreegeOfBB(bb_succ);
         }
         else if(marker[bb_succ]==visited){
-            bb_succ->incomingAdd(1);
+            inDegreeUpdate(bb_succ, 1);
         }
 
     }

@@ -8,6 +8,10 @@
 #include "midend/Module.hpp"
 #include "midend/Instruction.hpp"
 #include "midend/BasicBlock.hpp"
+#include "analysis/Dataflow.hpp"
+#include "optimization/PassManager.hpp"
+#include "analysis/CIDBB.hpp"
+#include "analysis/CLND.hpp"
 
 struct Range {
     int from;
@@ -91,7 +95,7 @@ class RegAllocDriver {
 public:
     explicit RegAllocDriver(Module *m): m(m) {}
 public:
-    void compute_reg_alloc();
+    void compute_reg_alloc(LiveVar* lv, CIDBB* cidbb);
     std::map<Value*, Interval*>& get_ireg_alloc_in_func(Function *func) { return ireg_alloc[func]; }
     std::map<Value*, Interval*>& get_freg_alloc_in_func(Function *func) { return freg_alloc[func]; }
     std::list<BasicBlock*>& get_bb_order_in_func(Function *func) { return bb_order[func]; } 
@@ -147,17 +151,17 @@ public:
     explicit RegAlloc(Function* func): func(func) {}
 
 public:
-    void execute();
+    void execute(LiveVar* lv, CIDBB* cidbb);
     std::map<Value*, Interval*>& get_ireg_alloc() { return ival2Inter; }
     std::map<Value*, Interval*>& get_freg_alloc() { return fval2Inter; }
     std::list<BasicBlock*>& get_block_order() { return block_order; }
 
 private:
     void init();
-    void compute_block_order();
+    void compute_block_order(CIDBB* cidbb);
     void number_operations();
     void compute_bonus_and_cost();
-    void build_intervals();
+    void build_intervals(LiveVar* lv);
     void walk_intervals();
     void add_interval(Interval *interval) { interval_list.insert(interval); }
     void add_reg_to_pool(Interval *interval);

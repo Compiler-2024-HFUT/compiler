@@ -19,7 +19,7 @@
 #include "analysis/CLND.hpp"
 #include "backend/AsmGen.hpp"
 #include "backend/Asm.hpp"
-#include "optimization/AAA.hpp"
+
 #include "analysis/Dominators.hpp"
 
 using namespace std;
@@ -53,15 +53,12 @@ int main(int argc , char**argv){
    pm.addPass<Mem2Reg>();
    pm.addPass<DeadPHIEli>();
    pm.addPass<LIR>();
-   pm.addInfo<CIDBB>();
-   pm.addInfo<CLND>();
-   pm.addPass<ActiveVar>();
+
+  
+   //pm.addPass<ActiveVar>();
    
     // pm.add_pass<FuncInline>();
-    auto cidbb = pm.getInfo<CIDBB>();
-    cidbb->analyse();
-    auto clnd = pm.getInfo<CLND>();
-    clnd->analyse();
+
 
     
     pm.run();

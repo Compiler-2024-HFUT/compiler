@@ -29,25 +29,25 @@ public:
 
     void removePreBasicBlock(BasicBlock *bb) { pre_bbs_.remove(bb); }
     void removeSuccBasicBlock(BasicBlock *bb) { succ_bbs_.remove(bb); }
-    void incomingReset() { incoming_branch = 0; }
-    bool isIncomingZero() { return incoming_branch == 0; }
-    void incomingAdd(int num) { incoming_branch += num; }
-    void incomingDecrement(){incoming_branch--;}
-    int getIncomingBranch() { return incoming_branch; }
+    //void incomingReset() { incoming_branch = 0; }
+    //bool isIncomingZero() { return incoming_branch == 0; }
+    //void incomingAdd(int num) { incoming_branch += num; }
+    //void incomingDecrement(){incoming_branch--;}
+    //int getIncomingBranch() { return incoming_branch; }
     void loopDepthReset() { loop_depth = 0; }
     int getLoopDepth() { return loop_depth; }
     void loopDepthAdd(int num) { loop_depth += num; }
     //& cfg api end
 
     //& dominate tree api begin
-    void setLiveInInt(std::set<Value*> in){ilive_in = in;}
-    void setLiveOutInt(std::set<Value*> out){ilive_out = out;}
-    void setLiveInFloat(std::set<Value*> in){flive_in = in;}
-    void setLiveOutFloat(std::set<Value*> out){flive_out = out;}
-    std::set<Value*>& getLiveInInt(){return ilive_in;}
-    std::set<Value*>& getLiveOutInt(){return ilive_out;}
-    std::set<Value*>& getLiveInFloat(){return flive_in;}
-    std::set<Value*>& getLiveOutFloat(){return flive_out;}
+    //void setLiveInInt(std::set<Value*> in){ilive_in = in;}
+    //void setLiveOutInt(std::set<Value*> out){ilive_out = out;}
+    //void setLiveInFloat(std::set<Value*> in){flive_in = in;}
+    //void setLiveOutFloat(std::set<Value*> out){flive_out = out;}
+    //std::set<Value*>& getLiveInInt(){return ilive_in;}
+    //std::set<Value*>& getLiveOutInt(){return ilive_out;}
+    //std::set<Value*>& getLiveInFloat(){return flive_in;}
+    //std::set<Value*>& getLiveOutFloat(){return flive_out;}
     //& dominate tree api end
 
     //& dominates frontier api begin
@@ -132,11 +132,11 @@ private:
 //    std::set<BasicBlock*> rdom_frontier_;
  //   std::set<BasicBlock*> rdoms_;
     Function *parent_;
-    std::set<Value*> ilive_in;
-    std::set<Value*> ilive_out;
-    std::set<Value*> flive_in;
-    std::set<Value*> flive_out;
-    int incoming_branch = 0;
+   // std::set<Value*> ilive_in;
+   // std::set<Value*> ilive_out;
+   // std::set<Value*> flive_in;
+   // std::set<Value*> flive_out;
+   // int incoming_branch = 0;
     int loop_depth = 0;
 
     // std::unordered_set<Instruction*>dead;

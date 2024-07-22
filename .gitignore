@@ -16,3 +16,9 @@ test/testcase
 testcase/
 mcg.sh
 test.c
+
+*.in
+*.output
+*.out
+*.s
+*.o

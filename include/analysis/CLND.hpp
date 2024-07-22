@@ -16,6 +16,8 @@ class CLND : public FunctionInfo{
         visiting,
         visited
     };
+        //::std::map<BasicBlock*, int> depths;
+
         ::std::map<BasicBlock *, state> marker;
 
         //循环组：每个元素是一个循环，具体由一组bb组成
@@ -40,13 +42,16 @@ class CLND : public FunctionInfo{
     
         Function* initialFunction(Function *func);
         void calLoopNestingDepth(BasicBlock* bb);
+        //void depthInitialize(BasicBlock* bb){depths[bb] = 0;}
+        //void depthUpdate(BasicBlock* bb, int increment){depths[bb]+=increment;}
+        
 
 
     public:
         CLND(Module *m,InfoManager*im): FunctionInfo(m,im){}
         ~CLND(){};
         void analyseOnFunc(Function*func) override;
-
+        //int getDepth(BasicBlock* bb){return depths[bb];}
 
         //循环优化需要用到的接口
 

@@ -6,7 +6,17 @@ void AsmGen::visit(Module &node){
         global_variable_labels_table[global_var] = new Label(global_var->getName());
     }
     auto reg_alloc = new RegAllocDriver(asm_unit->getModuleOfAsmUnit());
-    reg_alloc->compute_reg_alloc();
+    PassManager pm{asm_unit->getModuleOfAsmUnit()};
+    pm.addInfo<LiveVar>();
+    pm.addInfo<CIDBB>();
+    pm.addInfo<CLND>();
+    auto lv = pm.getInfo<LiveVar>();
+    lv->analyse();
+    auto cidbb = pm.getInfo<CIDBB>();
+    cidbb->analyse();
+    auto clnd = pm.getInfo<CLND>();
+    clnd->analyse();
+    reg_alloc->compute_reg_alloc(lv, cidbb);
     for(auto func:asm_unit->getModuleOfAsmUnit()->getFunctions()){
         if(!func->isDeclaration()){
         ival2interval = reg_alloc->get_ireg_alloc_in_func(func);
@@ -19,6 +29,11 @@ void AsmGen::visit(Module &node){
 }
 
 void AsmGen::visit(Function &node){
+    auto func = &node;
+    
+
+
+
     //& record stack info and used tmp regs for inst gen
     cur_tmp_reg_saved_stack_offset = 0;
     caller_trans_args_stack_offset = 0;
@@ -31,13 +46,13 @@ void AsmGen::visit(Function &node){
     free_locs_for_tmp_regs_saved.clear();
 
     //*************************线性化BB并标号***************************
-    BasicBlock *ret_bb;
+        BasicBlock *ret_bb;
     Label* new_label;
     std::string label_str;
 
     bb2label.clear();
     linear_bbs.clear();
-    auto func = subroutine->getFuncOfSubroutine();
+  
     std::list<BasicBlock*> linear_bbs_of_func = func->getBasicBlocks();
     int mp = 0;
     for(auto bb: linear_bbs_of_func) {
@@ -61,6 +76,7 @@ void AsmGen::visit(Function &node){
     new_label = new Label(label_str);
     bb2label.insert({ret_bb, new_label});
     linear_bbs.push_back(ret_bb);
+
     //*************************线性化BB并标号***************************
 
 

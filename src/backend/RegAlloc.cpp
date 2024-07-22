@@ -89,13 +89,13 @@ void Interval::union_interval(Interval* interval){
 
 
 //& RegAllocDriver
-void RegAllocDriver::compute_reg_alloc(){
+void RegAllocDriver::compute_reg_alloc(LiveVar* lv, CIDBB* cidbb){
     for(auto func:m->getFunctions()){
         if(func->getBasicBlocks().empty()){
             continue;
         }else{
             auto allocator = new RegAlloc(func);
-            allocator->execute();
+            allocator->execute(lv, cidbb);
             ireg_alloc[func] = allocator->get_ireg_alloc();
             freg_alloc[func] = allocator->get_freg_alloc();
             bb_order[func] = allocator->get_block_order();
@@ -105,12 +105,12 @@ void RegAllocDriver::compute_reg_alloc(){
 
 
 //& RegAlloc
-void RegAlloc::execute(){
+void RegAlloc::execute(LiveVar* lv, CIDBB* cidbb){
     init();
-    compute_block_order();
+    compute_block_order(cidbb);
     number_operations();
     compute_bonus_and_cost();
-    build_intervals();
+    build_intervals(lv);
     walk_intervals();
 }
 
@@ -124,7 +124,7 @@ void RegAlloc::init(){
     }
 }
 
-void RegAlloc::compute_block_order(){
+void RegAlloc::compute_block_order(CIDBB* cidbb){
     std::priority_queue<BasicBlock*, std::vector<BasicBlock*>, cmp_block_depth> work_list;
     block_order.clear();
     work_list.push(this->func->getEntryBlock());
@@ -133,8 +133,8 @@ void RegAlloc::compute_block_order(){
         work_list.pop();
         block_order.push_back(cur_bb);
         for(auto succ_bb : cur_bb->getSuccBasicBlocks()){
-            succ_bb->incomingDecrement();
-            if(succ_bb->isIncomingZero()){
+            cidbb->inDegreeUpdate(succ_bb, -1);
+            if(cidbb->getInDegree(succ_bb)==0){
                 work_list.push(succ_bb);
             }
         }
@@ -152,14 +152,15 @@ void RegAlloc::number_operations(){
 }
 
 
-void RegAlloc::build_intervals(){
+void RegAlloc::build_intervals(LiveVar* lv){
     for (auto bb_riter = block_order.rbegin(); bb_riter != block_order.rend();bb_riter++){
         auto bb = *bb_riter;
         auto &instrs = bb->getInstructions();
         int block_from = (*(instrs.begin()))->getId();
         int block_to = (*(instrs.rbegin()))->getId()+2;
         //& for int, not alloc reg for pointer type
-        for(auto iopr : bb->getLiveOutInt()){
+        
+        for(auto iopr : lv->getIntLiveVarOut(bb)){
             if((!dynamic_cast<Instruction*>(iopr) && !dynamic_cast<Argument*>(iopr)) || dynamic_cast<AllocaInst *>(iopr)){
                 continue;
             }
@@ -169,7 +170,7 @@ void RegAlloc::build_intervals(){
             ival2Inter[iopr]->add_range(block_from,block_to);
         }
         //& for float
-        for(auto fopr : bb->getLiveOutFloat()){
+        for(auto fopr : lv->getFloatLiveVarOut(bb)){
             if((!dynamic_cast<Instruction*>(fopr) && !dynamic_cast<Argument*>(fopr))||dynamic_cast<AllocaInst *>(fopr)){
                 continue;
             }
