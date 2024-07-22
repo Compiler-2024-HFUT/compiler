@@ -1,7 +1,13 @@
 #include "optimization/ConstBrEli.hpp"
+#include "analysis/Info.hpp"
+#include "midend/BasicBlock.hpp"
+#include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include "optimization/util.hpp"
 #include <cassert>
+#include <cstdio>
+#include <list>
+#include <vector>
 
 ConstBr::ConstBr(Module*m, InfoManager *im) : FunctionPass(m, im){
     const_true=ConstantInt::get(true);
@@ -22,11 +28,11 @@ void rmBBPhi(BasicBlock*value_in,BasicBlock*valuefrom){
             if(phi->getParent()!=value_in)continue;
             phi->removeOperands(i-1,i);
             fixPhiOpUse(phi);
-            // if(phi->getNumOperands()==2){
-            //     phi->replaceAllUseWith(phi->getOperand(0));
-            //     phi->getParent()->deleteInstr(phi);
-            //     delete phi;
-            // }
+            if(phi->getNumOperands()==2&&phi->getParent()->getPreBasicBlocks().size()<2){
+                phi->replaceAllUseWith(phi->getOperand(0));
+                phi->getParent()->deleteInstr(phi);
+                delete phi;
+            }
         }
     }
 }
@@ -49,7 +55,8 @@ bool ConstBr::constCondFold(BasicBlock*bb){
     }
     if(toerase==nullptr)return false;
 
-    bb->deleteInstr(condbr);
+    bb->getInstructions().pop_back();
+    condbr->removeUseOfOps();
     delete condbr;
     bb->removeSuccBasicBlock(toerase);
     toerase->removePreBasicBlock(bb);
@@ -62,7 +69,6 @@ bool ConstBr::constCondFold(BasicBlock*bb){
     */
     bb->getSuccBasicBlocks().pop_back();
     succ_bb->getPreBasicBlocks().pop_back();
-
     if(toerase->getPreBasicBlocks().empty()){
         eraseBB(toerase);
         return true;
@@ -96,25 +102,30 @@ bool ConstBr::canFold(BasicBlock*bb){
         return true;
     return false;
 }
-Modify ConstBr::runOnFunc(Function*func){
+Modify ConstBr::unReachableBBEli(Function*func){
     Modify ret{};
-    auto &bbs=func->getBasicBlocks();
-    if(bbs.empty())return ret;
+    std::vector<Instruction*>to_del;
     erased.clear();
-    for(auto iter=bbs.begin();iter!=bbs.end();){
-        if(!canFold(*iter)){
-            ++iter;
-            continue;
+    std::set<BasicBlock*>reachable;
+    std::list<BasicBlock*>work{func->getEntryBlock()};
+    while(!work.empty()){
+        auto b=work.front();
+        work.pop_front();
+        reachable.insert(b);
+        for(auto s:b->getSuccBasicBlocks()){
+            if(reachable.count(s))
+                continue;
+            work.push_back(s);
+            reachable.insert(s);
         }
-        //删除bb可能出问题，从头开始吧
-        if(constCondFold(*iter))
-            iter=bbs.begin();
     }
-    std::vector<Instruction*> to_del;
-    for(auto b:erased){
-        ret.modify_instr=true;
-        ret.modify_bb=true;
-        // to_del.assign(b->getInstructions().begin(), b->getInstructions().end());
+    auto toeraselist=func->getBasicBlocks();
+    for(auto b:toeraselist){
+        if(reachable.count(b))
+            continue;
+        func->removeBasicBlock(b);
+        rmBBPhi(b);
+        erased.insert(b);
         to_del.insert(to_del.end(),b->getInstructions().begin(),b->getInstructions().end());
     }
     for(Instruction* i:to_del){
@@ -125,7 +136,58 @@ Modify ConstBr::runOnFunc(Function*func){
         delete i;
     }
     for(auto b:erased){
+        ret.modify_bb=true;
+        ret.modify_instr=true;
         delete b;
     }
+    return ret;
+}
+Modify ConstBr::runOnFunc(Function*func){
+    Modify ret{};
+    auto &bbs=func->getBasicBlocks();
+    if(bbs.empty())return ret;
+    bool changed=true;
+    do{
+        erased.clear();
+        changed=false;
+        for(auto iter=bbs.begin();iter!=bbs.end();){
+            if(!canFold(*iter)){
+                ++iter;
+                continue;
+            }
+            //删除bb可能出问题，从头开始吧
+            if(constCondFold(*iter)){
+                ret.modify_bb=true;
+                ret.modify_instr=true;
+                changed=true;
+                iter=bbs.begin();
+            }
+        }
+        std::vector<Instruction*> to_del;
+        for(auto b:erased){
+            // to_del.assign(b->getInstructions().begin(), b->getInstructions().end());
+            to_del.insert(to_del.end(),b->getInstructions().begin(),b->getInstructions().end());
+        }
+        for(Instruction* i:to_del){
+            i->removeUseOfOps();
+        }
+        for(auto i:to_del){
+            assert(i->getUseList().empty());
+            delete i;
+        }
+        for(auto b:erased){
+            delete b;
+        }
+        auto &bl=func->getBasicBlocks();
+        for(auto b:bl){
+            if(b->getPreBasicBlocks().empty())
+                if(b!=bl.front()){
+                    bl.remove(b);
+                    bl.push_front(b);
+                    break;
+                }
+        }
+    }while(changed);
+    ret=ret|unReachableBBEli(func);
     return ret;
 }
