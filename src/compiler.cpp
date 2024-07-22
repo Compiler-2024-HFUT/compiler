@@ -5,17 +5,21 @@
 #include <stdio.h>
 
 #include "analysis/Dominators.hpp"
+#include "backend/AsmGen.hpp"
 #include "frontend/parser.hpp"
 #include "compiler.hpp"
 #include "midend/IRGen.hpp"
 #include "optimization/CombinBB.hpp"
+#include "optimization/ConstBrEli.hpp"
 #include "optimization/DeadPHIEli.hpp"
 #include "optimization/DeadStoreEli.hpp"
 #include "optimization/G2L.hpp"
+#include "optimization/InstrCombine.hpp"
 #include "optimization/Mem2Reg.hpp"
 #include "optimization/PassManager.hpp"
 #include "optimization/SCCP.hpp"
 #include "optimization/ValueNumbering.hpp"
+#include "optimization/inline.hpp"
 void usage(){
 	(void)fprintf(stderr, "%s\n%s\n",
 	    "usage: compiler file [-SL]  file -o file ...",
@@ -30,10 +34,13 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<G2L>();
     pm.addPass<DeadPHIEli>();
     pm.addPass<SCCP>();
-    // pm.addPass<ConstBr>();
+    pm.addPass<ConstBr>();
     pm.addPass<CombinBB>();
-
-    // pm.addPass<FuncInline>();
+    pm.addPass<InstrCombine>();
+    pm.addPass<FuncInline>();
+    pm.addPass<InstrCombine>();
+    pm.addPass<SCCP>();
+    pm.addPass<ConstBr>();
     pm.addPass<ValNumbering>();
 }
 
@@ -89,20 +96,25 @@ int Compiler::run(){
         p.parserComp();
         p.comp->accept(irgen);
     }
-    PassManager pm(irgen.getModule());
+    auto m=irgen.getModule();
+    PassManager pm(m);
     if(opt_level!=OPT::NONE)
         buildOpt(pm);
     else
         buildDefault(pm);
     pm.run();
 
+    std::fstream out_file(out_name,std::ios::out|std::ios::trunc);
     if(is_out_llvm){
-        std::fstream out_file(out_name,std::ios::out|std::ios::trunc);
-        out_file<<irgen.getModule()->print()<<std::endl;
-        out_file.close();
+        out_file<<m->print()<<std::endl;
     }else{
-        
+        AsmGen asm_gen(m);
+        m->accept(asm_gen);
+        ::std::string asm_code = asm_gen.getAsmUnit()->print();
+        out_file<<asm_code<<std::endl;
     }
+    out_file.close();
+
     return 0;
 }
 int main(int argc, char** argv)

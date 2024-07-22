@@ -29,7 +29,7 @@ function compare_out(){
 
 function asm_test() {
     name=$1
-    ../build/linux/x86_64/release/targettest "`pwd`/$name.sy" > "$name.s"
+    ../build/linux/x86_64/release/compiler "`pwd`/$name.sy" -S -O1 -o  "$name.s" 
     if [ $? -ne 0 ]
     then
         echo "`pwd`$name.sy error 1145141919810" >> "compiler wrong"
