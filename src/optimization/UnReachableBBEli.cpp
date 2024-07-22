@@ -24,19 +24,28 @@ Modify UnReachableBBEli::runOnFunc(Function*func){
     BasicBlock*entry=func->getEntryBlock();
     auto &bbs=func->getBasicBlocks();
     Modify ret{};
-    for(auto iter=bbs.begin();iter!=bbs.end();){
-        auto b=*iter;
-        ++iter;
-        if(b==entry)continue;
-        if(b->getPreBasicBlocks().empty()){
-            eraseBB(b);
-            iter=++(bbs.begin());
+    erased.clear();
+    std::set<BasicBlock*>reachable;
+    std::list<BasicBlock*>work{func->getEntryBlock()};
+    while(!work.empty()){
+        auto b=work.front();
+        work.pop_front();
+        reachable.insert(b);
+        for(auto s:b->getSuccBasicBlocks()){
+            if(reachable.count(s))
+                continue;
+            work.push_back(s);
+            reachable.insert(s);
         }
     }
     std::vector<Instruction*> to_del;
-    for(auto b:erased){
-        ret.modify_bb=true;
-        ret.modify_instr=true;
+    auto toeraselist=func->getBasicBlocks();
+    for(auto b:toeraselist){
+        if(reachable.count(b))
+            continue;
+        func->removeBasicBlock(b);
+        rmBBPhi(b);
+        erased.insert(b);
         to_del.insert(to_del.end(),b->getInstructions().begin(),b->getInstructions().end());
     }
     for(Instruction* i:to_del){
@@ -45,6 +54,10 @@ Modify UnReachableBBEli::runOnFunc(Function*func){
     for(auto i:to_del){
         assert(i->getUseList().empty());
         delete i;
+    }
+    if(!erased.empty()){
+        ret.modify_bb=true;
+        ret.modify_instr=true;
     }
     for(auto b:erased){
         delete b;

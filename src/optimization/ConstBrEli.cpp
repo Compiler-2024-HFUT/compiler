@@ -135,9 +135,11 @@ Modify ConstBr::unReachableBBEli(Function*func){
         assert(i->getUseList().empty());
         delete i;
     }
-    for(auto b:erased){
+    if(!erased.empty()){
         ret.modify_bb=true;
         ret.modify_instr=true;
+    }
+    for(auto b:erased){
         delete b;
     }
     return ret;
@@ -187,7 +189,9 @@ Modify ConstBr::runOnFunc(Function*func){
                     break;
                 }
         }
+        auto unr_ret=unReachableBBEli(func);
+        ret=ret|unr_ret;
+        changed|=unr_ret.modify_instr;
     }while(changed);
-    ret=ret|unReachableBBEli(func);
     return ret;
 }
