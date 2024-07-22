@@ -52,14 +52,15 @@ void AsmGen::visit(Function &node){
 
     bb2label.clear();
     linear_bbs.clear();
-  
+    bool fff = false;
     std::list<BasicBlock*> linear_bbs_of_func = func->getBasicBlocks();
     int mp = 0;
     for(auto bb: linear_bbs_of_func) {
         if(bb == func->getEntryBlock() && bb->getTerminator()->isRet()) {
             bb2label.insert({bb, new Label("")});
             linear_bbs.push_back(bb);
-            return ;
+            fff = true;
+            break;
         } else if(bb == func->getEntryBlock()) {
             bb2label.insert({bb, new Label("")});
         } else if(bb != func->getEntryBlock() && !bb->getTerminator()->isRet()) {
@@ -72,10 +73,12 @@ void AsmGen::visit(Function &node){
         }
         linear_bbs.push_back(bb);
     }
+    if(!fff){
     label_str = func->getName() + "_" + "ret";
     new_label = new Label(label_str);
     bb2label.insert({ret_bb, new_label});
     linear_bbs.push_back(ret_bb);
+    }
 
     //*************************线性化BB并标号***************************
 
