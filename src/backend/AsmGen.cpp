@@ -57,12 +57,14 @@ void AsmGen::visit(Function &node){
     int mp = 0;
     for(auto bb: linear_bbs_of_func) {
         if(bb == func->getEntryBlock() && bb->getTerminator()->isRet()) {
-            bb2label.insert({bb, new Label("")});
+            label_str = "";
+            bb2label.insert({bb, new Label(label_str)});
             linear_bbs.push_back(bb);
             fff = true;
             break;
         } else if(bb == func->getEntryBlock()) {
-            bb2label.insert({bb, new Label("")});
+            label_str = func->getName() + "_" + "entry";
+            bb2label.insert({bb, new Label(label_str)});
         } else if(bb != func->getEntryBlock() && !bb->getTerminator()->isRet()) {
             label_str = func->getName() + "_" + ::std::to_string(mp++);
             new_label = new Label(label_str);
@@ -79,7 +81,6 @@ void AsmGen::visit(Function &node){
     bb2label.insert({ret_bb, new_label});
     linear_bbs.push_back(ret_bb);
     }
-
     //*************************线性化BB并标号***************************
 
 
@@ -634,747 +635,7 @@ void AsmGen::visit(BasicBlock &node){
     } else {
        
         //*****************************处理phi**********************
-            PhiPass *succ_move_inst = nullptr;
-    PhiPass *fail_move_inst = nullptr;
-    PhiPass **move_inst;
-
-    AsmInst *succ_br_inst = nullptr;
-    AsmInst *fail_br_inst = nullptr;
-    
-
-    std::vector<AddressMode*> phi_itargets;
-    std::vector<AddressMode*> phi_isrcs;
-    std::vector<AddressMode*> phi_ftargets;
-    std::vector<AddressMode*> phi_fsrcs;
-
-    //& 保证寄存器地址的唯一性
-    std::map<int, AddressMode*> ireg2loc;
-    std::map<int, AddressMode*> freg2loc;
-
-    bool is_cmpbr = false;
-    bool is_fcmpbr = false;
-
-    BranchInst *br = dynamic_cast<BranchInst*>(br_inst); 
-    CmpBrInst *cmpbr = dynamic_cast<CmpBrInst*>(br_inst);
-    FCmpBrInst *fcmpbr = dynamic_cast<FCmpBrInst*>(br_inst);
-
-    BasicBlock *succ_bb = nullptr;
-    BasicBlock *fail_bb = nullptr;
-
-    bool have_succ_move = false;
-    bool have_fail_move = false;
-
-    tmp_regs_restore();
-
-    if(fcmpbr) {
-        is_fcmpbr = true;   
-        succ_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(2));
-        fail_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(3));
-    } else if(cmpbr) {
-        is_cmpbr = true;
-        succ_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(2));
-        fail_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(3));
-    } else {
-        if(br_inst->getNumOperands() == 1) {
-            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(0));
-        } else {
-            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(1));
-            fail_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(2));
-        }
-    }
-
-    for(auto sux: sequence->getBBOfSeq()->getSuccBasicBlocks()) {
-        bool is_succ_bb;
-        if(sux == succ_bb) {
-            is_succ_bb = true;
-            move_inst = &succ_move_inst;
-        } else {
-            is_succ_bb = false;
-            move_inst = &fail_move_inst;
-        }
-
-        phi_isrcs.clear();
-        phi_fsrcs.clear();
-        phi_itargets.clear();
-        phi_ftargets.clear();
-
-        for(auto inst: sux->getInstructions()) {
-            if(!inst->isPhi()) {
-                break;
-            }
-            Value *lst_val = nullptr;
-            if(inst->getType()->isFloatType()) {
-                int target_reg_id = fval2interval[inst]->reg_id;
-                AddressMode *target_loc_ptr = nullptr;
-                if(target_reg_id >= 0) {
-                    if(freg2loc.find(target_reg_id) == freg2loc.end()) 
-                        freg2loc.insert({target_reg_id, new FRA(target_reg_id)});
-                    target_loc_ptr = freg2loc[target_reg_id];
-                } else {
-                    target_loc_ptr = val2stack[inst];
-                }
-                for(auto opr: inst->getOperands()) {
-                    if(dynamic_cast<BasicBlock*>(opr)) {
-                        auto this_bb = dynamic_cast<BasicBlock*>(opr);
-                        if(this_bb != sequence->getBBOfSeq())
-                            continue;
-                        if(dynamic_cast<ConstantFP*>(lst_val)) {
-                            auto const_val = dynamic_cast<ConstantFP*>(lst_val);
-                            auto src = new FConstPool(const_val->getValue());
-                            phi_fsrcs.push_back(src);
-                            phi_ftargets.push_back(target_loc_ptr);
-                        } else {
-                            int src_reg_id = fval2interval[lst_val]->reg_id;
-                            if(src_reg_id >= 0) {
-                                if(freg2loc.find(src_reg_id) == freg2loc.end())
-                                    freg2loc.insert({src_reg_id, new FRA(src_reg_id)});
-                                auto src = freg2loc[src_reg_id];
-                                phi_fsrcs.push_back(src);
-                                phi_ftargets.push_back(target_loc_ptr);
-                            } else {
-                                auto src = val2stack[lst_val];
-                                phi_fsrcs.push_back(src);
-                                phi_ftargets.push_back(target_loc_ptr);
-                            }
-                        }
-                    } else {
-                        if(opr == nullptr){}
-                            //LOG(ERROR) << "err";
-                        lst_val = opr;
-                    }
-                }
-            } else {
-                int target_reg_id = ival2interval[inst]->reg_id;
-                AddressMode *target_loc_ptr = nullptr;
-                if(target_reg_id >= 0) {
-                    if(ireg2loc.find(target_reg_id) == ireg2loc.end()) 
-                        ireg2loc.insert({target_reg_id, new IRA(target_reg_id)});
-                    target_loc_ptr = ireg2loc[target_reg_id];
-                } else {
-                    target_loc_ptr = val2stack[inst];
-                }
-                for(auto opr: inst->getOperands()) {
-                    if(dynamic_cast<BasicBlock*>(opr)) {
-                        auto this_bb = dynamic_cast<BasicBlock*>(opr);
-                        if(this_bb != sequence->getBBOfSeq()) 
-                            continue;
-                        if(dynamic_cast<ConstantInt*>(lst_val)) {
-                            auto const_val = dynamic_cast<ConstantInt*>(lst_val);
-                            auto src = new IConstPool(const_val->getValue());
-                            phi_isrcs.push_back(src);
-                            phi_itargets.push_back(target_loc_ptr);
-                        } else {
-                            int src_reg_id = ival2interval[lst_val]->reg_id;
-                            if(src_reg_id >= 0) {
-                                if(ireg2loc.find(src_reg_id) == ireg2loc.end()) 
-                                    ireg2loc.insert({src_reg_id, new IRA(src_reg_id)});
-                                auto src = ireg2loc[src_reg_id];
-                                phi_isrcs.push_back(src);
-                                phi_itargets.push_back(target_loc_ptr);
-                            } else {
-                                auto src = val2stack[lst_val];
-                                phi_isrcs.push_back(src);
-                                phi_itargets.push_back(target_loc_ptr);
-                            }
-                        }
-                    } else {
-                        lst_val = opr;
-                    }
-                }
-            }
-
-
-        }
-
-        std::vector<std::pair<AddressMode*, AddressMode*>> to_move_ilocs;
-        std::vector<std::pair<AddressMode*, AddressMode*>> to_move_flocs;
-
-        if(!phi_isrcs.empty()) {
-            to_move_ilocs = idata_move(phi_isrcs, phi_itargets);
-
-            if(is_succ_bb) {
-                have_succ_move = true;
-            } else {
-                have_fail_move = true;
-            }
-        }
-        if(!phi_fsrcs.empty()) {
-            to_move_flocs = fdata_move(phi_fsrcs, phi_ftargets);
-            if(is_succ_bb) {
-                have_succ_move = true;
-            } else {
-                have_fail_move = true;
-            }
-        }
-
-        if(! to_move_ilocs.empty() || ! to_move_flocs.empty()) {
-            *move_inst = sequence->createPhiPass(to_move_ilocs, to_move_flocs);
-            sequence->deleteInst();
-        }
-    }
-
-    if(fcmpbr) {
-        is_fcmpbr = true;   
-        auto cond1 = fcmpbr->getOperand(0);
-        auto cond2 = fcmpbr->getOperand(1);
-        auto cmp_op = fcmpbr->getCmpOp();
-        succ_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(2));
-        fail_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(3));
-        auto const_cond1 = dynamic_cast<ConstantFP*>(cond1);
-        auto const_cond2 = dynamic_cast<ConstantFP*>(cond2);
-
-        switch(cmp_op) {
-            case CmpOp::EQ: {
-                    //& 为了避免修改控制流可能造成的问题，不采取化简
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createFBeq(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                
-                    } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBeq(new FConst(const_cond1->getValue()), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBeq(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBeq(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createFBeq(new Mem(regbase1->getOffset(), static_cast<int>(regbase1->getReg()) ), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBeq(getAllocaReg(cond1), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBeq(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();
-                }
-                break;
-
-            case CmpOp::GE: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createFBge(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                     
-                    } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBge(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBge(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBge(new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBge(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createFBge(new Mem(regbase1->getOffset(), static_cast<int>( regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBge(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBge(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBge(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();
-                }
-                break;
-            case CmpOp::GT: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createFBgt(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                     
-                    } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBgt(new FConst(const_cond1->getValue()), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBgt(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBgt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBgt(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createFBgt(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBgt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBgt(getAllocaReg(cond1), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBgt(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();
-                }
-                break; 
-
-            case CmpOp::LE: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createFBle(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                     
-                    } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBle(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBle(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBle(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBle(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createFBle(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBle(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBle(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBle(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();
-                }
-                break;
-            
-            case CmpOp::LT: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createFBlt(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                     
-                    } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBlt(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBlt(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBlt(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createFBlt(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBlt(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBlt(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();
-                }
-                break;
-
-            case CmpOp::NE: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createFBne(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                     
-                    } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBne(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBne(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBne(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createFBne(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createFBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createFBne(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createFBne(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();
-                }
-                break; 
-
-            default:
-                break;
-        }
-    } else if(cmpbr) {
-        is_cmpbr = true;
-        auto cond1 = cmpbr->getOperand(0);
-        auto cond2 = cmpbr->getOperand(1);
-        auto cmp_op = cmpbr->getCmpOp();
-        succ_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(2));
-        fail_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(3));
-        auto const_cond1 = dynamic_cast<ConstantInt*>(cond1);
-        auto const_cond2 = dynamic_cast<ConstantInt*>(cond2);
-
-        switch(cmp_op) {
-            case CmpOp::EQ: {
-                    //& 为了避免修改控制流可能造成的问题，不采取化简
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createBeq(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                  
-                    } else if(const_cond1) {
-                        if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBeq(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBeq(new IConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBeq(getAllocaReg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createBeq(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBeq(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBeq(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();  
-                }
-                break;
-
-            case CmpOp::GE: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createBge(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                  
-                    } else if(const_cond1) {
-                        if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBge(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBge(new IConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBge(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBge(getAllocaReg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createBge(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBge(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBge(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBge(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();  
-                }
-                break;
-            case CmpOp::GT: {}
-                //LOG(ERROR) << "phi union出现异常";
-                break; 
-
-            case CmpOp::LE: {}
-               // LOG(ERROR) << "phi union出现异常";
-                break;
-            
-            case CmpOp::LT: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createBlt(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                  
-                    } else if(const_cond1) {
-                        if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBlt(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBlt(new IConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBlt(getAllocaReg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createBlt(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBlt(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBlt(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();  
-                }
-                break;
-
-            case CmpOp::NE: {
-                    if(const_cond1 && const_cond2) {
-                        succ_br_inst = sequence->createBne(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                        sequence->deleteInst();                  
-                    } else if(const_cond1) {
-                        if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBne(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBne(new IConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else if(const_cond2) {
-                        if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBne(getAllocaReg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    } else {
-                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
-                            auto regbase1 = val2stack[cond1];
-                            auto regbase2 = val2stack[cond2];
-                            succ_br_inst = sequence->createBne(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond1]->reg_id < 0) {
-                            auto regbase = val2stack[cond1];
-                            succ_br_inst = sequence->createBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else if(ival2interval[cond2]->reg_id < 0) {
-                            auto regbase = val2stack[cond2];
-                            succ_br_inst = sequence->createBne(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        } else {
-                            succ_br_inst = sequence->createBne(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
-                            sequence->deleteInst();
-                        }
-                    }
-                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-                    sequence->deleteInst();  
-                }
-                break;
-
-            default:
-                break;
-        }
-    } else {
-        if(br_inst->getNumOperands() == 1) {
-            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(0));
-            succ_br_inst = sequence->createJump(bb2label[succ_bb]);
-            sequence->deleteInst();
-        } else {
-            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(1));
-            fail_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(2));
-            auto cond = br_inst->getOperand(0);
-            auto const_cond = dynamic_cast<ConstantInt*>(cond);
-            if(const_cond) {
-                succ_br_inst = sequence->createBne(new IConst(const_cond->getValue()), new GReg(static_cast<int>(RISCV::GPR::zero)), bb2label[succ_bb]);
-                sequence->deleteInst();
-            } else if(ival2interval[cond]->reg_id < 0) {
-                auto regbase = val2stack[cond];
-                succ_br_inst = sequence->createBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new GReg(static_cast<int>(RISCV::GPR::zero)), bb2label[succ_bb]);
-                sequence->deleteInst();
-            } else {
-                succ_br_inst = sequence->createBne(getAllocaReg(cond), new GReg(static_cast<int>(RISCV::GPR::zero)), bb2label[succ_bb]);
-                sequence->deleteInst();
-            }
-            fail_br_inst = sequence->createJump(bb2label[fail_bb]);
-            sequence->deleteInst();
-        }
-    }
-
-    if(is_fcmpbr) {
-        if(have_succ_move) {}
-            //LOG(ERROR) << "出现未预期情况";
-        if(succ_br_inst)
-            sequence->appendInst(succ_br_inst);
-        if(fail_move_inst)
-            sequence->appendInst(fail_move_inst);
-        if(fail_br_inst)
-            sequence->appendInst(fail_br_inst);
-        
-    } else if(is_cmpbr) {
-        if(have_succ_move) {}
-        //    LOG(ERROR) << "出现未预期情况";
-
-        if(succ_br_inst)
-            sequence->appendInst(succ_br_inst);
-        if(fail_move_inst)
-            sequence->appendInst(fail_move_inst);
-        if(fail_br_inst)
-            sequence->appendInst(fail_br_inst);
-
-    } else {
-        if(br_inst->getNumOperands() == 1) {
-            if(succ_move_inst)
-                sequence->appendInst(succ_move_inst);
-            if(succ_br_inst)
-                sequence->appendInst(succ_br_inst);
-
-        } else {
-            if(have_succ_move) {}
-               // LOG(ERROR) << "出现未预期情况";
-
-            if(succ_br_inst)
-                sequence->appendInst(succ_br_inst);
-            if(fail_move_inst)
-                sequence->appendInst(fail_move_inst);
-            if(fail_br_inst)
-                sequence->appendInst(fail_br_inst);
-        }
-    }
+        phi_union(br_inst);
 
         //*****************************处理phi**********************
     }
@@ -1545,7 +806,16 @@ void AsmGen::visit(ZextInst &node){
     auto inst = &node;
     auto rd = dynamic_cast<GReg*>(getAllocaReg(inst));
     auto rs = dynamic_cast<GReg*>(getAllocaReg(inst->getOperand(0)));
-    sequence->createZext(rd, rs);
+    auto iconst_rs = dynamic_cast<ConstantInt*>(inst->getOperand(0));
+    if(rs)
+        sequence->createZext(rd, rs);
+    else if(iconst_rs){
+        int iflag = iconst_rs->getValue();
+
+       sequence->createZextIConst(rd, iflag);
+        
+    }
+
 }
 
 void AsmGen::visit(SiToFpInst &node){
@@ -2844,4 +2114,749 @@ void AsmGen::tmp_regs_restore() {
     if(! to_restore_fregs.empty())
         sequence->createStoreTmpRegs(to_restore_fregs);
     return ;
+}
+
+void AsmGen::phi_union(Instruction *br_inst) {
+    
+    PhiPass *succ_move_inst = nullptr;
+    PhiPass *fail_move_inst = nullptr;
+    PhiPass **move_inst;
+
+    AsmInst *succ_br_inst = nullptr;
+    AsmInst *fail_br_inst = nullptr;
+    
+
+    std::vector<AddressMode*> phi_itargets;
+    std::vector<AddressMode*> phi_isrcs;
+    std::vector<AddressMode*> phi_ftargets;
+    std::vector<AddressMode*> phi_fsrcs;
+
+    //& 保证寄存器地址的唯一性
+    std::map<int, AddressMode*> ireg2loc;
+    std::map<int, AddressMode*> freg2loc;
+
+    bool is_cmpbr = false;
+    bool is_fcmpbr = false;
+
+    BranchInst *br = dynamic_cast<BranchInst*>(br_inst); 
+    CmpBrInst *cmpbr = dynamic_cast<CmpBrInst*>(br_inst);
+    FCmpBrInst *fcmpbr = dynamic_cast<FCmpBrInst*>(br_inst);
+
+    BasicBlock *succ_bb = nullptr;
+    BasicBlock *fail_bb = nullptr;
+
+    bool have_succ_move = false;
+    bool have_fail_move = false;
+
+    tmp_regs_restore();
+
+    if(fcmpbr) {
+        is_fcmpbr = true;   
+        succ_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(2));
+        fail_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(3));
+    } else if(cmpbr) {
+        is_cmpbr = true;
+        succ_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(2));
+        fail_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(3));
+    } else {
+        if(br_inst->getNumOperands() == 1) {
+            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(0));
+        } else {
+            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(1));
+            fail_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(2));
+        }
+    }
+
+    for(auto sux: sequence->getBBOfSeq()->getSuccBasicBlocks()) {
+        bool is_succ_bb;
+        if(sux == succ_bb) {
+            is_succ_bb = true;
+            move_inst = &succ_move_inst;
+        } else {
+            is_succ_bb = false;
+            move_inst = &fail_move_inst;
+        }
+
+        phi_isrcs.clear();
+        phi_fsrcs.clear();
+        phi_itargets.clear();
+        phi_ftargets.clear();
+
+        for(auto inst: sux->getInstructions()) {
+            if(!inst->isPhi()) {
+                break;
+            }
+            Value *lst_val = nullptr;
+            if(inst->getType()->isFloatType()) {
+                int target_reg_id = fval2interval[inst]->reg_id;
+                AddressMode *target_loc_ptr = nullptr;
+                if(target_reg_id >= 0) {
+                    if(freg2loc.find(target_reg_id) == freg2loc.end()) 
+                        freg2loc.insert({target_reg_id, new FRA(target_reg_id)});
+                    target_loc_ptr = freg2loc[target_reg_id];
+                } else {
+                    target_loc_ptr = val2stack[inst];
+                }
+                for(auto opr: inst->getOperands()) {
+                    if(dynamic_cast<BasicBlock*>(opr)) {
+                        auto this_bb = dynamic_cast<BasicBlock*>(opr);
+                        if(this_bb != sequence->getBBOfSeq())
+                            continue;
+                        if(dynamic_cast<ConstantFP*>(lst_val)) {
+                            auto const_val = dynamic_cast<ConstantFP*>(lst_val);
+                            auto src = new FConstPool(const_val->getValue());
+                            phi_fsrcs.push_back(src);
+                            phi_ftargets.push_back(target_loc_ptr);
+                        } else {
+                            int src_reg_id = fval2interval[lst_val]->reg_id;
+                            if(src_reg_id >= 0) {
+                                if(freg2loc.find(src_reg_id) == freg2loc.end())
+                                    freg2loc.insert({src_reg_id, new FRA(src_reg_id)});
+                                auto src = freg2loc[src_reg_id];
+                                phi_fsrcs.push_back(src);
+                                phi_ftargets.push_back(target_loc_ptr);
+                            } else {
+                                auto src = val2stack[lst_val];
+                                phi_fsrcs.push_back(src);
+                                phi_ftargets.push_back(target_loc_ptr);
+                            }
+                        }
+                    } else {
+                        if(opr == nullptr){}
+                            //LOG(ERROR) << "err";
+                        lst_val = opr;
+                    }
+                }
+            } else {
+                int target_reg_id = ival2interval[inst]->reg_id;
+                AddressMode *target_loc_ptr = nullptr;
+                if(target_reg_id >= 0) {
+                    if(ireg2loc.find(target_reg_id) == ireg2loc.end()) 
+                        ireg2loc.insert({target_reg_id, new IRA(target_reg_id)});
+                    target_loc_ptr = ireg2loc[target_reg_id];
+                } else {
+                    target_loc_ptr = val2stack[inst];
+                }
+                for(auto opr: inst->getOperands()) {
+                    if(dynamic_cast<BasicBlock*>(opr)) {
+                        auto this_bb = dynamic_cast<BasicBlock*>(opr);
+                        if(this_bb != sequence->getBBOfSeq()) 
+                            continue;
+                        if(dynamic_cast<ConstantInt*>(lst_val)) {
+                            auto const_val = dynamic_cast<ConstantInt*>(lst_val);
+                            auto src = new IConstPool(const_val->getValue());
+                            phi_isrcs.push_back(src);
+                            phi_itargets.push_back(target_loc_ptr);
+                        } else if(ival2interval.find(lst_val)!=ival2interval.end()){
+                            int src_reg_id = ival2interval[lst_val]->reg_id;
+                            if(src_reg_id >= 0) {
+                                if(ireg2loc.find(src_reg_id) == ireg2loc.end()) 
+                                    ireg2loc.insert({src_reg_id, new IRA(src_reg_id)});
+                                auto src = ireg2loc[src_reg_id];
+                                phi_isrcs.push_back(src);
+                                phi_itargets.push_back(target_loc_ptr);
+                            } else {
+                                auto src = val2stack[lst_val];
+                                phi_isrcs.push_back(src);
+                                phi_itargets.push_back(target_loc_ptr);
+                            }
+                        }
+                    } else {
+                        lst_val = opr;
+                    }
+                }
+            }
+
+
+        }
+
+        std::vector<std::pair<AddressMode*, AddressMode*>> to_move_ilocs;
+        std::vector<std::pair<AddressMode*, AddressMode*>> to_move_flocs;
+
+        if(!phi_isrcs.empty()) {
+            to_move_ilocs = idata_move(phi_isrcs, phi_itargets);
+
+            if(is_succ_bb) {
+                have_succ_move = true;
+            } else {
+                have_fail_move = true;
+            }
+        }
+        if(!phi_fsrcs.empty()) {
+            to_move_flocs = fdata_move(phi_fsrcs, phi_ftargets);
+            if(is_succ_bb) {
+                have_succ_move = true;
+            } else {
+                have_fail_move = true;
+            }
+        }
+
+        if(! to_move_ilocs.empty() || ! to_move_flocs.empty()) {
+            *move_inst = sequence->createPhiPass(to_move_ilocs, to_move_flocs);
+            sequence->deleteInst();
+        }
+    }
+
+    if(fcmpbr) {
+        is_fcmpbr = true;   
+        auto cond1 = fcmpbr->getOperand(0);
+        auto cond2 = fcmpbr->getOperand(1);
+        auto cmp_op = fcmpbr->getCmpOp();
+        succ_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(2));
+        fail_bb = dynamic_cast<BasicBlock*>(fcmpbr->getOperand(3));
+        auto const_cond1 = dynamic_cast<ConstantFP*>(cond1);
+        auto const_cond2 = dynamic_cast<ConstantFP*>(cond2);
+
+        switch(cmp_op) {
+            case CmpOp::EQ: {
+                    //& 为了避免修改控制流可能造成的问题，不采取化简
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createFBeq(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                
+                    } else if(const_cond1) {
+                        if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBeq(new FConst(const_cond1->getValue()), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBeq(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBeq(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createFBeq(new Mem(regbase1->getOffset(), static_cast<int>(regbase1->getReg()) ), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBeq(getAllocaReg(cond1), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBeq(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();
+                }
+                break;
+
+            case CmpOp::GE: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createFBge(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                     
+                    } else if(const_cond1) {
+                        if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBge(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBge(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBge(new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBge(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createFBge(new Mem(regbase1->getOffset(), static_cast<int>( regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBge(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBge(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBge(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();
+                }
+                break;
+            case CmpOp::GT: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createFBgt(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                     
+                    } else if(const_cond1) {
+                        if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBgt(new FConst(const_cond1->getValue()), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBgt(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBgt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBgt(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createFBgt(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBgt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBgt(getAllocaReg(cond1), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBgt(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();
+                }
+                break; 
+
+            case CmpOp::LE: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createFBle(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                     
+                    } else if(const_cond1) {
+                        if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBle(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBle(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBle(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBle(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createFBle(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBle(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBle(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBle(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();
+                }
+                break;
+            
+            case CmpOp::LT: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createFBlt(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                     
+                    } else if(const_cond1) {
+                        if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBlt(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBlt(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBlt(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createFBlt(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBlt(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBlt(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();
+                }
+                break;
+
+            case CmpOp::NE: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createFBne(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                     
+                    } else if(const_cond1) {
+                        if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBne(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBne(new FConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBne(getAllocaReg(cond1), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createFBne(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createFBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(fval2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createFBne(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createFBne(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();
+                }
+                break; 
+
+            default:
+                break;
+        }
+    } else if(cmpbr) {
+        is_cmpbr = true;
+        auto cond1 = cmpbr->getOperand(0);
+        auto cond2 = cmpbr->getOperand(1);
+        auto cmp_op = cmpbr->getCmpOp();
+        succ_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(2));
+        fail_bb = dynamic_cast<BasicBlock*>(cmpbr->getOperand(3));
+        auto const_cond1 = dynamic_cast<ConstantInt*>(cond1);
+        auto const_cond2 = dynamic_cast<ConstantInt*>(cond2);
+
+        switch(cmp_op) {
+            case CmpOp::EQ: {
+                    //& 为了避免修改控制流可能造成的问题，不采取化简
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createBeq(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                  
+                    } else if(const_cond1) {
+                        if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBeq(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBeq(new IConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBeq(getAllocaReg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createBeq(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBeq(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBeq(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();  
+                }
+                break;
+
+            case CmpOp::GE: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createBge(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                  
+                    } else if(const_cond1) {
+                        if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBge(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBge(new IConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBge(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBge(getAllocaReg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createBge(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBge(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBge(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBge(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();  
+                }
+                break;
+            case CmpOp::GT: {}
+                //LOG(ERROR) << "phi union出现异常";
+                break; 
+
+            case CmpOp::LE: {}
+               // LOG(ERROR) << "phi union出现异常";
+                break;
+            
+            case CmpOp::LT: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createBlt(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                  
+                    } else if(const_cond1) {
+                        if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBlt(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBlt(new IConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBlt(getAllocaReg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createBlt(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBlt(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBlt(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();  
+                }
+                break;
+
+            case CmpOp::NE: {
+                    if(const_cond1 && const_cond2) {
+                        succ_br_inst = sequence->createBne(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                        sequence->deleteInst();                  
+                    } else if(const_cond1) {
+                        if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBne(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBne(new IConst(const_cond1->getValue()), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else if(const_cond2) {
+                        if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBne(getAllocaReg(cond1), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    } else {
+                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
+                            auto regbase1 = val2stack[cond1];
+                            auto regbase2 = val2stack[cond2];
+                            succ_br_inst = sequence->createBne(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond1]->reg_id < 0) {
+                            auto regbase = val2stack[cond1];
+                            succ_br_inst = sequence->createBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else if(ival2interval[cond2]->reg_id < 0) {
+                            auto regbase = val2stack[cond2];
+                            succ_br_inst = sequence->createBne(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        } else {
+                            succ_br_inst = sequence->createBne(getAllocaReg(cond1), getAllocaReg(cond2), bb2label[succ_bb]);
+                            sequence->deleteInst();
+                        }
+                    }
+                    fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+                    sequence->deleteInst();  
+                }
+                break;
+
+            default:
+                break;
+        }
+    } else {
+        if(br_inst->getNumOperands() == 1) {
+            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(0));
+            succ_br_inst = sequence->createJump(bb2label[succ_bb]);
+            sequence->deleteInst();
+        } else {
+            succ_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(1));
+            fail_bb = dynamic_cast<BasicBlock*>(br_inst->getOperand(2));
+            auto cond = br_inst->getOperand(0);
+            auto const_cond = dynamic_cast<ConstantInt*>(cond);
+            if(const_cond) {
+                succ_br_inst = sequence->createBne(new IConst(const_cond->getValue()), new GReg(static_cast<int>(RISCV::GPR::zero)), bb2label[succ_bb]);
+                sequence->deleteInst();
+            } else if(ival2interval[cond]->reg_id < 0) {
+                auto regbase = val2stack[cond];
+                succ_br_inst = sequence->createBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new GReg(static_cast<int>(RISCV::GPR::zero)), bb2label[succ_bb]);
+                sequence->deleteInst();
+            } else {
+                succ_br_inst = sequence->createBne(getAllocaReg(cond), new GReg(static_cast<int>(RISCV::GPR::zero)), bb2label[succ_bb]);
+                sequence->deleteInst();
+            }
+            fail_br_inst = sequence->createJump(bb2label[fail_bb]);
+            sequence->deleteInst();
+        }
+    }
+
+    if(is_fcmpbr) {
+        if(have_succ_move) {}
+            //LOG(ERROR) << "出现未预期情况";
+        if(succ_br_inst)
+            sequence->appendInst(succ_br_inst);
+        if(fail_move_inst)
+            sequence->appendInst(fail_move_inst);
+        if(fail_br_inst)
+            sequence->appendInst(fail_br_inst);
+        
+    } else if(is_cmpbr) {
+        if(have_succ_move) {}
+        //    LOG(ERROR) << "出现未预期情况";
+
+        if(succ_br_inst)
+            sequence->appendInst(succ_br_inst);
+        if(fail_move_inst)
+            sequence->appendInst(fail_move_inst);
+        if(fail_br_inst)
+            sequence->appendInst(fail_br_inst);
+
+    } else {
+        if(br_inst->getNumOperands() == 1) {
+            if(succ_move_inst)
+                sequence->appendInst(succ_move_inst);
+            if(succ_br_inst)
+                sequence->appendInst(succ_br_inst);
+
+        } else {
+            if(have_succ_move) {}
+               // LOG(ERROR) << "出现未预期情况";
+
+            if(succ_br_inst)
+                sequence->appendInst(succ_br_inst);
+            if(fail_move_inst)
+                sequence->appendInst(fail_move_inst);
+            if(fail_br_inst)
+                sequence->appendInst(fail_br_inst);
+        }
+    }
 }

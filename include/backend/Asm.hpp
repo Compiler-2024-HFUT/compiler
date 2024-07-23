@@ -201,6 +201,7 @@ class Fdiv_s;
 class Fcvt_w_s;
 class Fcvt_s_w;
 class Zext;
+class ZextIConst;
 class Snez;
 class Seqz;
 class Feq_s;
@@ -298,6 +299,7 @@ class Sequence{
         Fcvt_w_s* createFcvt_w_s(GReg* rd,Val* rs1);
         Fcvt_s_w* createFcvt_s_w(FReg* rd,Val* rs1);
         Zext* createZext(GReg* rd,GReg* rs1);
+        ZextIConst* createZextIConst(GReg* rd,int rs1);
         Snez* createSnez(GReg* rd,Val* cond);
         Seqz* createSeqz(GReg* rd,Val* cond);
         Feq_s* createFeq_s(GReg* rd,Val* cond1,Val* cond2);
@@ -760,11 +762,28 @@ class Zext: public AsmInst{
     public:
         Zext(GReg* rd,GReg* rs1, Sequence* seq)
         :rd(rd), rs1(rs1), AsmInst(Op::zext, seq){} 
+
+
         ::std::string print() final;
         
     private:
         GReg* rd;
         GReg* rs1;
+       
+};
+
+
+class ZextIConst: public AsmInst{
+    public:
+        ZextIConst(GReg* rd,int flag, Sequence* seq)
+        :rd(rd), flag(flag), AsmInst(Op::zext, seq){} 
+
+
+        ::std::string print() final;
+        
+    private:
+        GReg* rd;
+        int flag;
        
 };
 

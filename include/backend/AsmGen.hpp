@@ -220,7 +220,7 @@ class AsmGen : public IRVisitor{
         void ld_tmp_regs_for_inst(Instruction *inst);
  
 
-
+        void phi_union(Instruction *br_inst);
 
         std::map<int, IRIA*> caller_saved_ireg_locs;             //// caller在调用函数前保存寄存器的位置
         std::map<int, IRIA*> caller_saved_freg_locs;             //// caller在调用函数前保存寄存器的位置

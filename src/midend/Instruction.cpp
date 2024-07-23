@@ -856,3 +856,4 @@ std::string SelectInst::print() {
     instr_ir += printAsOp(this->getOperand(2), true);
     return instr_ir;
 }
+

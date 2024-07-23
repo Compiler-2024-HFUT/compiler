@@ -174,9 +174,12 @@ Instruction* InstrCombine::combineSub(Instruction*instr){
     
     if(lhs==rhs)
         return replaceInstUsesWith(instr,ConstantInt::get(0));
-    if(__is__neg(rhs)){
-        return BinaryInst::create(Instruction::OpID::add,lhs,rhs);
+  //  if(__is__neg(rhs)){
+   //     return BinaryInst::create(Instruction::OpID::add,lhs,rhs);
 
+    //}
+    if(__is__neg(rhs)){
+        return BinaryInst::create(Instruction::OpID::add, lhs, ((Instruction*)rhs)->getOperand(1));
     }
     return ret;
 }

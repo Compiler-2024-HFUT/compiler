@@ -100,6 +100,12 @@
     insts.push_back(inst);
     return inst;
 }
+ ZextIConst* Sequence::createZextIConst(GReg* rd,int rs1){
+    auto inst = new ZextIConst(rd, rs1,  this);
+    insts.push_back(inst);
+    return inst;
+}
+
  Snez* Sequence::createSnez(GReg* rd,Val* cond){
     auto inst = new Snez(rd, cond, this);
     insts.push_back(inst);

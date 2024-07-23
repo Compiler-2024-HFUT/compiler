@@ -422,6 +422,9 @@
     return RISCVInst::andi(rd, rs1, 1);
 }
 
+ ::std::string ZextIConst::print(){
+    return RISCVInst::li(rd, flag);
+}
  ::std::string Snez::print(){
     auto iconst_cond = dynamic_cast<IConst*>(cond);
     auto fconst_cond = dynamic_cast<FConst*>(cond);
