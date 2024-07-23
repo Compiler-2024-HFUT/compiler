@@ -40,7 +40,7 @@ public:
     std::string printGra();
 
     // InfoManager *getInfoMan();
-
+    void breakCheck();
 private:
     std::list<GlobalVariable *> globals_list_;                  //& The Global Variables in the module
     std::list<Function *> functions_list_;                      //& The Functions in the module
