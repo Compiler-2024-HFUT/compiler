@@ -124,12 +124,14 @@ Modify ConstBr::unReachableBBEli(Function*func){
         if(reachable.count(b))
             continue;
         func->removeBasicBlock(b);
-        rmBBPhi(b);
         erased.insert(b);
         to_del.insert(to_del.end(),b->getInstructions().begin(),b->getInstructions().end());
     }
     for(Instruction* i:to_del){
         i->removeUseOfOps();
+    }
+    for(auto b:erased){
+        rmBBPhi(b);
     }
     for(auto i:to_del){
         assert(i->getUseList().empty());
@@ -189,9 +191,9 @@ Modify ConstBr::runOnFunc(Function*func){
                     break;
                 }
         }
-        auto unr_ret=unReachableBBEli(func);
-        ret=ret|unr_ret;
-        changed|=unr_ret.modify_instr;
+        // auto unr_ret=unReachableBBEli(func);
+        // ret=ret|unr_ret;
+        // changed|=unr_ret.modify_instr;
     }while(changed);
     return ret;
 }

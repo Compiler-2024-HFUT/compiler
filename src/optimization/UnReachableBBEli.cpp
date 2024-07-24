@@ -21,6 +21,8 @@ void UnReachableBBEli::eraseBB(BasicBlock*bb){
     }
 }
 Modify UnReachableBBEli::runOnFunc(Function*func){
+    if(func->isDeclaration())
+        return {};
     BasicBlock*entry=func->getEntryBlock();
     auto &bbs=func->getBasicBlocks();
     Modify ret{};
@@ -44,12 +46,14 @@ Modify UnReachableBBEli::runOnFunc(Function*func){
         if(reachable.count(b))
             continue;
         func->removeBasicBlock(b);
-        rmBBPhi(b);
         erased.insert(b);
         to_del.insert(to_del.end(),b->getInstructions().begin(),b->getInstructions().end());
     }
     for(Instruction* i:to_del){
         i->removeUseOfOps();
+    }
+    for(auto b:erased){
+        rmBBPhi(b);
     }
     for(auto i:to_del){
         assert(i->getUseList().empty());
