@@ -62,6 +62,18 @@ Function* Module::getMainFunction() {
     return *(functions_list_.rbegin());
 }
 void Module::deleteFunction(Function*f) {
+    for(auto b:f->getBasicBlocks()){
+        for(auto i:b->getInstructions()){
+            i->removeUseOfOps();
+        }
+    }
+    for(auto b:f->getBasicBlocks()){
+        for(auto i:b->getInstructions()){
+            delete i;
+        }
+        delete b;
+    }
+
     functions_list_.remove(f);
 }
 
