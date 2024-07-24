@@ -43,7 +43,7 @@ public:
     std::string printGra();
 
     // InfoManager *getInfoMan();
-
+    void breakCheck();
     //后端遍历
     virtual void accept(IRVisitor &visitor) final;
 
