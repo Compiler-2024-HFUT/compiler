@@ -1,23 +1,25 @@
 #include "optimization/LIR.hpp"
+#include "optimization/util.hpp"
 #include "midend/BasicBlock.hpp"
 
 //oppositeJ一定在mergeJJ前面，肯定是先反转J，再合并，不然合并了怎么反转
 Modify LIR::runOnFunc(Function *function){
-
-    breakGEP(getBasicBlocks(function));
-    oppositeJ(getBasicBlocks(function));
-    makeOffset(getBasicBlocks(function));
-    mergeJJ(getBasicBlocks(function));
+    if(function->isDeclaration())
+        return{};
+    moveAlloc(function);
+    auto bbs=getBasicBlocks(function);
+    breakGEP(bbs);
+    oppositeJ(bbs);
+    makeOffset(bbs);
+    mergeJJ(bbs);
 }
-
 
 
 
 ::std::vector<BasicBlock*> LIR::getBasicBlocks(Function *function){
     ::std::vector<BasicBlock*> BBs;
-        if(!function->isDeclaration())
-            for(auto basicblock: function->getBasicBlocks())
-                BBs.push_back(basicblock);
+        for(auto basicblock: function->getBasicBlocks())
+            BBs.push_back(basicblock);
     
     return BBs;
 }
