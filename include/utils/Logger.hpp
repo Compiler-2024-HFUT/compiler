@@ -24,12 +24,29 @@
     #define STRING_STRONG(msg) (LOG_COLOR_NORMAL + msg + LOG_COLOR_RESET)
     
     #define LOG_NORMAL(msg)         { std::cout << LOG_COLOR_NORMAL << "[LOG] " << msg << LOG_COLOR_RESET << std::endl; }
+
+    // change to LOG_WARNING(cond, msg)
     #define LOG_WARNING(msg)        { std::cout << LOG_COLOR_YELLOW << "[WARNING] " << msg << LOG_COLOR_RESET << std::endl; }
-    #define LOG_ERROR(msg, code)    { std::cerr << LOG_COLOR_RED << "[ERROR] " << msg << LOG_COLOR_RESET << std::endl; exit(code); }
+    
+    #define LOG_ERROR(msg, cond)    if(cond) {                                                                              \
+                                        std::cerr << LOG_COLOR_RED << "[ERROR] " << msg << LOG_COLOR_RESET << std::endl;    \
+                                        std::cerr << LOG_COLOR_RED << "position: " << __FILE__ << ":" << __LINE__ <<        \
+                                                     ", in function: " << __FUNCTION__ << LOG_COLOR_RESET << std::endl;     \
+                                        assert(0);                                                                          \
+                                    }
+    /*
+    #define LOG_ERROR(msg, code)    {                                                                                       \
+                                        std::cerr << LOG_COLOR_RED << "[ERROR] " << msg << LOG_COLOR_RESET << std::endl;    \
+                                        std::cerr << LOG_COLOR_RED << "error code: " << code << std::endl;                  \
+                                        std::cerr << LOG_COLOR_RED << "position: " << __FILE__ << ":" << __LINE__ <<        \
+                                                     ", in function: " << __FUNCTION__ << LOG_COLOR_RESET << std::endl;     \
+                                        assert(0);                                                                          \
+                                    }
+    */
 #else
     #define LOG_NORMAL(msg) 
     #define LOG_WARNING(msg)    
-    #define LOG_ERROR(msg, code)
+    #define LOG_ERROR(msg, cond)
 #endif
 
 

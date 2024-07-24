@@ -1,6 +1,8 @@
 #include "analysis/InfoManager.hpp"
 #include "analysis/LoopInfo.hpp"
 #include "analysis/Dominators.hpp"
+#include "analysis/SCEV.hpp"
+#include "utils/Logger.hpp"
 
 #include <unordered_map>
 #include <algorithm>
@@ -16,6 +18,7 @@ void LoopInfo::analyseOnFunc(Function *func_) {
     findLoops(func_);
     combineLoops(func_);
     producedNestLoops(func_);
+    findExit(func_);
 }
 
 // 深度优先遍历CFG，并标注层次，EntryBlock的level为0
@@ -97,6 +100,19 @@ void LoopInfo::findLoops(Function *func_) {
     }
 }
 
+// 只查找最外层的Loop的exit
+void LoopInfo::findExit(Function *func_) {
+    for(Loop *loop : loops[func_]) {
+        for(BB *bb : loop->getBlocks()) {
+            for(BB *succ : bb->getSuccBasicBlocks()) {
+                if(!loop->contain(succ)) {
+                    loop->addExit(succ);
+                }
+            }
+        }
+    }
+}
+
 // 同header的loop合并
 void LoopInfo::combineLoops(Function *func_) {
     // loops按照header排序，使得同样header的loop相邻
@@ -108,7 +124,7 @@ void LoopInfo::combineLoops(Function *func_) {
         // 如果iter1是最后一个元素，iter2为end
         while(iter1 != loops[func_].end() && iter2 != loops[func_].end() && (*iter1)->getHeader() == (*iter2)->getHeader()) {
             // 合并同header的2个loop
-            (*iter1)->addLatchs( (*iter2)->getLatchs()[0] );
+            (*iter1)->addLatch( (*iter2)->getLatchs()[0] );
             for(auto bb : (*iter2)->getBlocks()) {
                 (*iter1)->addBlock(bb);
             }
@@ -178,4 +194,114 @@ string LoopInfo::print() {
         }
     }
     return loopinfo;
+}
+
+bool Loop::computeConds() {
+    conditions.clear();
+
+    auto iter = header->getInstructions().begin();
+    while( (*iter)->isPhi() ) { iter++; };
+    conditions.push_back( LoopCond::createLoopCond( *(iter++) ) );
+
+    Instruction *br = dynamic_cast<BranchInst*>(*iter);
+    if(!br) {
+        LOG_ERROR("should be a brinst, or bb isn't a header?", 1)
+    }
+        
+    BB  *next = dynamic_cast<BB*>( br->getOperand(1) ),     // if_true
+        *exit = dynamic_cast<BB*>( br->getOperand(2) );     // if_false
+
+    if(isCondBlock(next)) {
+        conditions.clear();
+        return false;
+    }
+    return true;    
+
+    /* 暂时只考虑单条件的情况
+    while(isCondBlock(next)) {
+        // ...
+    }
+    */
+}
+
+void Loop::setCondsAndUpdateBlocks(vector<LoopCond*> conds) {
+    // ...
+}
+
+LoopTrip Loop::computeTrip(SCEV *scev) {
+    if(conditions.size()==0 && !computeConds()) {
+        return LoopTrip::createEmptyTrip(-1);
+    }
+    if(conditions.size() != 1) {
+        return LoopTrip::createEmptyTrip(-1);
+    }
+
+    PhiInst *lhs;
+    ConstantInt *rhs;
+    LoopCond::opType op;
+    if( (lhs = dynamic_cast<PhiInst*>(conditions[0]->lhs)) && (rhs = dynamic_cast<ConstantInt*>(conditions[0]->rhs)) ) {
+        op = conditions[0]->op;
+    } else if ( (lhs = dynamic_cast<PhiInst*>(conditions[0]->rhs)) && (rhs = dynamic_cast<ConstantInt*>(conditions[0]->lhs)) ) {
+        op = (LoopCond::opType)(-conditions[0]->op);
+    } else {
+        return LoopTrip::createEmptyTrip(-1);
+    }
+
+    int start, end, step, iter, diff;
+    SCEVExpr *expr = scev->getExpr(lhs, this);
+    if( !expr || !expr->isAddRec() || 
+        expr->getOperands().size()!=2 || 
+        !expr->getOperand(0)->isConst() || !expr->getOperand(1)->isConst() ) {
+            return LoopTrip::createEmptyTrip(-1);
+    }
+
+    start = expr->getOperand(0)->getConst();
+    iter  = expr->getOperand(1)->getConst();
+    end   = rhs->getValue();
+
+    // iter * step + diff = end - start
+    step  = (end - start) / iter;
+    diff  = (end - start) % iter; 
+
+    bool isDeadLoop = (step > 0) ? false : true;
+
+    // ... bug
+    switch (op) {
+        case  LoopCond::opType::eq:
+            if(start != end) step = 0;
+            if(diff != 0) isDeadLoop = true;
+            break;
+        case  LoopCond::opType::ne:
+            if(start == end) step = 0;
+            if(start == end) step = 1;
+            break;
+        case  LoopCond::opType::gt:
+            if(start <= end) step = 0;
+            if(diff != 0) step++;
+            break;
+        case  LoopCond::opType::ge:
+            if(start < end) step = 0;
+            if(diff != 0) step++;
+            break;
+        case  LoopCond::opType::lt:
+            if(start >= end) step = 0;
+            if(diff != 0) step++;
+            break;
+        case  LoopCond::opType::le:
+            if(start > end) step = 0;
+            if(diff != 0) step++;
+            break;
+        default:
+            assert(0);
+            break;
+    }
+
+    cout << start << ", " << end << ", " << iter << ", " << step << endl;
+
+    if(isDeadLoop) {
+        LOG_WARNING("Loop with header " + header->getName() + " maybe is a dead loop");
+        return LoopTrip::createEmptyTrip(-2);
+    }
+
+    return {start, end, iter, step};
 }

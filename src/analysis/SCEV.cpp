@@ -126,7 +126,7 @@ void SCEV::visitLoop(Loop *loop) {
     for(Instruction *inst : loop->getHeader()->getInstructions()) {
         if(inst->isPhi()) {             // Loop_Phi
             exprMapping[inst] = getPhiSCEV( dynamic_cast<PhiInst*>(inst), loop );
-            LOG_WARNING(exprMapping[inst]->print());
+            // LOG_WARNING(exprMapping[inst]->print());
         }
     }
 

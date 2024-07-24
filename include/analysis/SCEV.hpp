@@ -39,13 +39,13 @@ struct SCEVExpr {
     bool isUnknown() { return type == SCEVExpr::Unknown; }
 
     static SCEVExpr *createConst(int c, Loop *l) {
-        return new SCEVExpr(SCEVExpr::Const, c, nullptr, {}, l);
+        return new SCEVExpr(SCEVExpr::Const, c, {}, l);
     }
     static SCEVExpr *createAddRec(vector<SCEVExpr*> op, Loop *l) {
-        return new SCEVExpr(SCEVExpr::AddRec, 0, nullptr, op, l);
+        return new SCEVExpr(SCEVExpr::AddRec, 0, op, l);
     }
     static SCEVExpr *createUnknown(Loop *l) {
-        return new SCEVExpr(SCEVExpr::Unknown, 0, nullptr, {}, l);
+        return new SCEVExpr(SCEVExpr::Unknown, 0, {}, l);
     }
 
     int getConst() {
@@ -102,12 +102,11 @@ struct SCEVExpr {
 
     ExprType type;
     int cv;                         // valid if type==const, 此时只为整数
-    Value *val;                     // valid if type==expr,  此时可以是Inst(二元加减、乘法)，
     vector<SCEVExpr*> operands;     // valid if type==addrec,诸如{1, +, 2}
     
     Loop *loop;
 
-    SCEVExpr(ExprType t, int c, Value *v, vector<SCEVExpr*> op, Loop *l) : type(t), cv(c), val(v), operands(op), loop(l) { }
+    SCEVExpr(ExprType t, int c, vector<SCEVExpr*> op, Loop *l) : type(t), cv(c), operands(op), loop(l) { }
     ~SCEVExpr() { delete this; }
 };
 
