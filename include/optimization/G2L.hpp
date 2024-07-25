@@ -42,7 +42,6 @@ private:
     }
 public:
     G2L(Module *m,InfoManager*im) : Pass(m,im){
-        cur_dom_=info_man_->getInfo<Dominators>();
     }
     ~G2L(){};
     Modify run() override;

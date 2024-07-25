@@ -86,14 +86,14 @@ using ::std::list,::std::map;
             }else if(instr->isBr()/*||instr->isCmpBr()||instr->isFCmpBr()*/){
                 if(old_new[instr->getOperand(0)]!=nullptr)
                     instr->replaceOperand(0, old_new[instr->getOperand(0)]);
-                auto true_bb = static_cast<BasicBlock*>(old_new[instr->getOperand(1)]);
-                instr->replaceOperand(1,true_bb);
-                true_bb->addPreBasicBlock(new_bb);
-                new_bb->addSuccBasicBlock(true_bb);
                 auto false_bb = static_cast<BasicBlock*>(old_new[instr->getOperand(2)]);
                 instr->replaceOperand(2,false_bb);
                 false_bb->addPreBasicBlock(new_bb);
                 new_bb->addSuccBasicBlock(false_bb);
+                auto true_bb = static_cast<BasicBlock*>(old_new[instr->getOperand(1)]);
+                instr->replaceOperand(1,true_bb);
+                true_bb->addPreBasicBlock(new_bb);
+                new_bb->addSuccBasicBlock(true_bb);
             }else if(instr->isRet()){
                 call->removeOperands(0,0);
                 if (instr->getNumOperands()==1){
@@ -150,12 +150,12 @@ using ::std::list,::std::map;
     //     if(isEmpty((Function*)incall->getOperand(0)))continue;
     //     insertFunc(incall,calleds);
     // }
-
     call->getParent()->deleteInstr(call);
     delete call;
     return _newcall;
 }
 Modify FuncInline::run(){
+    // auto fan=info_man_->getInfo<FuncAnalyse>();
     func_call_=getCallInfo(module_);
     for(auto call:func_call_){
         if(isEmpty((Function*)call->getOperand(0)))continue;
@@ -165,6 +165,14 @@ Modify FuncInline::run(){
     ret.modify_instr=true;
     ret.modify_bb=true;
     ret.modify_call=true;
+    auto main_func=module_->getMainFunction();
+    auto f_list=module_->getFunctions();
+    for(auto f:f_list){
+        if(f->useEmpty()&&f!=main_func){
+            module_->deleteFunction(f);
+            delete f;
+        }
+    }
     return ret;
     // auto &fs=module_->getFunctions();
     // for(auto iter_f=fs.begin();iter_f!=fs.end();){

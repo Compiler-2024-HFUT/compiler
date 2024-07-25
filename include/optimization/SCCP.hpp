@@ -78,7 +78,7 @@ class SCCP : public FunctionPass {
         }
     };
 
-    std::vector<Edge> worklist;
+    std::list<Edge> worklist;
     std::map<Edge, int> execFlag;           // 不能找到或为0等价于false
     std::map<Value*, InstVal> LattValue;    // vlaue对应的半格值，找不到等价于undef
 
@@ -93,7 +93,10 @@ class SCCP : public FunctionPass {
 
     // 实现单条指令(仅包含二元运算和比较运算)的常量折叠
     // 是否可以实现对Constant的运算符重载简化该函数实现？
-    Constant *foldConst(Instruction *inst);
+    Constant *foldConstBinary(Instruction *inst);
+
+    // sitofp, fptosi, zext
+    Constant *foldConstSingle(Instruction *inst);
 
     bool runOnFunction(Function *f);
 public:

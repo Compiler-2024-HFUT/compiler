@@ -278,6 +278,7 @@ void G2L::runGlobal(){
     }
 }
 Modify G2L::run(){
+    cur_dom_=info_man_->getInfo<Dominators>();
     for(auto cur_global:module_->getGlobalVariables()){
         if(cur_global->isConst()) continue;
         if(cur_global->getType()!=Type::getInt32PtrType()&&cur_global->getType()!=Type::getFloatPtrType())
