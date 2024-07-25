@@ -1,6 +1,7 @@
 #include "optimization/SCCP.hpp"
 #include "analysis/Info.hpp"
 #include "midend/Function.hpp"
+#include "optimization/ConstBrEli.hpp"
 
 bool SCCP::runOnFunction(Function *f) {
     worklist.clear();
@@ -55,11 +56,18 @@ bool SCCP::runOnFunction(Function *f) {
 
 Modify SCCP::runOnFunc(Function*func){
     // 仅在有定义的函数上执行
-    bool mod=false;
-    if(func->getBasicBlocks().size() != 0)
-        mod|=runOnFunction(func);
+    bool mod=true;
     Modify ret{};
-    ret.modify_instr=mod;
+    if(func->getBasicBlocks().empty())
+        return ret;
+    ConstBr br_fold{module_,info_man_};
+    do{
+        mod=runOnFunction(func);
+        ret.modify_instr=ret.modify_instr|mod;
+        auto fold=br_fold.runOnFunc(func);
+        mod|=fold.modify_bb;
+        ret=ret|fold;
+    }while(mod);
     return ret;
 }
 int SCCP::getExecFlag(Edge e) {
