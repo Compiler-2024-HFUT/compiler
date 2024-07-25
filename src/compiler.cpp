@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #include "analysis/Dominators.hpp"
+#include "analysis/funcAnalyse.hpp"
 #include "backend/AsmGen.hpp"
 #include "frontend/parser.hpp"
 #include "compiler.hpp"
@@ -35,6 +36,7 @@ void usage(){
 }
 void Compiler::buildOpt(PassManager &pm){
     pm.addInfo<Dominators>();
+    pm.addInfo<FuncAnalyse>();
     pm.addPass<DeadStoreEli>();    
     pm.addPass<CombinBB>();
     pm.addPass<Mem2Reg>();
