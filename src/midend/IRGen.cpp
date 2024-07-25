@@ -419,29 +419,36 @@ void IRGen::visit(ast::ArrDefStmt &node) {
 
     if(scope.inGlobal()) {
         // zeroinitializer, global array is inited in global_var_init
-        Constant* initializer = ConstantZero::get(array_type);
-        if(node.initializers && node.initializers->initializers.size() > 0){
+        Constant* initializer;
+
+        // 无初始化列表 或 空初始化列表
+        if(!node.initializers || node.initializers->initializers.size() == 0) {
+            initializer = ConstantZero::get(array_type);
+        } else {
+            bool isAllZero = true;
             node.initializers->accept(*this);
-            initializer = ConstantArray::get(array_type, init_val_map, arr_total_size);
+            for(auto [idx, val] : init_val_map) {
+                if(cur_type == INT32_T && dynamic_cast<ConstantInt*>(val)->getValue() != 0) {
+                    isAllZero = false;
+                }
+                if(cur_type == FLOAT_T && dynamic_cast<ConstantFP*>(val)->getValue() != 0.0f) {
+                    isAllZero = false;
+                }
+            }
+            
+            if(isAllZero) {
+            // 初始化列表中元素均为0
+                initializer = ConstantZero::get(array_type);
+            } else {
+                initializer = ConstantArray::get(array_type, init_val_map, arr_total_size);
+            }
+
         }
+
         auto var = GlobalVariable::create(node.name, module.get(), array_type, false, initializer);
         scope.push(node.name, var);
         scope.pushSize(node.name, array_sizes);
 
-        // BasicBlock *tmp_block = cur_block_of_cur_fun;
-        // cur_block_of_cur_fun = global_init_block;
-
-        // if(node.initializers) {
-        //     node.initializers->accept(*this);
-        // }
-
-        // for(auto [offset, value] : init_val_map){
-        //     if(offset == -1)    continue;
-        //     auto elem_addr = GetElementPtrInst::createGep(var, {CONST_INT(0), CONST_INT(offset)}, cur_block_of_cur_fun);
-        //     StoreInst::createStore(value, elem_addr, cur_block_of_cur_fun);
-        // }
- 
-        // cur_block_of_cur_fun = tmp_block;
     } else if(cur_fun->getName()=="main"){
         //main则在第一个bb初始化数组
 
