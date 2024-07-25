@@ -430,9 +430,11 @@ void IRGen::visit(ast::ArrDefStmt &node) {
             for(auto [idx, val] : init_val_map) {
                 if(cur_type == INT32_T && dynamic_cast<ConstantInt*>(val)->getValue() != 0) {
                     isAllZero = false;
+                    break;
                 }
                 if(cur_type == FLOAT_T && dynamic_cast<ConstantFP*>(val)->getValue() != 0.0f) {
                     isAllZero = false;
+                    break;
                 }
             }
             
