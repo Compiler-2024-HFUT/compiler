@@ -6,6 +6,7 @@
 #include "midend/Instruction.hpp"
 #include "midend/Value.hpp"
 #include <cassert>
+#include <vector>
 static ::std::set<BasicBlock*>visited;
 static set<StoreInst*>to_delete;
 BasicBlock* isOnlyInOneBB(GlobalVariable*global){
@@ -64,6 +65,8 @@ void G2L::rmLocallyGlob(GlobalVariable*global,BasicBlock* used_bb,Value*incoming
     }
     if(cur_val!=final_store){
         auto term_ins=used_bb->getInstructions().back();
+        if(term_ins->getFunction()==module_->getMainFunction())
+            return;
         used_bb->getInstructions().pop_back();
         StoreInst::createStore(cur_val,global,used_bb);
         used_bb->getInstructions().push_back(term_ins);
@@ -222,6 +225,8 @@ void G2L::reName(BasicBlock*bb,BasicBlock*pred,Value* incoming_val,Value*last_st
     }
     if(bb->getSuccBasicBlocks().empty()&&needStore(incoming_val,last_store)){
         auto ret=bb->getInstructions().back();
+        if(ret->getFunction()==module_->getMainFunction())
+            return;
         bb->getInstructions().pop_back();
         to_delete.insert(StoreInst::createStore(incoming_val,cur_global,bb));
         bb->getInstructions().push_back(ret);
@@ -237,7 +242,7 @@ void G2L::runGlobal(){
         if(!global_instrs_.count(func))continue;
         //only def continue;
         if(!use_list_.count(func))continue;
-        if(auto bb=isOnlyInOneBB(cur_global)){
+        if(auto bb=isOnlyInOneBB(cur_global);bb&&cur_dom_->getDomFrontier(bb).empty()){
             if(func==module_->getMainFunction())
                 rmLocallyGlob(cur_global,bb,cur_global->getInit());
             else
@@ -293,17 +298,17 @@ Modify G2L::run(){
             
         if(!def_list_.empty()){
             runGlobal();
-            return{};
-        }else if(use_list_.empty()){
-            // for(auto u:cur_global->getUseList()){
-
-            // }
-        }
-
-        for(auto u:cur_global->getUseList()){
-            if(auto load=dynamic_cast<LoadInst*>(u.val_)){
-                load->replaceAllUseWith(cur_global->getInit());
+            continue;
+        }else {
+            std::vector<Use>v(cur_global->getUseList().begin(),cur_global->getUseList().end());
+            for(auto u:v){
+                if(auto load=dynamic_cast<LoadInst*>(u.val_)){
+                    load->replaceAllUseWith(cur_global->getInit());
+                    load->getParent()->deleteInstr(load);
+                    delete load;
+                }
             }
+            continue;
         }
         clear();
         funcClear();
