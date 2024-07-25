@@ -93,7 +93,10 @@ class SCCP : public FunctionPass {
 
     // 实现单条指令(仅包含二元运算和比较运算)的常量折叠
     // 是否可以实现对Constant的运算符重载简化该函数实现？
-    Constant *foldConst(Instruction *inst);
+    Constant *foldConstBinary(Instruction *inst);
+
+    // sitofp, fptosi, zext
+    Constant *foldConstSingle(Instruction *inst);
 
     bool runOnFunction(Function *f);
 public:
