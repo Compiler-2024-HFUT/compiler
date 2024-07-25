@@ -29,56 +29,43 @@ static void updatePhiAfterInsert(vector<BB*> &froms, BB *inserted, BB *to) {
         if(!inst->isPhi())
             break;
 
-        vector<Value*> &ops = inst->getOperands();
-        vector<Value*> fromBBInPhiInst = {};
-        for(int i = 1; i < ops.size(); i += 2) {
-            if( find(froms.begin(), froms.end(), ops[i]) != froms.end() ) {
-                fromBBInPhiInst.push_back(ops[i]);
-            }
-        }
+        PhiInst *newPhi;
 
-        Instruction *newPhi;
+        // phi指令的incoming都包含在froms里面(经过splitBlock后，to的pre只有inserted和非froms中的pre)，
+        // 将原来的phi复制到inserted，同时替换to对原phi的use
+        if(to->getPreBasicBlocks().size() == 1){
+            newPhi = dynamic_cast<PhiInst*>( inst->copyInst(inserted) );
+            inserted->getInstructions().push_front(newPhi);
 
-        // phi指令的incoming都不在froms里面，phi保持不变
-        if(fromBBInPhiInst.size() == 0) {
-            continue;
-        // phi指令的incoming只有一个在froms里面, 修改incoming
-        } else if(fromBBInPhiInst.size() == 1 || froms.size() == 1) {
+            newPhi->replaceAllUseWith(newPhi);
+            instsToRemove.push_back(inst);
+        // phi指令的incoming都包含在froms里面，将原来的phi复制到inserted，同时替换to对原phi的use
+        }else if(froms.size() == 1) {
+            vector<Value*> &ops = inst->getOperands();
             for(Value* &op : ops) {
-                if( op == fromBBInPhiInst[0] ) {
+                if( op == froms[0] ) {
                     op = inserted;
                 }
             }
-        // phi指令的incoming都包含在froms里面，将原来的phi复制到inserted，同时替换to对原phi的use
-        } else if(fromBBInPhiInst.size() == froms.size()) {
-            newPhi = inst->copyInst(inserted);
-            inserted->getInstructions().push_front(newPhi);
-
-            inst->replaceAllUseWith(newPhi);
-            instsToRemove.push_back(inst);
         // phi指令部分在froms里
         } else {
+            PhiInst *oldPhi = dynamic_cast<PhiInst*>(inst);
+
             // 创建inserted中的phi
             newPhi = PhiInst::createPhi(inst->getType(), inserted);
             inserted->getInstructions().push_front(newPhi);
 
-            for(int i = 1; i < inst->getNumOperands(); i += 2) {
-                if( find(fromBBInPhiInst.begin(), fromBBInPhiInst.end(), inst->getOperand(i)) != fromBBInPhiInst.end() ) {
-                    newPhi->addOperand( inst->getOperand(i-1) );
-                    newPhi->addOperand( inst->getOperand(i) );
-
-                    inst->getOperand(i-1)->removeUse(inst);
-                    inst->getOperand(i)->removeUse(inst);
+            // 移动BB到phi
+            vector<Value*> ops = oldPhi->getOperands();
+            for(int i = 1; i < ops.size(); i += 2) {
+                if( find( froms.begin(), froms.end(), ops[i] ) != froms.end() ) {
+                    newPhi->addPhiPairOperand(ops[i-1], ops[i]);
+                    oldPhi->removePhiPairOperand(ops[i]);
                 }
             }
             
-            ops = inst->getOperands();
-            for(int i = 0; i < newPhi->getNumOperands(); i++) {
-                remove(ops.begin(), ops.end(), newPhi->getOperand(i));
-            }
-
-            inst->addOperand(newPhi);
-            inst->addOperand(inserted);
+            // 添加newPhi
+            oldPhi->addPhiPairOperand(newPhi, inserted);
         }
     }
 
@@ -118,26 +105,36 @@ static BB *splitBlockByPreBB(BB *block, vector<BB*> &preds) {
     return newBB;
 }
 
-// 找出真正的exit，并将中间跳转的exit删除
-// 成功，返回合并后的BB；失败，返回nullptr
-BB *LoopSimplified::mergeExits(Loop *loop) {
-    if(loop->getSingleExit() != nullptr)
-        return loop->getSingleExit();
-    if(loop->getExits().size()==1)
-        return loop->getExits()[0];
-    
-    vector<BB*> &exits = loop->getExits();
-    BB *singleExit = getExitDest(exits[0]);
-    list<BB*> funcBlocks = loop->getFunction()->getBasicBlocks();
-
-    for(BB *exit : exits) {
-        exit->replaceAllUseWith(singleExit);
-        remove(exits.begin(), exits.end(), exit);
-        remove(funcBlocks.begin(), funcBlocks.end(), exit);
-    }
-
-    return singleExit;
-}
+// // 仅保留唯一的公共exit，并将中间跳转的exit删除，返回合并后的BB
+// BB *LoopSimplified::mergeExits(Loop *loop) {
+//     if(loop->getSingleExit() != nullptr)
+//         return loop->getSingleExit();
+//     if(loop->getExits().size()==1)
+//         return loop->getExits()[0];
+//     
+//     vector<BB*> &exits = loop->getExits();
+//     BB *singleExit = getExitDest(exits[0]);
+//     list<BB*> funcBlocks = loop->getFunction()->getBasicBlocks();
+// 
+//     for(BB *exit : exits) {
+//         if(exit == singleExit)
+//             continue;
+// 
+//         BB *preBB = exit->getPreBasicBlocks().front();
+//         if(exit->getPreBasicBlocks().size() > 1)
+//             LOG_WARNING("Why splited exit has more than one preBB?")
+//         exit->replaceAllUseWith(singleExit);
+//         for(Value* &val : singleExit->getTerminator()->getOperands()) {
+//             if(val = singleExit) {
+//                 val = preBB;
+//             }
+//         }
+//         remove(funcBlocks.begin(), funcBlocks.end(), exit);
+//     }
+//     exits.clear();
+// 
+//     return singleExit;
+// }
 
 BB *LoopSimplified::insertUniqueBackedge(Loop *loop) {
     BB *newLatch = BasicBlock::create("", loop->getFunction());
@@ -161,20 +158,6 @@ BB *LoopSimplified::insertUniqueBackedge(Loop *loop) {
     updatePhiAfterInsert(latchs, newLatch, header);
 
     return newLatch;
-}
-
-BB *LoopSimplified::splitExit(Loop *loop, BB *exit) {
-    BB *newExit;
-    vector<BB*> preds = {};
-    
-    for(BB *pre : exit->getPreBasicBlocks()) {
-        if(!loop->contain(pre))
-            continue;
-        preds.push_back(pre);
-    }
-
-    newExit = splitBlockByPreBB(exit, preds);
-    return newExit;
 }
 
 BB *LoopSimplified::insertPreheader(Loop *loop) {
@@ -203,15 +186,21 @@ void LoopSimplified::processLoop(Loop *loop) {
         preheader = insertPreheader(loop);
         loop->setPreheader(preheader);
     }
-    
-    // make sure that all exit nodes of the loop 
-    // only have predecessors that are inside of the loop
-    for(int i = 0; i < exits.size(); i++) {
-        for(BB *pre : exits[i]->getPreBasicBlocks()) {
-            if(!loop->contain(pre)) {
-                exits[i] = splitExit(loop, exits[i]);
-                break;
+
+    bool shouldSplitExit;
+    vector<BB*> preLoopBB;
+    for(BB* &exit : exits) {
+        shouldSplitExit = false;
+        preLoopBB.clear();
+        for(BB *pre : exit->getPreBasicBlocks()) {
+            if(loop->contain(pre)) {
+                preLoopBB.push_back(pre);
+            } else {
+                shouldSplitExit = true;
             }
+        }
+        if(shouldSplitExit) {
+            exit = splitBlockByPreBB(exit, preLoopBB);
         }
     }
 
@@ -221,16 +210,15 @@ void LoopSimplified::processLoop(Loop *loop) {
     for(int i=1; i<exits.size(); i++) {
         if(getExitDest(exits[0]) != getExitDest(exits[i])) {
             isExitSingle = false;
-            // LOG_ERROR("only one exit in SYSY code!", !isExitSingle)
             break;
         }
     }
 
-    // only one exit or exit can be merge
-    if(isExitSingle) {
-        BB *newExit = mergeExits(loop);
-        loop->setSingleExit(newExit);
-    }
+    // // only one exit or exit can be merge
+    // if(isExitSingle) {
+    //     BB *newExit = mergeExits(loop);
+    //     loop->setSingleExit(newExit);
+    // }
 
     // more than one Latch, combine as one latch
     if(!loop->getSingleLatch()) {

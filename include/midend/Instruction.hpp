@@ -560,6 +560,15 @@ public:
         this->addOperand(pre_bb);
     }
 
+    void removePhiPairOperand(Value *pre_bb) {
+        for(int i = 1; i < getNumOperands(); i += 2) {
+            if(getOperand(i) == pre_bb) {
+                removeOperands(i-1, i);
+                break;
+            }
+        }
+    }
+
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
