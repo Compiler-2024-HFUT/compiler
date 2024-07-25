@@ -1,5 +1,6 @@
 #include "optimization/inline.hpp"
 #include "analysis/Info.hpp"
+#include "analysis/funcAnalyse.hpp"
 #include "midend/BasicBlock.hpp"
 #include "midend/Function.hpp"
 #include "midend/GlobalVariable.hpp"
@@ -155,10 +156,15 @@ using ::std::list,::std::map;
     return _newcall;
 }
 Modify FuncInline::run(){
-    // auto fan=info_man_->getInfo<FuncAnalyse>();
+    auto fan=info_man_->getInfo<FuncAnalyse>();
     func_call_=getCallInfo(module_);
     for(auto call:func_call_){
         if(isEmpty((Function*)call->getOperand(0)))continue;
+        // if(call->getOperand(0)->getUseList().size()>6)
+            // continue;
+        auto iter=fan->call_info.find((Function*)call->getOperand(0));
+        if(iter->second.direct_call.count((Function*)call->getOperand(0)))
+            continue;
         insertFunc(call,{call->getParent()->getParent()});
     }
     Modify ret{};
