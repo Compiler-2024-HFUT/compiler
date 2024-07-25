@@ -11,11 +11,13 @@
 #include "midend/IRGen.hpp"
 #include "optimization/CombinBB.hpp"
 #include "optimization/ConstBrEli.hpp"
+#include "optimization/DCE.hpp"
 #include "optimization/DeadPHIEli.hpp"
 #include "optimization/DeadStoreEli.hpp"
 #include "optimization/G2L.hpp"
 #include "optimization/InstrCombine.hpp"
 #include "optimization/Mem2Reg.hpp"
+#include "optimization/MoveAlloca.hpp"
 #include "optimization/PassManager.hpp"
 #include "optimization/SCCP.hpp"
 #include "optimization/ValueNumbering.hpp"
@@ -32,48 +34,45 @@ void usage(){
 	exit(EXIT_FAILURE);
 }
 void Compiler::buildOpt(PassManager &pm){
-//   pm.addInfo<Dominators>();
-//   pm.addPass<DeadStoreEli>();    
-//   pm.addPass<CombinBB>();
-//   pm.addPass<Mem2Reg>();
-//   pm.addPass<G2L>();
-//   pm.addPass<DeadPHIEli>();
-//   pm.addPass<SCCP>();
-//   pm.addPass<ConstBr>();
-//   pm.addPass<CombinBB>();
-//   pm.addPass<InstrCombine>();
-//   pm.addPass<FuncInline>();
-//   pm.addPass<InstrCombine>();
-//   pm.addPass<SCCP>();
-//   pm.addPass<ConstBr>();
-//   pm.addPass<ValNumbering>();
-  //  pm.addPass<LIR>();
+    pm.addInfo<Dominators>();
+    pm.addPass<DeadStoreEli>();    
+    pm.addPass<CombinBB>();
+    pm.addPass<Mem2Reg>();
+    pm.addPass<DeadPHIEli>();
+    pm.addPass<DCE>();
+    pm.addPass<SCCP>();
+    pm.addPass<CombinBB>();
+    pm.addPass<InstrCombine>();
+    pm.addPass<FuncInline>();
+    pm.addPass<CombinBB>();
+    pm.addPass<G2L>();
+    pm.addPass<DeadPHIEli>();
+    pm.addPass<DCE>();
+    pm.addPass<SCCP>();
+    pm.addPass<InstrCombine>();
+    pm.addPass<ConstBr>();
+    pm.addPass<CombineJJ>();
+    pm.addPass<BreakGEP>(); 
+    pm.addPass<ValNumbering>();
+    pm.addPass<CombinBB>();
+    pm.addPass<InstrCombine>();
+    pm.addPass<SCCP>();
+    pm.addPass<MemInstOffset>();
+    pm.addPass<MoveAlloca>();
 }
 
 void Compiler::buildDefault(PassManager &pm){
     pm.addInfo<Dominators>();
-        pm.addPass<DeadStoreEli>();    
-  //  pm.addPass<CombinBB>();
+    pm.addPass<DeadStoreEli>();    
+    pm.addPass<CombinBB>();
     pm.addPass<Mem2Reg>();
-   //pm.addPass<G2L>();
-  //  pm.addPass<DeadPHIEli>();
-  // pm.addPass<SCCP>();
-  //  pm.addPass<ConstBr>();
-  //  pm.addPass<CombinBB>();
-  //  pm.addPass<InstrCombine>();
-  //  pm.addPass<FuncInline>();
- //   pm.addPass<InstrCombine>();
- //   pm.addPass<SCCP>();
-  //  pm.addPass<ConstBr>();
- pm.addPass<CombineJJ>();
-     pm.addPass<BreakGEP>();
-     
-    pm.addPass<ValNumbering>();
- //   pm.addPass<CombinBB>();
- pm.addPass<MemInstOffset>();
-      
-   
-   
+    pm.addPass<DeadPHIEli>();
+    pm.addPass<DCE>();
+    pm.addPass<SCCP>();
+    pm.addPass<CombineJJ>();
+    pm.addPass<BreakGEP>(); 
+    pm.addPass<MemInstOffset>();  
+    pm.addPass<MoveAlloca>();
     
 }
 Compiler::Compiler(int argc, char** argv){

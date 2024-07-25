@@ -4,7 +4,9 @@
 //oppositeJ一定在mergeJJ前面，肯定是先反转J，再合并，不然合并了怎么反转
 Modify MemInstOffset::runOnFunc(Function *function){
     makeOffset(getBasicBlocks(function));
-    return {};
+    Modify ret{};
+    ret.modify_instr=true;
+    return ret;
 }
 
 

@@ -5,7 +5,9 @@
 Modify CombineJJ::runOnFunc(Function *function){
     oppositeJ(getBasicBlocks(function));
     mergeJJ(getBasicBlocks(function));
-    return {};
+    Modify ret{};
+    ret.modify_instr=true;
+    return ret;
 }
 
 

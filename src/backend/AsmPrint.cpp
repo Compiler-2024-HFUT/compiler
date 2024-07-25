@@ -63,7 +63,25 @@
                 "unaligned_access"+
                 AsmString::comma+
                 "0"+
-                AsmString::newline;
+                AsmString::newline+
+"memset_i:\n\
+        ble     a1,zero,.L1\n\
+        slli    a5,a1,32\n\
+        srli    a2,a5,30\n\
+        li      a1,0\n\
+        tail    memset@plt\n\
+.L1:\n\
+        ret\n\
+.size   memset_i, .-memset_i\n\
+memset_f:\n\
+        ble     a1,zero,.L4\n\
+        slli    a5,a1,32\n\
+        srli    a2,a5,30\n\
+        li      a1,0\n\
+        tail    memset@plt\n\
+.L4:\n\
+        ret\n\
+.size   memset_f, .-memset_f\n\n";
     ::std::vector<::std::string> data_section;
     for(auto i:module->getGlobalVariables()){
         ::std::string data_def;
