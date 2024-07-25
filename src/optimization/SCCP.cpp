@@ -237,7 +237,7 @@ void SCCP::visitInst(Instruction *i) {
         } else {
             getInstVal(i).markNaC();
         }
-    } else if(i->isBr()) {
+    } else if(i->isBr() || i->isCmpBr() || i->isFCmpBr()) {
     // addon: 如果br是条件跳转，且条件是已知常数，那么这里就不应该添加全部FlowEdge
         addFlowEdge(i->getParent());
     } else {
