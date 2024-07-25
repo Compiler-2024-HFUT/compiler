@@ -9,8 +9,8 @@ bool SCCP::runOnFunction(Function *f) {
 
     worklist.push_back(Edge::makeFlowEdge(nullptr, f->getEntryBlock()));
     while(!worklist.empty()){
-        Edge edge = worklist.back();
-        worklist.pop_back();
+        Edge edge = worklist.front();
+        worklist.pop_front();
 
         if(edge.isFlowEdge() && !getExecFlag(edge)){
             execFlag[edge]++;      // -> execFlag[edge] = true if execFlag[edge]==0
@@ -49,6 +49,7 @@ bool SCCP::runOnFunction(Function *f) {
             }
         }
     }
+
     return isChanged;
 }
 
@@ -80,12 +81,12 @@ InstVal &SCCP::getInstVal(Value *v){
     // can't find, init the value's lattice
     if(Constant *c = dynamic_cast<Constant*>(v)) {
         LattValue[v].markConst(c);
-    }else if(Argument *arg = dynamic_cast<Argument*>(v)) {
+    } else if(Argument *arg = dynamic_cast<Argument*>(v)) {
         LattValue[v].markNaC();
     // 全局常量呢？这样无法处理过程间的传播
-    }else if(GlobalVariable *gv = dynamic_cast<GlobalVariable*>(v)) {
+    } else if(GlobalVariable *gv = dynamic_cast<GlobalVariable*>(v)) {
         LattValue[v].markNaC();
-    }
+    } 
 
     return LattValue[v];
 }

@@ -78,7 +78,7 @@ class SCCP : public FunctionPass {
         }
     };
 
-    std::vector<Edge> worklist;
+    std::list<Edge> worklist;
     std::map<Edge, int> execFlag;           // 不能找到或为0等价于false
     std::map<Value*, InstVal> LattValue;    // vlaue对应的半格值，找不到等价于undef
 
