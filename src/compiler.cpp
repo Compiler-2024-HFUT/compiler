@@ -20,6 +20,11 @@
 #include "optimization/SCCP.hpp"
 #include "optimization/ValueNumbering.hpp"
 #include "optimization/inline.hpp"
+
+#include "optimization/BreakGEP.hpp"
+#include "optimization/CombineJJ.hpp"
+#include "optimization/MemInstOffset.hpp"
+
 void usage(){
 	(void)fprintf(stderr, "%s\n%s\n",
 	    "usage: compiler file [-SL]  file -o file ...",
@@ -27,28 +32,49 @@ void usage(){
 	exit(EXIT_FAILURE);
 }
 void Compiler::buildOpt(PassManager &pm){
-    pm.addInfo<Dominators>();
-    pm.addPass<DeadStoreEli>();    
-    pm.addPass<CombinBB>();
-    pm.addPass<Mem2Reg>();
-    pm.addPass<G2L>();
-    pm.addPass<DeadPHIEli>();
-    pm.addPass<SCCP>();
-    pm.addPass<ConstBr>();
-    pm.addPass<CombinBB>();
-    pm.addPass<InstrCombine>();
-    pm.addPass<FuncInline>();
-    pm.addPass<InstrCombine>();
-    pm.addPass<SCCP>();
-    pm.addPass<ConstBr>();
-    pm.addPass<ValNumbering>();
+//   pm.addInfo<Dominators>();
+//   pm.addPass<DeadStoreEli>();    
+//   pm.addPass<CombinBB>();
+//   pm.addPass<Mem2Reg>();
+//   pm.addPass<G2L>();
+//   pm.addPass<DeadPHIEli>();
+//   pm.addPass<SCCP>();
+//   pm.addPass<ConstBr>();
+//   pm.addPass<CombinBB>();
+//   pm.addPass<InstrCombine>();
+//   pm.addPass<FuncInline>();
+//   pm.addPass<InstrCombine>();
+//   pm.addPass<SCCP>();
+//   pm.addPass<ConstBr>();
+//   pm.addPass<ValNumbering>();
+  //  pm.addPass<LIR>();
 }
 
 void Compiler::buildDefault(PassManager &pm){
     pm.addInfo<Dominators>();
-    pm.addPass<DeadStoreEli>();    
-    pm.addPass<CombinBB>();
+        pm.addPass<DeadStoreEli>();    
+  //  pm.addPass<CombinBB>();
     pm.addPass<Mem2Reg>();
+   //pm.addPass<G2L>();
+  //  pm.addPass<DeadPHIEli>();
+  // pm.addPass<SCCP>();
+  //  pm.addPass<ConstBr>();
+  //  pm.addPass<CombinBB>();
+  //  pm.addPass<InstrCombine>();
+  //  pm.addPass<FuncInline>();
+ //   pm.addPass<InstrCombine>();
+ //   pm.addPass<SCCP>();
+  //  pm.addPass<ConstBr>();
+ pm.addPass<CombineJJ>();
+     pm.addPass<BreakGEP>();
+     
+    pm.addPass<ValNumbering>();
+ //   pm.addPass<CombinBB>();
+ pm.addPass<MemInstOffset>();
+      
+   
+   
+    
 }
 Compiler::Compiler(int argc, char** argv){
     if(argc<5){
@@ -103,6 +129,7 @@ int Compiler::run(){
     else
         buildDefault(pm);
     pm.run();
+    m->print();
 
     std::fstream out_file(out_name,std::ios::out|std::ios::trunc);
     if(is_out_llvm){

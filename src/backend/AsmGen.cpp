@@ -728,7 +728,7 @@ void AsmGen::visit(ReturnInst &node){
                 sequence->createCalleeSaveResult(irs, dst);
             } else {
                 if(ival2interval[ret_val]->reg_id >= 0) {
-                    auto dst_reg = getAllocaReg(ret_val);
+                    auto dst_reg = dynamic_cast<GReg*>(getAllocaReg(ret_val)); 
                     sequence->createCalleeSaveResult(irs, dst_reg);
                     
                 } else {
@@ -1593,7 +1593,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::caller_iargs_move(Cal
             iargs.push_back(arg);
     }
 
-    int num_of_iargs = iargs.size() > 8 ? 8 : iargs.size();
+    int num_of_iargs = iargs.size() > 8 ? 8 : iargs.size(); //参数个数
 
     std::map<int, bool> is_args_moved;
 

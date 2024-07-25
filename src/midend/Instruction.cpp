@@ -42,7 +42,7 @@ BinaryInst *BinaryInst::create( OpID id,Value *v1, Value *v2) {
 }
 
 BinaryInst *BinaryInst::createAdd(Value *v1, Value *v2, BasicBlock *bb) {
-    return new BinaryInst(Type::getInt32Type(), Instruction::OpID::add, v1, v2, bb);
+    return new BinaryInst(v1->getType()->isPointerType() ? v1->getType() : v2->getType(), Instruction::OpID::add, v1, v2, bb);
 }
 
 BinaryInst *BinaryInst::createSub(Value *v1, Value *v2, BasicBlock *bb) {
