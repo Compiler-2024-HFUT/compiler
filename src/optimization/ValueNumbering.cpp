@@ -81,6 +81,14 @@ uint32_t ValueTable::getValueNum(Value*v){
         }else{
             value_hash.insert({v,next_num});
             expressing_hash.insert({e,next_num});
+            if(e.op_==Expr::ADD||e.op_==Expr::MUL/*||e.op_==Expr::OR||e.op_==Expr::XOR||e.op_==Expr::AND*/){
+                auto switch_e=e;
+                switch_e.lhs=e.rhs;
+                switch_e.rhs=e.lhs;
+                switch_e.op_=e.op_;
+                switch_e.type_=e.type_;
+                expressing_hash.insert({switch_e,next_num});
+            }
             number_value.push_back({v});
             ++next_num;
             return next_num-1;
