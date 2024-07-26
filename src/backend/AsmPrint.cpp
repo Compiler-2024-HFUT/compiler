@@ -620,8 +620,8 @@ memset_f:\n\
             return RISCVInst::lw(rd, base, iconst_offset_value);
     }
     else{
-        return RISCVInst::slliw(new GReg(static_cast<int>(RISCV::GPR::ra)), dynamic_cast<GReg*>(offset), 2)+
-               RISCVInst::add(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::ra)), base)+
+        return 
+               RISCVInst::sh2add(new GReg(static_cast<int>(RISCV::GPR::ra)), dynamic_cast<GReg*>(offset), base)+
                RISCVInst::lw(rd, new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
     }
 }
@@ -642,8 +642,7 @@ memset_f:\n\
             return RISCVInst::flw(rd, base, iconst_offset_value);
     }
     else{
-        return RISCVInst::slliw(new GReg(static_cast<int>(RISCV::GPR::ra)), dynamic_cast<GReg*>(offset), 2)+
-               RISCVInst::add(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::ra)), base)+
+        return RISCVInst::sh2add(new GReg(static_cast<int>(RISCV::GPR::ra)), dynamic_cast<GReg*>(offset), base)+
                RISCVInst::flw(rd, new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
     }
 }
@@ -668,8 +667,7 @@ memset_f:\n\
                        RISCVInst::sw(new GReg(static_cast<int>(RISCV::GPR::ra)), base, iconst_offset_value);
         }
         else
-            return RISCVInst::slliw(new GReg(static_cast<int>(RISCV::GPR::ra)), dynamic_cast<GReg*>(offset), 2)+
-                   RISCVInst::add(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::ra)), base)+
+            return RISCVInst::sh2add(new GReg(static_cast<int>(RISCV::GPR::ra)), dynamic_cast<GReg*>(offset), base)+
                    RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_src->getIConst())+
                    RISCVInst::sw(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
     }
@@ -683,8 +681,7 @@ memset_f:\n\
                 return RISCVInst::sw(dynamic_cast<GReg*>(src), base, iconst_offset_value);
         }
         else
-            return RISCVInst::slliw(new GReg(static_cast<int>(RISCV::GPR::ra)), dynamic_cast<GReg*>(offset), 2)+
-                   RISCVInst::add(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::ra)), base)+
+            return RISCVInst::sh2add(new GReg(static_cast<int>(RISCV::GPR::ra)), dynamic_cast<GReg*>(offset), base)+
                    RISCVInst::sw(dynamic_cast<GReg*>(src), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
     }
 }
@@ -721,8 +718,7 @@ memset_f:\n\
         else
             return RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)&(fconst_src->getFConst()))+
                    RISCVInst::fmv_s_x(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::s1)))+
-                   RISCVInst::slliw(new GReg(static_cast<int>(RISCV::GPR::ra)), dynamic_cast<GReg*>(offset), 2)+
-                   RISCVInst::add(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::ra)), base)+
+                   RISCVInst::sh2add(new GReg(static_cast<int>(RISCV::GPR::ra)), dynamic_cast<GReg*>(offset), base)+
                    RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
     }
     else{
@@ -735,8 +731,7 @@ memset_f:\n\
                 return RISCVInst::fsw(dynamic_cast<FReg*>(src), base, iconst_offset_value);
         }
         else
-            return RISCVInst::slliw(new GReg(static_cast<int>(RISCV::GPR::ra)), dynamic_cast<GReg*>(offset), 2)+
-                   RISCVInst::add(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(RISCV::GPR::ra)), base)+
+            return RISCVInst::sh2add(new GReg(static_cast<int>(RISCV::GPR::ra)), dynamic_cast<GReg*>(offset), base)+
                    RISCVInst::fsw(dynamic_cast<FReg*>(src), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
     }
 }
@@ -2783,4 +2778,9 @@ memset_f:\n\
     }
 
     return asm_insts;
+}
+
+
+ ::std::string Sh2Add::print(){
+        return RISCVInst::sh2add(rd, rs1, rs2);
 }

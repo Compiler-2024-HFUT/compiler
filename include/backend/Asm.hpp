@@ -262,6 +262,12 @@ class InitializeAllTempRegs;
 class InitializeAllTempRegs;
 class PhiPass;
 
+
+//性能优化指令
+class Sh2Add;
+
+
+
 //序列（指令序列，对若干指令的抽象，抽象层次介于子程序与指令之间）
 class Sequence{
     public:
@@ -359,6 +365,9 @@ class Sequence{
         InitializeAllTempRegs* createInitializeAllTempRegs(::std::vector<::std::pair<IRA*, IRIA*>> iregs_tmp_restore);
         InitializeAllTempRegs* createInitializeAllTempRegs(::std::vector<::std::pair<FRA*, IRIA*>> fregs_tmp_restore);
         PhiPass* createPhiPass(::std::vector<::std::pair<AddressMode*, AddressMode*>> i_phi, ::std::vector<::std::pair<AddressMode*, AddressMode*>> f_phi);
+    
+        Sh2Add* createSh2Add(GReg* rd,GReg* rs1,GReg* rs2);
+
     private:
         BasicBlock* bb;
         Subroutine* parent;
@@ -509,7 +518,12 @@ class AsmInst{
             initialize_all_temp_regs,//恢复所有临时寄存器
 
             //phi节点处理
-            phi_passing //移动PHI节点的数据
+            phi_passing, //移动PHI节点的数据
+
+
+
+            //性能优化指令
+            sh2add  //加速地址计算
 
         };
     public:
@@ -1363,5 +1377,21 @@ class PhiPass: public AsmInst{
         ::std::vector<::std::pair<AddressMode*, AddressMode*>> i_phi;
         ::std::vector<::std::pair<AddressMode*, AddressMode*>> f_phi;
 };
+
+//性能优化指令
+
+//加速地址计算
+class Sh2Add: public AsmInst{
+    public:
+        Sh2Add(GReg* rd,GReg* rs1,GReg* rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), rs2(rs2), AsmInst(Op::sh2add, seq){} 
+        ::std::string print() final;
+
+    private:
+        GReg* rd;
+        GReg* rs1;
+        GReg* rs2;
+};
+
 
 #endif

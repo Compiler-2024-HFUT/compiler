@@ -396,3 +396,9 @@
     insts.push_back(inst);
     return inst;
 }
+
+Sh2Add* Sequence::createSh2Add(GReg* rd,GReg* rs1,GReg* rs2){
+    auto inst = new Sh2Add(rd, rs1, rs2, this);
+    insts.push_back(inst);
+    return inst;   
+}

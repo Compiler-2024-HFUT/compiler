@@ -6,6 +6,7 @@
 //副作用
 bool isSeIns(Instruction*ins){
     //全局store有副作用，不能删
+    if(ins->isStoreOffset())    return true;
     if(ins->isStore()){
         auto ptr=((StoreInst*)ins)->getLVal();
         if(dynamic_cast<GlobalVariable*>(ptr))
@@ -22,7 +23,7 @@ bool isValidIns(Instruction*ins){
     // if(side_effect_ins_.count(ins))
     //     return true;
     //局部store有效
-    if(ins->isStore())
+    if(ins->isStore()|| ins->isStoreOffset())
         return true;
     //跳转和ret有效
     if(ins->isTerminator())

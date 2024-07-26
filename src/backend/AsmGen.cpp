@@ -740,6 +740,79 @@ void AsmGen::visit(ReturnInst &node){
     }
 }   
 
+//gep 首地址 0 0
+//void AsmGen::visit(GetElementPtrInst &node){
+//    auto inst = &node;
+//    
+//    auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
+//    auto base = inst->getOperand(0);
+//
+//    auto offset = inst->getOperand(2);
+//
+//
+//
+//    auto global_base = dynamic_cast<GlobalVariable*>(base);
+//    auto alloca_base = dynamic_cast<AllocaInst*>(base);
+//    auto arg_base = dynamic_cast<Argument*>(base);
+//    if(global_base) {
+//        auto addr = global_variable_labels_table[global_base];
+//       
+//        sequence->createLa(rd, addr);
+//        auto rs1 = dynamic_cast<ConstantInt*>(inst->getOperand(2))?new IConst(dynamic_cast<ConstantInt*>(inst->getOperand(2))->getValue()): getAllocaReg(inst->getOperand(2));
+//        sequence->createSh2Add(rd, dynamic_cast<GReg*>(rs1), rd);
+//    } 
+//    else if(alloca_base) {
+//        auto addr = val2stack[base];
+//        auto rs2 = new GReg(static_cast<int>(addr->getReg()));
+//        auto rs1 = new IConst(addr->getOffset());
+//        auto r0 = new GReg(static_cast<int>(RISCV::GPR::zero));
+//        sequence->createAdd(rd, r0, rs1);
+//        sequence->createSh2Add(rd, rd, rs2);
+//    } 
+//    else{
+//        auto rs1 = dynamic_cast<ConstantInt*>(inst->getOperand(2))?new IConst(dynamic_cast<ConstantInt*>(inst->getOperand(2))->getValue()): getAllocaReg(inst->getOperand(2));
+//        auto rs2 = dynamic_cast<GReg*>( getAllocaReg(base));
+// 
+//        sequence->createSh2Add(rd, dynamic_cast<GReg*>(rs1), rs2);
+//    }
+//}
+
+//void AsmGen::visit(GetElementPtrInst &node){
+//    auto inst = &node;
+//    auto base = inst->getOperand(0);
+//    auto global_base = dynamic_cast<GlobalVariable*>(base);
+//    auto alloca_base = dynamic_cast<AllocaInst*>(base);
+//    auto arg_base = dynamic_cast<Argument*>(base);
+//    if(global_base) {
+//        auto addr = global_variable_labels_table[global_base];
+//        auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
+//        sequence->createLa(rd, addr);
+//        auto offset = inst->getOperand(2);
+//        if(dynamic_cast<ConstantInt*>(offset)){
+//            int rs_ = dynamic_cast<ConstantInt*>(offset)->getValue()*4;
+//            auto rs = new IConst(rs_);
+//            sequence->createAdd(rd,  rs, rd);
+//        }
+//        else{
+//            sequence->createSh2Add(rd,  dynamic_cast<GReg*>(getAllocaReg(offset)), rd);
+//        }
+//      
+//         
+//    } 
+//    else if(alloca_base) {
+//        auto addr = val2stack[base];
+//        auto rs1 = new GReg(static_cast<int>(addr->getReg()));
+//        auto rs2 = new IConst(addr->getOffset());
+//        auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
+//        sequence->createAdd(rd, rs1, rs2);
+//    } 
+//    else if(arg_base){
+//        auto rs = dynamic_cast<GReg*>( getAllocaReg(base));
+//        auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
+//        sequence->createMv(rd, rs);
+//    }
+//}
+//
 void AsmGen::visit(GetElementPtrInst &node){
     auto inst = &node;
     auto base = inst->getOperand(0);
@@ -758,12 +831,13 @@ void AsmGen::visit(GetElementPtrInst &node){
         auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
         sequence->createAdd(rd, rs1, rs2);
     } 
-    else{
+    else {
         auto rs = dynamic_cast<GReg*>( getAllocaReg(base));
         auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
         sequence->createMv(rd, rs);
     }
 }
+
 
 void AsmGen::visit(StoreInst &node){
     auto inst = &node;
@@ -849,6 +923,7 @@ void AsmGen::visit(LoadOffsetInst &node){
     auto inst = &node;
     auto rs1 = dynamic_cast<GReg*>(getAllocaReg(inst->getOperand(0)));
     auto rs2 = dynamic_cast<ConstantInt*>(inst->getOffset())?new IConst(dynamic_cast<ConstantInt*>(inst->getOffset())->getValue()):getAllocaReg(inst->getOffset());
+
     if(inst->getLoadType()->isFloatType()) {
         auto frd = getFRD(inst);
         sequence->createFlw(frd, rs1, rs2);
@@ -861,7 +936,8 @@ void AsmGen::visit(LoadOffsetInst &node){
 void AsmGen::visit(StoreOffsetInst &node){
     auto inst = &node;
     auto base = dynamic_cast<GReg*>(getAllocaReg(inst->getOperand(1)));
-    auto offset = dynamic_cast<ConstantInt*>(inst->getOffset())?new IConst(dynamic_cast<ConstantInt*>(inst->getOffset())->getValue()):getAllocaReg(inst->getOffset());
+   auto offset = dynamic_cast<ConstantInt*>(inst->getOffset())?new IConst(dynamic_cast<ConstantInt*>(inst->getOffset())->getValue()):getAllocaReg(inst->getOffset());
+
     if(inst->getStoreType()->isFloatType()) {
         auto src = dynamic_cast<ConstantFP*>(inst->getOperand(0))?new FConst(dynamic_cast<ConstantFP*>(inst->getOperand(0))->getValue()):getAllocaReg(inst->getOperand(0));
         sequence->createFsw(src, base, offset);
