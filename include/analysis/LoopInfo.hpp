@@ -164,8 +164,8 @@ public:
 
     bool contain(BB *bb) { return blocks.count(bb) > 0; }
 
-    // 复制除header外的blocks，参数返回进入loopBody的entry和跳出循环的exiting(exit的preBB)
-    void copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting);
+    // 复制除header外的blocks，参数返回进入loopBody的entry和跳出循环的exiting(exit的preBB)，原BB和新BB的指令映射
+    void copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting, map<BB*, BB*> &BBMap, map<Instruction*, Instruction*> &instMap);
 
     string print() {
         string loop = "";

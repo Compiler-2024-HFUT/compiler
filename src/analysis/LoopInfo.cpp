@@ -232,9 +232,9 @@ void Loop::setCondsAndUpdateBlocks(vector<LoopCond*> conds) {
 
 // 需要注意，entry不在它潜在pre的succBBs里面
 // latch也不在它潜在succ的preBBs里面
-void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting) {
-    map<BB*, BB*> BBMap = {};
-    map<Instruction*, Instruction*> InstMap = {};
+void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting, map<BB*, BB*> &BBMap, map<Instruction*, Instruction*> &instMap) {
+    BBMap.clear();
+    instMap.clear();
 
     entry = nullptr;
     exiting.clear();
@@ -261,9 +261,10 @@ void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting) {
             bbIter != bbInsts.end() && newBBIter != newBBInsts.end();
             bbIter++, newBBIter++) 
         {
-            InstMap.insert({*bbIter, *newBBIter});
+            instMap.insert({*bbIter, *newBBIter});
         }
     }
+    
     LOG_ERROR("LoopBody don't have entry??", entry == nullptr)
 
     for(auto [bb, newBB] : BBMap) {
@@ -281,7 +282,7 @@ void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting) {
     }
     copy(exitingSet.begin(), exitingSet.end(), exiting.begin());
 
-    for(auto [oldInst, newInst] : InstMap) {
+    for(auto [oldInst, newInst] : instMap) {
         vector<Value*> &ops = newInst->getOperands();
         if(oldInst->isPhi()) {
             for(int i = 1; i < ops.size(); i += 2) {
@@ -304,7 +305,7 @@ void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting) {
                 trueBB = dynamic_cast<BB*>(newInst->getOperands()[1]);
                 falseBB = dynamic_cast<BB*>(newInst->getOperands()[2]);
 
-                if(cond && InstMap[cond]) { newInst->replaceOperand(0, InstMap[cond]); }
+                if(cond && instMap[cond]) { newInst->replaceOperand(0, instMap[cond]); }
                 if(trueBB && BBMap[trueBB]) { newInst->replaceOperand(1, BBMap[trueBB]); }
                 if(falseBB && BBMap[falseBB]) { newInst->replaceOperand(1, BBMap[falseBB]); }
             }
@@ -318,8 +319,8 @@ void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting) {
             trueBB = dynamic_cast<BB*>(newInst->getOperands()[2]);
             falseBB = dynamic_cast<BB*>(newInst->getOperands()[3]);
 
-            if(op1 && InstMap[op1]) { newInst->replaceOperand(0, InstMap[op1]); }
-            if(op2 && InstMap[op2]) { newInst->replaceOperand(1, InstMap[op2]); }
+            if(op1 && instMap[op1]) { newInst->replaceOperand(0, instMap[op1]); }
+            if(op2 && instMap[op2]) { newInst->replaceOperand(1, instMap[op2]); }
             if(trueBB && BBMap[trueBB]) { newInst->replaceOperand(2, BBMap[trueBB]); }
             if(falseBB && BBMap[falseBB]) { newInst->replaceOperand(3, BBMap[falseBB]); }
         }

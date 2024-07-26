@@ -17,16 +17,40 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
     vector<BB*> entrys = { nullptr };
     vector<BB*> latchs = { latch };
     vector< vector<BB*> > exitings = { exits };
+    map<BB*, BB*> BBMap;
+    map<Instruction*, Instruction*> instMap;
 
     for(int i = 1; i < UNROLLING_TIME; i++) {
         BB *newEntry = nullptr;
         BB *newLatch = nullptr;
         vector<BB*> newExiting = {};
         
-        loop->copyBody(newEntry, newLatch, newExiting);
+        loop->copyBody(newEntry, newLatch, newExiting, BBMap, instMap);
         entrys.push_back(newEntry);
         latchs.push_back(newLatch);
         exitings.push_back(newExiting);
+
+        // 用新复制的BB 替换掉 exit中phi指令原来的BB，包括相应的参数
+        for(BB *exit : exits) {
+            for(Instruction *inst : exit->getInstructions()) {
+                if(!inst->isPhi())
+                    break;
+                
+                vector<Value*> &ops = inst->getOperands();
+                for(int j = 1; j < ops.size(); j += 2) {
+                    Instruction *valIn = dynamic_cast<Instruction*>(ops[i-1]);
+                    BB *preBB = dynamic_cast<BB*>(ops[j]);
+                    if(BBMap.find(preBB) != BBMap.end()) {
+                        ops[i-1]->removeUse(inst);
+                        ops[i]->removeUse(inst);
+                        
+                        ops[i] = BBMap[preBB];
+                        if(valIn && instMap[valIn])
+                            ops[i-1] = instMap[valIn];
+                    }
+                }
+            }
+        }
     }
 
     for(int i = 0; i < UNROLLING_TIME-1; i++) {
@@ -41,9 +65,6 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
         LOG_ERROR("entry has phiInst!", entrys[i+1]->getInstructions().front()->isPhi())
     }
     
-    // exits' phi
-    
-
 }
 
 void LoopUnroll::unrollPartialLoop(Loop *loop) {

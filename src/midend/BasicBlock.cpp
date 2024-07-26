@@ -158,7 +158,7 @@ BasicBlock *BasicBlock::copyBB() {
         std::vector<Value*> &ops = newInst->getOperands();
         for(int i = 0; i < ops.size(); i++) {
             Instruction *opI = dynamic_cast<Instruction*>(ops[i]);
-            if(opI && !instMap[opI]) {
+            if(opI && instMap[opI]) {
                 newInst->replaceOperand(i, instMap[opI]);
             }
         }
