@@ -1,4 +1,8 @@
 /*
+    循环形式限制：
+        a. 仅单条件（可求LoopCond、LoopTrip）
+        b. ...
+
     1. 循环次数可被整除
     i = 0;                                      i = 0;
     while(i < 100) {                            while(i < 100){
@@ -32,13 +36,19 @@
 #include <vector>
 using std::vector;
 
-class LoopUnroll : public FunctionPass{
-    int time;                       // 循环展开次数
+// Magic Num，后期考虑时间、空间局部性进行修改
+#define UNROLLING_TIME          5       // 循环展开次数
+#define DIRECT_UNROLLING_TIME   30
+#define DIRECT_UNROLLING_SIZE   100     // 去除循环结构后的最大指令数
 
+class LoopUnroll : public FunctionPass{
     void visitLoop(Loop *loop);
     void unrollCommonLoop(Loop *loop, LoopTrip trip);   // 情况1
     void unrollPartialLoop(Loop *loop);  // 情况2
-    void unrolEntirelLoop(Loop *loop);   // 情况3 
+    void unrolEntirelLoop(Loop *loop, LoopTrip trip);   // 情况3 
+    
+    // ？？
+    // 循环消除，对于迭代次数为0的循环，可以将其删除
     void removeLoop(Loop *loop);
 public:
     LoopUnroll(Module *m, InfoManager *im) : FunctionPass(m, im){}

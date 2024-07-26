@@ -5,9 +5,11 @@
 #include "utils/Logger.hpp"
 
 #include <unordered_map>
+#include <list>
 #include <algorithm>
-using std::sort;
-using std::includes;
+using std::copy;
+using std::list;
+
 template<typename key, typename value>
 using umap = std::unordered_map<key, value>;
 
@@ -228,26 +230,129 @@ void Loop::setCondsAndUpdateBlocks(vector<LoopCond*> conds) {
     // ...
 }
 
+// 需要注意，entry不在它潜在pre的succBBs里面
+// latch也不在它潜在succ的preBBs里面
+void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting) {
+    map<BB*, BB*> BBMap = {};
+    map<Instruction*, Instruction*> InstMap = {};
+
+    entry = nullptr;
+    exiting.clear();
+    singleLatch = isSimplifiedForm() ? latch : nullptr;
+    if(!singleLatch)
+        LOG_WARNING("Can't get singleLatch before LoopSimplified!")
+    
+    uset<BB*> exitingSet = {};
+    for(BB *bb : blocks) {
+        if(bb == header) 
+            continue;
+        
+        if(bb->getPreBasicBlocks().size() == 1 && bb->getPreBasicBlocks().front() == header)
+            entry = bb;
+
+        BB *newBB = bb->copyBB();
+        BBMap.insert({bb, newBB});
+
+        list bbInsts = bb->getInstructions();
+        list newBBInsts = newBB->getInstructions();
+        auto bbIter = bbInsts.begin();
+        auto newBBIter = newBBInsts.begin();
+        for(; 
+            bbIter != bbInsts.end() && newBBIter != newBBInsts.end();
+            bbIter++, newBBIter++) 
+        {
+            InstMap.insert({*bbIter, *newBBIter});
+        }
+    }
+    LOG_ERROR("LoopBody don't have entry??", entry == nullptr)
+
+    for(auto [bb, newBB] : BBMap) {
+        for(BB* &pre : newBB->getPreBasicBlocks()) {
+            if(BBMap[pre])  pre = BBMap[pre];
+        }
+        for(BB* &succ : newBB->getSuccBasicBlocks()) {
+            if(BBMap[succ]) {
+                succ = BBMap[succ];
+            } else {
+            // newBB 存在不含于Loop的的 SuccBB，是一个exiting
+                exitingSet.insert(newBB);
+            }
+        }
+    }
+    copy(exitingSet.begin(), exitingSet.end(), exiting.begin());
+
+    for(auto [oldInst, newInst] : InstMap) {
+        vector<Value*> &ops = newInst->getOperands();
+        if(oldInst->isPhi()) {
+            for(int i = 1; i < ops.size(); i += 2) {
+                BB *incoming = dynamic_cast<BB*>(ops[i]);
+                if(incoming && BBMap[incoming]) {
+                    ops[i] = BBMap[incoming];
+                } 
+            }
+        } else if (oldInst->isBr()) {
+            Instruction *cond;
+            BB *trueBB, *falseBB;
+            if(newInst->getNumOperands() == 1) {
+                trueBB =  dynamic_cast<BB*>(newInst->getOperands()[0]);
+                if(trueBB && BBMap[trueBB]) {
+                    newInst->replaceOperand(0, BBMap[trueBB]);
+                }
+            } else {
+            // 条件跳转
+                cond = dynamic_cast<Instruction*>(newInst->getOperands()[0]);
+                trueBB = dynamic_cast<BB*>(newInst->getOperands()[1]);
+                falseBB = dynamic_cast<BB*>(newInst->getOperands()[2]);
+
+                if(cond && InstMap[cond]) { newInst->replaceOperand(0, InstMap[cond]); }
+                if(trueBB && BBMap[trueBB]) { newInst->replaceOperand(1, BBMap[trueBB]); }
+                if(falseBB && BBMap[falseBB]) { newInst->replaceOperand(1, BBMap[falseBB]); }
+            }
+
+        } else if (oldInst->isCmpBr() || oldInst->isFCmpBr()) {
+            Instruction *op1, *op2;
+            BB *trueBB, *falseBB;
+
+            op1 = dynamic_cast<Instruction*>(newInst->getOperands()[0]);
+            op2 = dynamic_cast<Instruction*>(newInst->getOperands()[1]);
+            trueBB = dynamic_cast<BB*>(newInst->getOperands()[2]);
+            falseBB = dynamic_cast<BB*>(newInst->getOperands()[3]);
+
+            if(op1 && InstMap[op1]) { newInst->replaceOperand(0, InstMap[op1]); }
+            if(op2 && InstMap[op2]) { newInst->replaceOperand(1, InstMap[op2]); }
+            if(trueBB && BBMap[trueBB]) { newInst->replaceOperand(2, BBMap[trueBB]); }
+            if(falseBB && BBMap[falseBB]) { newInst->replaceOperand(3, BBMap[falseBB]); }
+        }
+    }
+}
+
 LoopTrip Loop::computeTrip(SCEV *scev) {
+    // 如果未计算cond，先计算
     if(conditions.size()==0 && !computeConds()) {
         return LoopTrip::createEmptyTrip(-1);
     }
+    // 不处理cond数目>1的情况
     if(conditions.size() != 1) {
         return LoopTrip::createEmptyTrip(-1);
     }
 
+    // 只处理(i relOp const) 或 (const relOp i)的情况，
+    // 同时将cond的比较强制更正为(i relOp const)形式
     PhiInst *lhs;
     ConstantInt *rhs;
-    LoopCond::opType op;
+    LoopCond::opType relOp;
     if( (lhs = dynamic_cast<PhiInst*>(conditions[0]->lhs)) && (rhs = dynamic_cast<ConstantInt*>(conditions[0]->rhs)) ) {
-        op = conditions[0]->op;
+        relOp = conditions[0]->op;
     } else if ( (lhs = dynamic_cast<PhiInst*>(conditions[0]->rhs)) && (rhs = dynamic_cast<ConstantInt*>(conditions[0]->lhs)) ) {
-        op = (LoopCond::opType)(-conditions[0]->op);
+        relOp = (LoopCond::opType)(-conditions[0]->op);
     } else {
         return LoopTrip::createEmptyTrip(-1);
     }
 
-    int start, end, step, iter, diff;
+    // 计算step 并 判断循环是否可能为死循环
+    int start, end, step, iter;
+
+    // 判断i是否为归纳变量
     SCEVExpr *expr = scev->getExpr(lhs, this);
     if( !expr || !expr->isAddRec() || 
         expr->getOperands().size()!=2 || 
@@ -255,52 +360,74 @@ LoopTrip Loop::computeTrip(SCEV *scev) {
             return LoopTrip::createEmptyTrip(-1);
     }
 
+    // 获取初始值
     start = expr->getOperand(0)->getConst();
     iter  = expr->getOperand(1)->getConst();
     end   = rhs->getValue();
 
-    // iter * step + diff = end - start
-    step  = (end - start) / iter;
-    diff  = (end - start) % iter; 
-
-    bool isDeadLoop = (step > 0) ? false : true;
-
-    // ... bug
-    switch (op) {
+    switch (relOp) {
         case  LoopCond::opType::eq:
-            if(start != end) step = 0;
-            if(diff != 0) isDeadLoop = true;
+            if(start != end) {
+                step = 0;
+            } else if(start == end && iter == 0) {
+                return LoopTrip::createEmptyTrip(-2);
+            } else {
+                step = 1;
+            }
             break;
         case  LoopCond::opType::ne:
-            if(start == end) step = 0;
-            if(start == end) step = 1;
+            if(start == end){
+                step = 0;
+            } else if(start != end && iter == 0 || (end - start) % iter != 0
+                   || start > end && iter > 0 || start < end && iter < 0 ) {
+                return LoopTrip::createEmptyTrip(-2);
+            } else {
+                step = (end - start) / iter;
+            }
             break;
         case  LoopCond::opType::gt:
-            if(start <= end) step = 0;
-            if(diff != 0) step++;
+            if(start <= end) {
+                step = 0;
+            } else if(start > end && iter >= 0) {
+                return LoopTrip::createEmptyTrip(-2);
+            } else {
+            // 12 > 3, -3 -> step=(3-12+1)/-3 + 1 = 3
+                step = (end - start + 1) / iter + 1;
+            }
             break;
         case  LoopCond::opType::ge:
-            if(start < end) step = 0;
-            if(diff != 0) step++;
+            if(start < end) {
+                step = 0;
+            } else if(start >= end && iter >= 0) {
+                return LoopTrip::createEmptyTrip(-2);
+            } else {
+            // 12 >= 3, -3 -> step=(3-12)/-3 + 1 = 4
+                step = (end - start) / iter + 1;
+            }
             break;
         case  LoopCond::opType::lt:
-            if(start >= end) step = 0;
-            if(diff != 0) step++;
+            if(start >= end) {
+                step = 0;
+            } else if(start < end && iter <= 0) {
+                return LoopTrip::createEmptyTrip(-2);
+            } else {
+            // 1 < 5, +2 -> step = (5-1-1)/2 + 1 = 2
+                step = (end - start - 1) / iter + 1;
+            }
             break;
         case  LoopCond::opType::le:
-            if(start > end) step = 0;
-            if(diff != 0) step++;
+            if(start > end) {
+                step = 0;
+            } else if(start <= end && iter <= 0) {
+                return LoopTrip::createEmptyTrip(-2);
+            } else {
+            // 1 <= 5, +2 -> step = (5-1)/2 + 1 = 3 
+                step = (end - start) / iter + 1;
+            }
             break;
         default:
             assert(0);
             break;
-    }
-
-    cout << start << ", " << end << ", " << iter << ", " << step << endl;
-
-    if(isDeadLoop) {
-        LOG_WARNING("Loop with header " + header->getName() + " maybe is a dead loop");
-        return LoopTrip::createEmptyTrip(-2);
     }
 
     return {start, end, iter, step};

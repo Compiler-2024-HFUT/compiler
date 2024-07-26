@@ -75,9 +75,13 @@ struct SCEVExpr;
 struct LoopTrip {
     int start;  // [start, end)
     int end;
-    int iter;   
-    int step;   // 0 when loop never run, -1 when step can't get, -2 when dead loop
+    int iter;   // 每次迭代量
+    int step;   // 总步数，0 when loop never run, -1 when step can't get, -2 when dead loop
     static LoopTrip createEmptyTrip(int n) { return {0, 0, 0, n}; } 
+    string print() {
+        return "{ range: [" + STRING_NUM(start) + "," + STRING_NUM(end) + "), iter: "
+            +  STRING_NUM(iter) + ", total step: " + STRING_NUM(step) + " }\n";
+    }
 };
 
 class Loop {
@@ -159,6 +163,9 @@ public:
     void addInner(Loop *l) { inners.push_back(l); }
 
     bool contain(BB *bb) { return blocks.count(bb) > 0; }
+
+    // 复制除header外的blocks，参数返回进入loopBody的entry和跳出循环的exiting(exit的preBB)
+    void copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting);
 
     string print() {
         string loop = "";

@@ -89,6 +89,7 @@ public:
     void addInstruction(Instruction *instr);
     void addInstruction(std::list<Instruction *>::iterator instr_pos, Instruction *instr);
     void addInstrBegin(Instruction *instr);
+    void addInstrBeforeTerminator(Instruction *instr);
 
     void deleteInstr(Instruction *instr);
     ::std::list<Instruction*>::iterator eraseInstr(::std::list<Instruction*>::iterator instr_iter);
@@ -102,6 +103,7 @@ public:
 
     void eraseFromParent();
 
+    BasicBlock *copyBB();
     // void domFrontierReset() {
     //     dom_frontier_.clear();
     // }
