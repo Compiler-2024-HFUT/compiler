@@ -5,6 +5,7 @@
 #include "midend/Instruction.hpp"
 #include "midend/Module.hpp"
 #include "optimization/PassManager.hpp"
+#include <set>
 class UnReachableBBEli:public FunctionPass{
     std::set<BasicBlock*>erased;
 public:

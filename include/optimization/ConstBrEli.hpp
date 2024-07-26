@@ -7,6 +7,7 @@
 #include "midend/Instruction.hpp"
 #include "midend/Module.hpp"
 #include "optimization/PassManager.hpp"
+#include <set>
 class ConstBr:public FunctionPass{
 
     ConstantInt* const_true;

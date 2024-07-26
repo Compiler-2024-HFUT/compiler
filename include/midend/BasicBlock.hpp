@@ -2,7 +2,6 @@
 #define BASICBLOCK_HPP
 
 #include <list>
-#include <set>
 
 #include "Value.hpp"
 
@@ -39,7 +38,6 @@ public:
     void loopDepthAdd(int num) { loop_depth += num; }
     //& cfg api end
 
-    //& dominate tree api begin
     //void setLiveInInt(std::set<Value*> in){ilive_in = in;}
     //void setLiveOutInt(std::set<Value*> out){ilive_out = out;}
     //void setLiveInFloat(std::set<Value*> in){flive_in = in;}
@@ -48,20 +46,6 @@ public:
     //std::set<Value*>& getLiveOutInt(){return ilive_out;}
     //std::set<Value*>& getLiveInFloat(){return flive_in;}
     //std::set<Value*>& getLiveOutFloat(){return flive_out;}
-    //& dominate tree api end
-
-    //& dominates frontier api begin
-    // void setIdom(BasicBlock* bb){idom_ = bb;}
-    // BasicBlock* getIdom(){return idom_;}
-    // void addDomFrontier(BasicBlock* bb){dom_frontier_.insert(bb);}
-//    void addRDomFrontier(BasicBlock* bb){rdom_frontier_.insert(bb);}
-//    void clearRDomFrontier(){rdom_frontier_.clear();}
-    // std::set<BasicBlock *> &getDomFrontier(){return dom_frontier_;}
-//    std::set<BasicBlock *> &getRDomFrontier(){return rdom_frontier_;}
-//    std::set<BasicBlock *> &getRDoms(){return rdoms_;}
-//    auto addRDom(BasicBlock* bb){return rdoms_.insert(bb);}
-//    void clearRDom(){rdoms_.clear();}
-    //& dominates frontier api end
 
     //// Returns the terminator instruction if the block is well formed or null
     //// if the block is not well formed.
@@ -108,14 +92,6 @@ public:
 
     virtual std::string print() override;
 
-    // ~BasicBlock(){
-    //     for(auto ins:dead){
-    //         delete ins;
-    //     }
-    // }
-
-
-
 
     //后端遍历
     virtual void accept(IRVisitor &visitor) final;
@@ -127,10 +103,6 @@ private:
     std::list<BasicBlock *> pre_bbs_;
     std::list<BasicBlock *> succ_bbs_;
     std::list<Instruction *> instr_list_;
-//    BasicBlock* idom_ = nullptr;
-//    std::set<BasicBlock *> dom_frontier_;   //& dom_tree
-//    std::set<BasicBlock*> rdom_frontier_;
- //   std::set<BasicBlock*> rdoms_;
     Function *parent_;
    // std::set<Value*> ilive_in;
    // std::set<Value*> ilive_out;
@@ -139,6 +111,5 @@ private:
    // int incoming_branch = 0;
     int loop_depth = 0;
 
-    // std::unordered_set<Instruction*>dead;
 };
 #endif

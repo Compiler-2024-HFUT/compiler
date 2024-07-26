@@ -1,6 +1,7 @@
 #include "optimization/ConstBrEli.hpp"
 #include "analysis/Info.hpp"
 #include "midend/BasicBlock.hpp"
+#include "midend/Constant.hpp"
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include "optimization/util.hpp"
@@ -154,6 +155,22 @@ Modify ConstBr::runOnFunc(Function*func){
     do{
         erased.clear();
         changed=false;
+        // for(auto b:bbs){
+        //     for(auto i:b->getInstructions()){
+        //         if((dynamic_cast<BinaryInst*>(i))){
+        //             auto lhs=dynamic_cast<Constant*>(i->getOperand(0)),rhs=dynamic_cast<Constant*>(i->getOperand(1));
+        //             if(lhs&&rhs){
+        //                 i->replaceAllUseWith(Constant::get(lhs,i->getInstrType(),rhs));
+        //             }
+        //         }else if((i->isCmp())){
+        //             auto lhs=dynamic_cast<ConstantInt*>(i->getOperand(0)),rhs=dynamic_cast<ConstantInt*>(i->getOperand(1));
+        //             auto cmpop=((CmpInst*)i)->getCmpOp();
+        //             if(lhs&&rhs){
+        //                 i->replaceAllUseWith(ConstantInt::getFromICmp(lhs,cmpop,rhs));
+        //             }
+        //         }
+        //     }
+        // }
         for(auto iter=bbs.begin();iter!=bbs.end();){
             if(!canFold(*iter)){
                 ++iter;

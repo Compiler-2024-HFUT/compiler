@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cassert>
 #include <map>
+#include <set>
 #include "midend/Module.hpp"
 #include "midend/Function.hpp"
 #include "midend/IRprint.hpp"
