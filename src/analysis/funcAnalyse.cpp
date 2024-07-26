@@ -1,5 +1,7 @@
 #include "analysis/funcAnalyse.hpp"
+#include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
+#include <bitset>
 constexpr uint64_t WRITE_GLOBAL=(1<<0);
 constexpr uint64_t LOAD_GLOBAL=(1<<1);
 constexpr uint64_t WRITE_PARAM_ARRAY=(1<<2);
@@ -79,10 +81,10 @@ void FuncAnalyse::analyseOnModule(Module*module_){
         {"putint",PUT_VAR},
         {"putch",PUT_VAR},
         {"putfloat",PUT_VAR},
-        {"putarray",WRITE_PARAM_ARRAY},
-        {"putfarray",WRITE_PARAM_ARRAY},
-        {"putarray",WRITE_PARAM_ARRAY},
-        {"putfarray",WRITE_PARAM_ARRAY},
+        {"putarray",LOAD_PARAM_ARRAY},
+        {"putfarray",LOAD_PARAM_ARRAY},
+        // {"putarray",WRITE_PARAM_ARRAY},
+        // {"putfarray",WRITE_PARAM_ARRAY},
         {"memset_i",WRITE_PARAM_ARRAY},
         {"memset_f",WRITE_PARAM_ARRAY},
         // {"putf",LOAD_PARAM_ARRAY},
@@ -105,6 +107,7 @@ void FuncAnalyse::analyseOnModule(Module*module_){
             }
         }
     }while(changed);
+    // printInfo();
 }
 FuncSEInfo FuncAnalyse::analyseSE(Function*func){
     // auto func=(Function*)call->getOperand(0);
@@ -117,10 +120,10 @@ FuncSEInfo FuncAnalyse::analyseSE(Function*func){
         {"putint",PUT_VAR},
         {"putch",PUT_VAR},
         {"putfloat",PUT_VAR},
-        {"putarray",WRITE_PARAM_ARRAY},
-        {"putfarray",WRITE_PARAM_ARRAY},
-        {"putarray",WRITE_PARAM_ARRAY},
-        {"putfarray",WRITE_PARAM_ARRAY},
+        {"putarray",LOAD_PARAM_ARRAY},
+        {"putfarray",LOAD_PARAM_ARRAY},
+        // {"putarray",WRITE_PARAM_ARRAY},
+        // {"putfarray",WRITE_PARAM_ARRAY},
         {"memset_i",WRITE_PARAM_ARRAY},
         {"memset_f",WRITE_PARAM_ARRAY},
         {"putf",LOAD_PARAM_ARRAY},
@@ -144,24 +147,50 @@ FuncSEInfo FuncAnalyse::analyseSE(Function*func){
         for(auto instr:bb->getInstructions()){
             if(auto this_call=dynamic_cast<CallInst*>(instr)){
                 auto call_func=static_cast<Function*>(this_call->getOperand(0));
-                // if(call_func->getBasicBlocks().empty()){
-                    // ret=ret.addCallInfo(FuncAnalyse(call_func));
+                if(call_func->getBasicBlocks().empty())
+                    ret=ret|(analyseSE(call_func));
             }else if(auto store=dynamic_cast<StoreInst*>(instr)){
                 auto lval=store->getLVal();
                 if(dynamic_cast<GlobalVariable*>(lval)!=nullptr){
                     ret.addWriteGlobal();
-                }else if(dynamic_cast<AllocaInst*>(lval)!=nullptr){
-
+                }else if(auto gep=dynamic_cast<GetElementPtrInst*>(lval)){
+                    if(dynamic_cast<Argument*>(gep->getOperand(0))){
+                        ret.addWriteParamArray();
+                    }
                 }
             }else if(auto load =dynamic_cast<LoadInst*>(instr)){
                 auto lval=load->getLVal();
                 if(dynamic_cast<GlobalVariable*>(lval)!=nullptr){
                     ret.addLoadGlobal();
-                }else if(dynamic_cast<AllocaInst*>(lval)!=nullptr){
-
+                }else if(auto gep=dynamic_cast<GetElementPtrInst*>(lval)){
+                    if(dynamic_cast<Argument*>(gep->getOperand(0))){
+                        ret.addLoadParamArray();
+                    }
                 }
             }
         }
     }
     return ret;
+}
+void FuncAnalyse::printInfo(){
+    using std::cout,std::endl;
+    for(auto f_call:this->call_info){
+        cout<<f_call.first->getName()<<"   dicet call: "<<endl;
+        for(auto dircall:f_call.second.direct_call){
+        cout<<"\t"<<dircall->getName()<<endl;
+        }
+        cout<<f_call.first->getName()<<"   all call: "<<endl;
+        for(auto all_call:f_call.second.all_call){
+        cout<<"\t"<<all_call->getName()<<endl;
+        }
+    }
+    for(auto f:direct_se_info){
+        cout<<f.first->getName()<<"   dicet se: ";
+        cout<<std::bitset<sizeof(f.second.info)*8>(f.second.info)<<endl;
+    }
+    for(auto f:all_se_info){
+        cout<<f.first->getName()<<"   all se: ";
+        cout<< std::bitset<sizeof(f.second.info)*8>(f.second.info)<<endl;
+    }
+
 }

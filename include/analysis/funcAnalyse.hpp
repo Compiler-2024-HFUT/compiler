@@ -59,6 +59,7 @@ public:
     FuncAnalyse(Module*m,InfoManager*im):ModuleInfo(m, im){
         mod.modify_call=true;
     }
+    void printInfo();
     ~FuncAnalyse(){}
 };
 // FuncInfo FuncAnalyse(Function *func);
