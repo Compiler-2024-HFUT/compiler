@@ -89,7 +89,7 @@ void FuncAnalyse::analyseOnModule(Module*module_){
         {"memset_f",WRITE_PARAM_ARRAY},
         // {"putf",LOAD_PARAM_ARRAY},
         {"_sysy_starttime",UINT64_MAX},
-        {"_sysy_starttime",UINT64_MAX},
+        {"_sysy_stoptime",UINT64_MAX},
     };
         for(auto &func_call_info:call_info){
             auto &curallcall=func_call_info.second.all_call;
@@ -127,8 +127,8 @@ FuncSEInfo FuncAnalyse::analyseSE(Function*func){
         {"memset_i",WRITE_PARAM_ARRAY},
         {"memset_f",WRITE_PARAM_ARRAY},
         {"putf",LOAD_PARAM_ARRAY},
-        {"starttime",UINT64_MAX},
-        {"stoptime",UINT64_MAX},
+        {"_sysy_starttime",UINT64_MAX},
+        {"_sysy_stoptime",UINT64_MAX},
     };
     FuncSEInfo ret;
     auto iter=cache_func_info.find(func->getName());
