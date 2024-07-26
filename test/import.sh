@@ -39,9 +39,9 @@ function asm_test() {
         #run
         if [ -f "`pwd`/$name.in"  ] 
         then
-            cat "`pwd`/$name.in"|qemu-riscv64 "$name.o" > "`pwd`/$name.output"
+            cat "`pwd`/$name.in"|qemu-riscv64  -cpu rv64,zba=true,zbb=true "$name.o" > "`pwd`/$name.output"
         else
-            qemu-riscv64 "$name.o" > "`pwd`/$name.output"
+            qemu-riscv64  -cpu rv64,zba=true,zbb=true "$name.o" > "`pwd`/$name.output"
         fi
         ret=$?
         echo "$ret" >>  "`pwd`/$name.output"

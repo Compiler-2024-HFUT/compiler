@@ -83,6 +83,9 @@ class RISCVInst{
         static ::std::string divw(GReg *rd, GReg *rs1, GReg *rs2);
         static ::std::string remw(GReg *rd, GReg *rs1, GReg *rs2);
         //---------------------M_End------------------------
+        
+        static ::std::string sh2add(GReg *rd, GReg *rs1, GReg *rs2);
+
 };
 
 #endif
