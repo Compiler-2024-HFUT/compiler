@@ -567,6 +567,12 @@ public:
                 break;
             }
         }
+
+        std::vector<Value*> &ops = this->getOperands();
+        this->removeUseOfOps();
+        for(int i = 0; i < ops.size(); i++) {
+            this->getOperand(i)->addUse(this, i);
+        }
     }
 
     virtual std::string print() override;
