@@ -187,6 +187,25 @@ void LoopSimplified::processLoop(Loop *loop) {
         loop->setPreheader(preheader);
     }
 
+    // 保证所有blocks(除header)的pre都在blocks里面, 否则将其删除
+    for(BB *bb : loop->getBlocks()) {
+        vector<BB*> preBBToRemove = {};
+        if(bb == loop->getHeader())
+            continue;
+
+        for(BB *pre : bb->getPreBasicBlocks()) {
+            if(!loop->contain(pre)) {
+                preBBToRemove.push_back(pre);
+            }
+        }
+
+        for(BB *badBB : preBBToRemove) {
+            for(BB *succ : badBB->getSuccBasicBlocks())
+                succ->removePreBasicBlock(badBB);
+            badBB->eraseFromParent();
+        }
+    }
+
     bool shouldSplitExit;
     vector<BB*> preLoopBB;
     for(BB* &exit : exits) {
@@ -204,15 +223,15 @@ void LoopSimplified::processLoop(Loop *loop) {
         }
     }
 
-    // If this loop has multiple exits and the exits all go to the same block, 
-    // attempt to merge the exits.
-    bool isExitSingle = true;
-    for(int i=1; i<exits.size(); i++) {
-        if(getExitDest(exits[0]) != getExitDest(exits[i])) {
-            isExitSingle = false;
-            break;
-        }
-    }
+    // // If this loop has multiple exits and the exits all go to the same block, 
+    // // attempt to merge the exits.
+    // bool isExitSingle = true;
+    // for(int i=1; i<exits.size(); i++) {
+    //     if(getExitDest(exits[0]) != getExitDest(exits[i])) {
+    //         isExitSingle = false;
+    //         break;
+    //     }
+    // }
 
     // // only one exit or exit can be merge
     // if(isExitSingle) {
