@@ -71,6 +71,14 @@ std::list<Instruction*>::iterator BasicBlock::findInstruction(Instruction *instr
     return std::find(instr_list_.begin(), instr_list_.end(), instr);
 }
 
+void BasicBlock::replaceInsWith(Instruction* old_ins,Instruction* new_ins){
+    auto iter=findInstruction(old_ins);
+    *iter=new_ins;
+    new_ins->setParent(this);
+    old_ins->replaceAllUseWith(new_ins);
+    delete old_ins;        
+}
+
 void BasicBlock::eraseFromParent() { 
     this->getParent()->removeBasicBlock(this); 
 }

@@ -45,4 +45,31 @@ public:
 
 };
 
+class InstrReduc : public FunctionPass{
+private:
+    Function * cur_func_;
+    ::std::vector<Instruction*> work_set_;
+    Instruction* reduc(Instruction*instr);
+    Instruction* reducAdd(Instruction*instr);
+    Instruction* reducMul(Instruction*instr);
+    Instruction* reducFAdd(Instruction*instr);
+    Instruction* reducFMul(Instruction*instr);
+    Instruction* reducSub(Instruction*instr);
+    Instruction* reducDiv(Instruction*instr);
+    Instruction* reducShl(Instruction*instr);
+    Instruction* reducAsr(Instruction*instr);
+    Instruction* reducOr(Instruction*instr);
+    Instruction* reducXor(Instruction*instr);
+    Instruction* reducAnd(Instruction*instr);
+
+    // using visitfn = std::function<Instruction*(Instruction*)>;
+    
+    const ::std::map<Instruction::OpID,std::function<Instruction*(Instruction*)>> reduc_map_;
+public:
+    InstrReduc(Module *m,InfoManager*im);
+    ~InstrReduc(){};
+    Modify runOnFunc(Function*func) override;
+
+};
+
 #endif

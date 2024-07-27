@@ -79,6 +79,7 @@ public:
     ::std::list<Instruction*>::iterator insertInstr(::std::list<Instruction*>::iterator instr_iter,Instruction*instr);
 
     std::list<Instruction *>::iterator findInstruction(Instruction *instr);
+    void replaceInsWith(Instruction* old_ins,Instruction* new_ins);
 
     bool empty() { return instr_list_.empty(); }
     int getNumOfInstrs() { return instr_list_.size(); }

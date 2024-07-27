@@ -496,3 +496,65 @@ InstrCombine::InstrCombine(Module *m,InfoManager*im):FunctionPass(m,im),combine_
 }{
 
 }
+
+
+Instruction* InstrReduc::reduc(Instruction*instr){
+    auto pair=reduc_map_.find(instr->getInstrType());
+    if(pair==reduc_map_.end())return 0;
+    return(pair->second)(instr);
+
+}
+
+
+Modify InstrReduc::runOnFunc(Function*func){
+    for(auto b:func->getBasicBlocks()){
+        auto &inslist=b->getInstructions();
+        work_set_.insert(work_set_.end(),inslist.begin(),inslist.end());
+        work_set_.pop_back();
+    }
+    Modify ret;
+    int changed=true;
+    do{
+        changed=false;
+        for(int i=0;i<work_set_.size();++i){
+            auto old_ins=work_set_[i];
+            if(auto newins=reduc(old_ins)){
+                old_ins->getParent()->replaceInsWith(old_ins,newins);
+                work_set_[i]=newins;
+                changed=true;
+                ret.modify_instr=true;
+            }
+        }
+
+    }while(changed);
+    return ret;
+}
+Instruction*InstrReduc::reducMul(Instruction*instr){
+}
+Instruction*InstrReduc::reducAdd(Instruction*instr){
+}
+Instruction*InstrReduc::reducSub(Instruction*instr){
+}
+Instruction*InstrReduc::reducDiv(Instruction*instr){
+}
+
+InstrReduc::InstrReduc(Module *m,InfoManager*im):FunctionPass(m,im),reduc_map_{
+    {Instruction::OpID::lor,[this](Instruction* instr)->Instruction* { return reducOr(instr); }},
+    {Instruction::OpID::sub,[this](Instruction* instr)->Instruction* { return reducSub(instr); }},
+    {Instruction::OpID::add,[this](Instruction* instr)->Instruction* { return reducAdd(instr); }},
+    {Instruction::OpID::mul,[this](Instruction* instr)->Instruction* { return reducMul(instr); }},
+    {Instruction::OpID::sdiv,[this](Instruction* instr)->Instruction* { return reducDiv(instr); }},
+    {Instruction::OpID::lxor,[this](Instruction* instr)->Instruction* { return reducXor(instr); }},
+    {Instruction::OpID::land,[this](Instruction* instr)->Instruction* { return reducAnd(instr); }},
+    {Instruction::OpID::shl,[this](Instruction* instr)->Instruction* { return reducShl(instr); }},
+    {Instruction::OpID::asr,[this](Instruction* instr)->Instruction* { return reducAsr(instr); }},
+    // {Instruction::OpID::fsub,[this](Instruction* instr)->Instruction* { return combineFSub(instr); }},
+    {Instruction::OpID::fadd,[this](Instruction* instr)->Instruction* { return reducFAdd(instr); }},
+    {Instruction::OpID::fmul,[this](Instruction* instr)->Instruction* { return reducFMul(instr); }},
+
+    // {Instruction::OpID::lsr,[this](Instruction* instr)->Instruction* { return combineMul(instr); }},
+    // {Instruction::OpID::fdiv,[this](Instruction* instr)->Instruction* { return combineDiv(instr); }},
+
+}{
+
+}
