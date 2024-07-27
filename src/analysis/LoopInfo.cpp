@@ -20,7 +20,7 @@ void LoopInfo::analyseOnFunc(Function *func_) {
     findLoops(func_);
     combineLoops(func_);
     producedNestLoops(func_);
-    findExit(func_);
+    findExits(func_);
 }
 
 // 深度优先遍历CFG，并标注层次，EntryBlock的level为0
@@ -103,15 +103,9 @@ void LoopInfo::findLoops(Function *func_) {
 }
 
 // 只查找最外层的Loop的exit
-void LoopInfo::findExit(Function *func_) {
+void LoopInfo::findExits(Function *func_) {
     for(Loop *loop : loops[func_]) {
-        for(BB *bb : loop->getBlocks()) {
-            for(BB *succ : bb->getSuccBasicBlocks()) {
-                if(!loop->contain(succ)) {
-                    loop->addExit(succ);
-                }
-            }
-        }
+        loop->findExits();
     }
 }
 
@@ -329,6 +323,16 @@ void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting, map<BB*,
             if(op2 && instMap[op2]) { newInst->replaceOperand(1, instMap[op2]); }
             if(trueBB && BBMap[trueBB]) { newInst->replaceOperand(2, BBMap[trueBB]); }
             if(falseBB && BBMap[falseBB]) { newInst->replaceOperand(3, BBMap[falseBB]); }
+        }
+    }
+}
+
+void Loop::findExits() {
+    for(BB *bb : blocks) {
+        for(BB *succ : bb->getSuccBasicBlocks()) {
+            if(!contain(succ)) {
+                addExit(succ);
+            }
         }
     }
 }

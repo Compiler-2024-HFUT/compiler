@@ -174,6 +174,8 @@ public:
     }
     void addInner(Loop *l) { inners.push_back(l); }
 
+    void findExits();
+
     bool contain(BB *bb) { return blocks.count(bb) > 0; }
 
     // 复制除header外的blocks，参数返回进入loopBody的entry和跳出循环的exiting(exit的preBB)，原BB和新BB的指令映射
@@ -229,7 +231,7 @@ class LoopInfo: public FunctionInfo {
     void findRetreatEdges(Function *func_);   
     void findBackEdges();
     void findLoops(Function *func_);
-    void findExit(Function *func_);
+    void findExits(Function *func_);
     void combineLoops(Function *func_);         // 对于存在continue的循环，存在多条backedge回到header，该方法主要是将具有相同header的Loop合并
     void producedNestLoops(Function *func_);    // 处理嵌套循环，计算loop的inner
     void DFS_CFG( BB* rootBB, int level ); 
