@@ -46,7 +46,7 @@ using std::vector;
 class LoopUnroll : public FunctionPass{
     void visitLoop(Loop *loop);
     void unrollCommonLoop(Loop *loop, LoopTrip trip);   // 情况1
-    void unrollPartialLoop(Loop *loop);  // 情况2
+    void unrollPartialLoop(Loop *loop, LoopTrip trip);  // 情况2
     void unrolEntirelLoop(Loop *loop, LoopTrip trip);   // 情况3 
     
     // ？？

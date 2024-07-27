@@ -86,7 +86,7 @@ struct LoopTrip {
         } else if (step == -2) {
             return "{ dead loop }\n";
         } else {
-            return "{ range: [" + STRING_NUM(start) + "," + STRING_NUM(end) + "), iter: "
+            return "{ range: [" + STRING_NUM(start) + "," + STRING_NUM(end) + ")/], iter: "
             +  STRING_NUM(iter) + ", total step: " + STRING_NUM(step) + " }\n";
         }
     }

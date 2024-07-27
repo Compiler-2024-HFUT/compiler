@@ -4,11 +4,6 @@
 #include "analysis/SCEV.hpp"
 
 void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
-    if(trip.step % UNROLLING_TIME != 0) {
-        LOG_WARNING("Unroll using a time that is not a multiple of step!!")
-        return;
-    }
-    
     vector<BB*> blockToAdd = {};
 
     BB *header = loop->getHeader();
@@ -16,8 +11,13 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
     BB *latch = loop->getSingleLatch();
     LOG_ERROR("You should LoopSimplified Before Unrolling" , latch == nullptr)
 
-    Instruction *firstIndVal = header->getInstructions().front();
-    LOG_ERROR( "header's first inst must be a phi!", !(firstIndVal->isPhi()) )
+    auto iter = header->getInstructions().begin();
+    Instruction *firstIndVal = *iter;
+    // 暂时不考虑迭代的非基础归纳变量
+    iter++;
+    if((*iter)->isPhi()) {
+        return;
+    }
 
     vector<Value*> &ops = firstIndVal->getOperands();
     vector<Instruction*> indValsIter = {};  // 指令 i = i + iter 的集合
@@ -44,6 +44,20 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
         exitings.push_back(newExiting);
 
         indValsIter.push_back( instMap[indValsIter[0]] );
+
+        // 替换复制的Body中出现的IndVal
+        for(auto [oldBB, newBB] : BBMap) {
+            if(!newBB)
+                continue;
+            for(Instruction *inst : newBB->getInstructions()) {
+                vector<Value*> &opers = inst->getOperands();
+                for(int j = 0; j < opers.size(); j++) {
+                    if(opers[j] == firstIndVal) {
+                        inst->replaceOperand(j, indValsIter[i-1]);
+                    }
+                }
+            }
+        }
 
         // 将复制的BB添加到loop的blocks里
         for(auto [oldBB, newBB] : BBMap) {
@@ -103,28 +117,27 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
     }
 
     // 更新header里面的phi
-    ops = firstIndVal->getOperands();
-    for(int i = 0; i < ops.size(); i += 2) {
-        if(ops[i] == indValsIter.front()) {
+    vector<Value*> &opst = firstIndVal->getOperands();
+    for(int i = 0; i < opst.size(); i += 2) {
+        if(opst[i] == indValsIter.front()) {
             firstIndVal->replaceOperand(i, indValsIter.back());
+            firstIndVal->replaceOperand(i+1, latchs.back());
         }
     }
 }
 
-void LoopUnroll::unrollPartialLoop(Loop *loop) {
-    
+void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip) {
+    return;
 }
 
 // 只合并单块(必为latch、唯一入口为header、terminator是无条件跳转)
 // 且块内指令数(不包括br)小于DIRECT_UNROLLING_SIZE
 void LoopUnroll::unrolEntirelLoop(Loop *loop, LoopTrip trip) {
-    if(trip.step > DIRECT_UNROLLING_TIME)
-        return;
-    
+    return;
 }
 
 void LoopUnroll::removeLoop(Loop *loop) {
-
+    return;
 }
 
 void LoopUnroll::visitLoop(Loop *loop) {
@@ -137,19 +150,25 @@ void LoopUnroll::visitLoop(Loop *loop) {
     } else if(trip.step == 0) {
         removeLoop(loop);
         return;
+    } else if(trip.step < DIRECT_UNROLLING_TIME) {
+        unrollCommonLoop(loop, trip);
+    } else if(trip.step % UNROLLING_TIME == 0) {
+        unrollCommonLoop(loop, trip);
+    } else {
+        unrollPartialLoop(loop, trip);
     }
 
-    unrollCommonLoop(loop, trip);
-
-    for(Loop *inner : loop->getInners()) {
-        visitLoop(inner);
-    }
+    // for(Loop *inner : loop->getInners()) {
+    //     visitLoop(inner);
+    // }
 }
 
 void LoopUnroll::runOnFunc(Function* func) {
     vector<Loop*> loops = info_man_->getInfo<LoopInfo>()->getLoops(func);
     for(Loop *loop : loops) {
-        visitLoop(loop);
+        // 暂不考虑多重循环
+        if(loop->getInners().size() == 0)
+            visitLoop(loop);
     }
 }
 
