@@ -1192,7 +1192,7 @@ class CalleeSaveRegs: public AsmInst{
     public:
         CalleeSaveRegs(::std::vector<::std::pair<IRA*, IRIA*>> callee_iregs_save, Sequence* seq)
         :callee_iregs_save(callee_iregs_save), AsmInst(Op::callee_save_regs, seq){}
-        CalleeSaveRegs(::std::vector<::std::pair<FRA*, IRIA*>> caller_fregs_save, Sequence* seq)
+        CalleeSaveRegs(::std::vector<::std::pair<FRA*, IRIA*>> callee_fregs_save, Sequence* seq)
         :callee_fregs_save(callee_fregs_save), AsmInst(Op::callee_save_regs, seq){}
         ::std::string print() final;
     private:
