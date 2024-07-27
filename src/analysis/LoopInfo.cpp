@@ -201,14 +201,15 @@ string LoopInfo::print() {
 bool Loop::computeConds() {
     conditions.clear();
 
-    auto iter = header->getInstructions().begin();
-    while( (*iter)->isPhi() ) { iter++; };
-    conditions.push_back( LoopCond::createLoopCond( *(iter++) ) );
+    list<Instruction*> &headerInsts = header->getInstructions();
+    auto iter = headerInsts.end();
+    iter--; iter--;
+    LoopCond *cond = LoopCond::createLoopCond( *iter );
+    if(!cond)   return false;
+    conditions.push_back(cond);
 
-    Instruction *br = dynamic_cast<BranchInst*>(*iter);
-    if(!br) {
-        LOG_ERROR("should be a brinst, or bb isn't a header?", 1)
-    }
+    Instruction *br = dynamic_cast<BranchInst*>(headerInsts.back());
+    LOG_ERROR("should be a brinst, or bb isn't a header?", !br)
         
     BB  *next = dynamic_cast<BB*>( br->getOperand(1) ),     // if_true
         *exit = dynamic_cast<BB*>( br->getOperand(2) );     // if_false
@@ -230,7 +231,9 @@ void Loop::setCondsAndUpdateBlocks(vector<LoopCond*> conds) {
     // ...
 }
 
-// 需要注意，entry不在它潜在pre的succBBs里面
+// 需要注意：
+// 复制的body没有添加到blocks里面
+// entry不在它潜在pre的succBBs里面
 // latch也不在它潜在succ的preBBs里面
 void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting, map<BB*, BB*> &BBMap, map<Instruction*, Instruction*> &instMap) {
     BBMap.clear();
@@ -238,19 +241,19 @@ void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting, map<BB*,
 
     entry = nullptr;
     exiting.clear();
-    singleLatch = isSimplifiedForm() ? latch : nullptr;
-    if(!singleLatch)
+    singleLatch = nullptr;
+    if(!isSimplifiedForm())
         LOG_WARNING("Can't get singleLatch before LoopSimplified!")
     
-    uset<BB*> exitingSet = {};
+    // 复制body并建立BB映射和指令映射
     for(BB *bb : blocks) {
         if(bb == header) 
             continue;
-        
-        if(bb->getPreBasicBlocks().size() == 1 && bb->getPreBasicBlocks().front() == header)
-            entry = bb;
 
         BB *newBB = bb->copyBB();
+        if(bb->getPreBasicBlocks().size() == 1 && bb->getPreBasicBlocks().front() == header) {
+            entry = newBB;
+        }   
         BBMap.insert({bb, newBB});
 
         list bbInsts = bb->getInstructions();
@@ -264,9 +267,11 @@ void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting, map<BB*,
             instMap.insert({*bbIter, *newBBIter});
         }
     }
-    
+    singleLatch = BBMap[latch];
     LOG_ERROR("LoopBody don't have entry??", entry == nullptr)
 
+    // 替换块间关系
+    uset<BB*> exitingSet = {};
     for(auto [bb, newBB] : BBMap) {
         for(BB* &pre : newBB->getPreBasicBlocks()) {
             if(BBMap[pre])  pre = BBMap[pre];
@@ -274,14 +279,15 @@ void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting, map<BB*,
         for(BB* &succ : newBB->getSuccBasicBlocks()) {
             if(BBMap[succ]) {
                 succ = BBMap[succ];
-            } else {
-            // newBB 存在不含于Loop的的 SuccBB，是一个exiting
-                exitingSet.insert(newBB);
+            } else if(succ != header) {
+            // newBB的succ不含于Loop的Body 且 不是header，那它是一个exiting 
+                exitingSet.insert(newBB);       
             }
         }
     }
     copy(exitingSet.begin(), exitingSet.end(), exiting.begin());
 
+    // 替换指令
     for(auto [oldInst, newInst] : instMap) {
         vector<Value*> &ops = newInst->getOperands();
         if(oldInst->isPhi()) {

@@ -141,8 +141,8 @@ std::string BasicBlock::print() {
 }
 
 // 复制完后的BB无法直接使用，以下内容需要进一步替换：
-// 1. PreBB、SuccBB
-// 2. phi指令、跳转指令br、cmpbr、fcmpbr
+// 1. PreBB、SuccBB仍是原来的BB的PreBB、SuccBB
+// 2. phi指令、跳转指令br、cmpbr、fcmpbr的目标
 // 3. 所有指令中不是定义在BB中的op
 BasicBlock *BasicBlock::copyBB() {
     BasicBlock *newBB = BasicBlock::create("", this->getParent());
@@ -150,7 +150,6 @@ BasicBlock *BasicBlock::copyBB() {
     std::map<Instruction*, Instruction*> instMap = {};
     for(Instruction *inst : instr_list_) {
         Instruction *newInst = inst->copyInst(newBB);
-        newBB->addInstruction( newInst );
         instMap.insert({inst, newInst});
     }
 
@@ -163,6 +162,11 @@ BasicBlock *BasicBlock::copyBB() {
             }
         }
     }
+
+    for(BasicBlock *bb : getPreBasicBlocks())
+        newBB->addPreBasicBlock(bb);
+    for(BasicBlock *bb : getSuccBasicBlocks())
+        newBB->addSuccBasicBlock(bb);
 
     return newBB;
 }

@@ -9,10 +9,23 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
         return;
     }
     
+    vector<BB*> blockToAdd = {};
+
     BB *header = loop->getHeader();
     vector<BB*> exits = loop->getExits();
     BB *latch = loop->getSingleLatch();
     LOG_ERROR("You should LoopSimplified Before Unrolling" , latch == nullptr)
+
+    Instruction *firstIndVal = header->getInstructions().front();
+    LOG_ERROR( "header's first inst must be a phi!", !(firstIndVal->isPhi()) )
+
+    vector<Value*> &ops = firstIndVal->getOperands();
+    vector<Instruction*> indValsIter = {};  // 指令 i = i + iter 的集合
+    for(int i = 1; i < ops.size(); i += 2) {
+        if(ops[i] == latch) {
+            indValsIter.push_back(dynamic_cast<Instruction*>(ops[i-1]));
+        }
+    }
 
     vector<BB*> entrys = { nullptr };
     vector<BB*> latchs = { latch };
@@ -30,7 +43,17 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
         latchs.push_back(newLatch);
         exitings.push_back(newExiting);
 
+        indValsIter.push_back( instMap[indValsIter[0]] );
+
+        // 将复制的BB添加到loop的blocks里
+        for(auto [oldBB, newBB] : BBMap) {
+            // BBMap可能因为查找BBMap[header]而导致插入{header，nullptr}
+            if(newBB != nullptr)
+                blockToAdd.push_back(newBB);
+        }
+
         // 用新复制的BB 替换掉 exit中phi指令原来的BB，包括相应的参数
+        // 待测试。。。
         for(BB *exit : exits) {
             for(Instruction *inst : exit->getInstructions()) {
                 if(!inst->isPhi())
@@ -52,6 +75,7 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
             }
         }
     }
+    loop->addBlocks(blockToAdd);
 
     for(int i = 0; i < UNROLLING_TIME-1; i++) {
         latchs[i]->removeSuccBasicBlock( header );
@@ -64,7 +88,27 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
         // entry[i+1]中一定没有phi吗？
         LOG_ERROR("entry has phiInst!", entrys[i+1]->getInstructions().front()->isPhi())
     }
-    
+
+    // 更新新BB中的归纳变量
+    for(int i = 1; i < UNROLLING_TIME; i++) {
+        Instruction *iterA = indValsIter[i-1];
+        Instruction *iterB = indValsIter[i];
+
+        vector<Value*> &ops = iterB->getOperands();
+        for(int j = 0; j < ops.size(); j++) {
+            if(ops[j] == firstIndVal) {
+                iterB->replaceOperand(j, iterA);
+            }
+        }
+    }
+
+    // 更新header里面的phi
+    ops = firstIndVal->getOperands();
+    for(int i = 0; i < ops.size(); i += 2) {
+        if(ops[i] == indValsIter.front()) {
+            firstIndVal->replaceOperand(i, indValsIter.back());
+        }
+    }
 }
 
 void LoopUnroll::unrollPartialLoop(Loop *loop) {

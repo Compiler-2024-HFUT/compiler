@@ -1,4 +1,8 @@
 /*
+    After InstCombine
+*/
+
+/*
     ScalarEvolution
     https://aping-dev.com/index.php/archives/380/
     https://llvm.org/devmtg/2018-04/slides/Absar-ScalarEvolution.pdf
@@ -7,9 +11,19 @@
     仅分析类似下面形式的while循环：
     i = (num);              // 必须在循环前定义或赋值，中间不能隔着循环
     while(i rel_op (num)) {
-        ......              // i不能被赋值 
+        ......              // i不能被赋值
         i = i +/- (num);
+        ......              // i不能被赋值
     }
+
+    如果出现while(i rel_op (num)) {
+        ......
+        i = i + (num); 
+        i = i + (num);
+        ......
+    }
+    必须需要将两个i+(num)合并才能正常执行，也即基础的指令合并必须先于SCEV
+
     测试用例中的循环基本是这种形式
 */
 

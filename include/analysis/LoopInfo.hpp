@@ -37,7 +37,7 @@ struct LoopCond {
     Value *rhs;
     static LoopCond *createLoopCond(Instruction *inst) {
         if(!inst->isCmp())
-            LOG_ERROR("loopcond is based on cmpinst!", 1)
+            return nullptr;
         
         opType op;
         CmpInst *cmp = dynamic_cast<CmpInst*>(inst);
@@ -79,8 +79,16 @@ struct LoopTrip {
     int step;   // 总步数，0 when loop never run, -1 when step can't get, -2 when dead loop
     static LoopTrip createEmptyTrip(int n) { return {0, 0, 0, n}; } 
     string print() {
-        return "{ range: [" + STRING_NUM(start) + "," + STRING_NUM(end) + "), iter: "
+        if(step == 0) {
+            return "{ loop never run }\n";
+        } else if(step == -1) {
+            return "{ can't get loop trip }\n";
+        } else if (step == -2) {
+            return "{ dead loop }\n";
+        } else {
+            return "{ range: [" + STRING_NUM(start) + "," + STRING_NUM(end) + "), iter: "
             +  STRING_NUM(iter) + ", total step: " + STRING_NUM(step) + " }\n";
+        }
     }
 };
 
@@ -160,6 +168,10 @@ public:
     void addExit(BB *bb) { exits.push_back(bb); }
     void addLatch(BB *bb) { latchs.push_back(bb); blocks.insert(bb); }
     void addBlock(BB *bb) { blocks.insert(bb); }
+    void addBlocks(vector<BB*> bbs) {
+        for(BB *bb : bbs)
+            blocks.insert(bb);
+    }
     void addInner(Loop *l) { inners.push_back(l); }
 
     bool contain(BB *bb) { return blocks.count(bb) > 0; }
