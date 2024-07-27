@@ -25,6 +25,9 @@ private:
     Instruction* combineOr(Instruction*instr);
     Instruction* combineXor(Instruction*instr);
     Instruction* combineAnd(Instruction*instr);
+    Instruction* combineCmp(Instruction* instr);
+    Instruction* combineICmp(CmpInst* instr);
+    Instruction* combineFCmp(FCmpInst* instr);
     Instruction* combineConst(BinaryInst* instr);
     // Instruction* _simplify_bin(BinaryInst*bin_ins);
 
