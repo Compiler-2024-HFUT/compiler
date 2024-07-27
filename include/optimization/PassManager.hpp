@@ -91,6 +91,7 @@ class PassManager{
                 }
                 delete pass.first;
             }
+            passes_.clear();
         }
         InfoManager const*const getInfoMan(){return infoManager;}
     private:
