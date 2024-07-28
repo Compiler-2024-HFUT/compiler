@@ -537,7 +537,20 @@ Instruction*InstrReduc::reducSub(Instruction*instr){
 }
 Instruction*InstrReduc::reducDiv(Instruction*instr){
 }
-
+Instruction*InstrReduc::reducOr(Instruction*instr){
+}
+Instruction*InstrReduc::reducXor(Instruction*instr){
+}
+Instruction*InstrReduc::reducAnd(Instruction*instr){
+}
+Instruction*InstrReduc::reducAsr(Instruction*instr){
+}
+Instruction*InstrReduc::reducShl(Instruction*instr){
+}
+Instruction*InstrReduc::reducFAdd(Instruction*instr){
+}
+Instruction*InstrReduc::reducFMul(Instruction*instr){
+}
 InstrReduc::InstrReduc(Module *m,InfoManager*im):FunctionPass(m,im),reduc_map_{
     {Instruction::OpID::lor,[this](Instruction* instr)->Instruction* { return reducOr(instr); }},
     {Instruction::OpID::sub,[this](Instruction* instr)->Instruction* { return reducSub(instr); }},
