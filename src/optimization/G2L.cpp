@@ -7,6 +7,18 @@
 #include "midend/Value.hpp"
 #include <cassert>
 #include <vector>
+Value* getGlobalInit(GlobalVariable*glo){
+    auto ret=glo->getInit();
+    if(dynamic_cast<ConstantZero*>(ret)){
+        auto type=glo->getType()->getPointerElementType();
+        if(type->isIntegerType())
+            return ConstantInt::get(0);
+        else
+            return ConstantFP::get(0.0f);
+        // if(glo->getType().gete)
+    }
+    return ret;
+}
 static ::std::set<BasicBlock*>visited;
 static set<StoreInst*>to_delete;
 BasicBlock* isOnlyInOneBB(GlobalVariable*global){
@@ -244,7 +256,7 @@ void G2L::runGlobal(){
         if(!use_list_.count(func))continue;
         if(auto bb=isOnlyInOneBB(cur_global);bb&&cur_dom_->getDomFrontier(bb).empty()){
             if(func==module_->getMainFunction())
-                rmLocallyGlob(cur_global,bb,cur_global->getInit());
+                rmLocallyGlob(cur_global,bb,getGlobalInit(cur_global));
             else
                 rmLocallyGlob(cur_global,bb,nullptr);
             continue;
@@ -271,7 +283,7 @@ void G2L::runGlobal(){
             entry_bb->addInstrBegin(load);
             last_store=load;
         }else {
-            incoming=cur_global->getInit();
+            incoming=getGlobalInit(cur_global);
             last_store=incoming;
         }
         reName(func->getEntryBlock(),nullptr,incoming,last_store);
@@ -303,7 +315,7 @@ Modify G2L::run(){
             std::vector<Use>v(cur_global->getUseList().begin(),cur_global->getUseList().end());
             for(auto u:v){
                 if(auto load=dynamic_cast<LoadInst*>(u.val_)){
-                    load->replaceAllUseWith(cur_global->getInit());
+                    load->replaceAllUseWith(getGlobalInit(cur_global));
                     load->getParent()->deleteInstr(load);
                     delete load;
                 }
