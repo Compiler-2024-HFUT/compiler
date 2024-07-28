@@ -2898,6 +2898,8 @@ void AsmGen::phi_union(Instruction *br_inst) {
     if(is_fcmpbr) {
         if(have_succ_move) {}
             //LOG(ERROR) << "出现未预期情况";
+            if(succ_move_inst)
+                sequence->appendInst(succ_move_inst);
         if(succ_br_inst)
             sequence->appendInst(succ_br_inst);
         if(fail_move_inst)
@@ -2908,6 +2910,8 @@ void AsmGen::phi_union(Instruction *br_inst) {
     } else if(is_cmpbr) {
         if(have_succ_move) {}
         //    LOG(ERROR) << "出现未预期情况";
+        if(succ_move_inst)
+                sequence->appendInst(succ_move_inst);
 
         if(succ_br_inst)
             sequence->appendInst(succ_br_inst);
