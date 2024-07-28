@@ -49,18 +49,17 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<CombinBB>();
     pm.addPass<G2L>();
     pm.addPass<DeadPHIEli>();
-    pm.addPass<DCE>();
     pm.addPass<SCCP>();
     pm.addPass<InstrCombine>();
     pm.addPass<ConstBr>();
     pm.addPass<CombineJJ>();
-    pm.addPass<BreakGEP>(); 
+    pm.addPass<BreakGEP>();
     pm.addPass<ValNumbering>();
     pm.addPass<CombinBB>();
     pm.addPass<InstrCombine>();
-    pm.addPass<SCCP>();
     pm.addPass<MemInstOffset>();
     pm.addPass<MoveAlloca>();
+    pm.addPass<DCE>();
 }
 
 void Compiler::buildDefault(PassManager &pm){
@@ -69,7 +68,6 @@ void Compiler::buildDefault(PassManager &pm){
     pm.addPass<CombinBB>();
     pm.addPass<Mem2Reg>();
     pm.addPass<DeadPHIEli>();
-    pm.addPass<DCE>();
     pm.addPass<SCCP>();
     pm.addPass<CombineJJ>();
     pm.addPass<BreakGEP>(); 
