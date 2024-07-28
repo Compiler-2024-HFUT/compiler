@@ -267,6 +267,9 @@ void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting, map<BB*,
     // 替换块间关系
     uset<BB*> exitingSet = {};
     for(auto [bb, newBB] : BBMap) {
+        if(!newBB)
+            continue;
+
         for(BB* &pre : newBB->getPreBasicBlocks()) {
             if(BBMap[pre])  pre = BBMap[pre];
         }
@@ -279,7 +282,7 @@ void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting, map<BB*,
             }
         }
     }
-    copy(exitingSet.begin(), exitingSet.end(), exiting.begin());
+    exiting = vector<BB*>(exitingSet.begin(), exitingSet.end());
 
     // 替换指令
     for(auto [oldInst, newInst] : instMap) {

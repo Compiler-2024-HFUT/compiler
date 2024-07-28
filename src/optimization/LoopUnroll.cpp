@@ -102,6 +102,8 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
         // entry[i+1]中一定没有phi吗？
         LOG_ERROR("entry has phiInst!", entrys[i+1]->getInstructions().front()->isPhi())
     }
+    header->removePreBasicBlock(latchs.front());
+    header->addPreBasicBlock(latchs.back());
 
     // 更新新BB中的归纳变量
     for(int i = 1; i < UNROLLING_TIME; i++) {
