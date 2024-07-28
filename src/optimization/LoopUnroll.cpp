@@ -67,7 +67,7 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
         }
 
         // 用新复制的BB 替换掉 exit中phi指令原来的BB，包括相应的参数
-        // 待测试。。。
+        // 存在问题，exit及其succ中对firstIndval和firstIter没有替换！！
         for(BB *exit : exits) {
             for(Instruction *inst : exit->getInstructions()) {
                 if(!inst->isPhi())
@@ -86,6 +86,10 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
                             ops[i-1] = instMap[valIn];
                     }
                 }
+            }
+
+            for(BB *exitingBB : newExiting) {
+                exit->addPreBasicBlock(exitingBB);
             }
         }
     }
