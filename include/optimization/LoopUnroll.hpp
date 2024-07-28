@@ -2,6 +2,7 @@
     循环形式限制：
         a. 仅单条件（可求LoopCond、LoopTrip）
         b. 可求SCEV，也即要满足求解SCEV的循环格式
+        c. 暂不考虑多重循环、多个归纳变量
 
     // **有合并多条i = i + 1的可能吗？**
 
@@ -39,7 +40,7 @@
 using std::vector;
 
 // Magic Num，后期考虑时间、空间局部性进行修改
-#define UNROLLING_TIME          5       // 循环展开次数
+#define UNROLLING_TIME          2       // 循环展开次数
 #define DIRECT_UNROLLING_TIME   30
 #define DIRECT_UNROLLING_SIZE   100     // 去除循环结构后的最大指令数
 

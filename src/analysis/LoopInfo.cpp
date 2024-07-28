@@ -307,7 +307,7 @@ void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting, map<BB*,
 
                 if(cond && instMap[cond]) { newInst->replaceOperand(0, instMap[cond]); }
                 if(trueBB && BBMap[trueBB]) { newInst->replaceOperand(1, BBMap[trueBB]); }
-                if(falseBB && BBMap[falseBB]) { newInst->replaceOperand(1, BBMap[falseBB]); }
+                if(falseBB && BBMap[falseBB]) { newInst->replaceOperand(2, BBMap[falseBB]); }
             }
 
         } else if (oldInst->isCmpBr() || oldInst->isFCmpBr()) {
