@@ -2,31 +2,11 @@
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include <bitset>
-constexpr uint64_t WRITE_GLOBAL=(1<<0);
-constexpr uint64_t LOAD_GLOBAL=(1<<1);
-constexpr uint64_t WRITE_PARAM_ARRAY=(1<<2);
-constexpr uint64_t LOAD_PARAM_ARRAY=(1<<3);
-constexpr uint64_t WRITE_GLOBAL_ARRAY=(1<<2);
-constexpr uint64_t LOAD_GLOBAL_ARRAY=(1<<3);
-constexpr uint64_t GET_VAR=(1<<4);
-constexpr uint64_t PUT_VAR=(1<<5);
 
 FuncSEInfo::FuncSEInfo():info(0){}
 FuncSEInfo::FuncSEInfo(uint64_t i):info(i){}
 
-bool FuncSEInfo::isWriteGlobal(){return info&WRITE_GLOBAL;}
-bool FuncSEInfo::isLoadGlobal(){return info&LOAD_GLOBAL;}
-bool FuncSEInfo::isWriteParamArray(){return info&WRITE_PARAM_ARRAY;}
-bool FuncSEInfo::isLoadParamArray(){return info&LOAD_PARAM_ARRAY;}
-bool FuncSEInfo::isGetVar(){return info&GET_VAR;}
-bool FuncSEInfo::isPutVar(){return info&PUT_VAR;}
 
-void FuncSEInfo::addWriteGlobal(){  info=(info|WRITE_GLOBAL);}
-void FuncSEInfo::addLoadGlobal(){  info=(info|LOAD_GLOBAL);}
-void FuncSEInfo::addWriteParamArray(){  info=(info|WRITE_PARAM_ARRAY);}
-void FuncSEInfo::addLoadParamArray(){  info=(info|LOAD_PARAM_ARRAY);}
-void FuncSEInfo::addGetVar(){  info=(info|GET_VAR);}
-void FuncSEInfo::addPutVar(){  info=(info|PUT_VAR);}
 
 void FuncAnalyse::analyseOnModule(Module*module_){
     clear();
@@ -115,13 +95,13 @@ FuncSEInfo FuncAnalyse::analyseSE(Function*func){
         {"getint",GET_VAR},
         {"getch",GET_VAR},
         {"getfloat",GET_VAR},
-        {"getarray",WRITE_PARAM_ARRAY},
-        {"getfarray",WRITE_PARAM_ARRAY},
+        {"getarray",WRITE_PARAM_ARRAY|GET_VAR},
+        {"getfarray",WRITE_PARAM_ARRAY|GET_VAR},
         {"putint",PUT_VAR},
         {"putch",PUT_VAR},
         {"putfloat",PUT_VAR},
-        {"putarray",LOAD_PARAM_ARRAY},
-        {"putfarray",LOAD_PARAM_ARRAY},
+        {"putarray",LOAD_PARAM_ARRAY|PUT_VAR},
+        {"putfarray",LOAD_PARAM_ARRAY|PUT_VAR},
         // {"putarray",WRITE_PARAM_ARRAY},
         // {"putfarray",WRITE_PARAM_ARRAY},
         {"memset_i",WRITE_PARAM_ARRAY},
