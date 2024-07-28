@@ -2761,11 +2761,12 @@ memset_f:\n\
             else{
                 asm_insts+=RISCVInst::flw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(iria_src->getReg())), src_offset);
             }
-            int target_offset = iria_target->getOffset();
+            
             if(freg_target){
                 asm_insts+=RISCVInst::fmv_s(new FReg(static_cast<int>(freg_target->getReg())), new FReg(static_cast<int>(RISCV::FPR::fs1)));
             }
             else if(iria_target){
+                int target_offset = iria_target->getOffset();
                 if(target_offset<-2048||target_offset>2047){
                     asm_insts+=RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::ra)), new GReg(static_cast<int>(iria_target->getReg())), target_offset)+
                                RISCVInst::fsw(new FReg(static_cast<int>(RISCV::FPR::fs1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
