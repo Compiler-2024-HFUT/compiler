@@ -81,7 +81,7 @@ void BasicBlock::addInstrBeforeTerminator(Instruction *instr) {
                     instr_list_.push_back(term);
                 }
             }
-
+        break;
         default: assert(0 && "Unknown Terminator!");
     }
 }

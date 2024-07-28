@@ -20,6 +20,12 @@ bool LoopInvariant::isInstInvariant(Loop *loop, Instruction *inst) {
     } else if(inst->isLoad() || inst->isGep() || inst->isCall() || inst->isCmp() || inst->isFCmp()) {
     // can be better?
         return false;
+    } else if (inst->isSitofp() || inst->isFptosi()) {
+        Value *op = inst->getOperand(0);
+        if( dynamic_cast<Constant*>(op) )
+            return true;
+        else 
+            return isInstInvariant(loop, dynamic_cast<Instruction*>(op));
     } else {
         LOG_ERROR("inst isn't a BinaryInst!", !inst->isBinary())
 
