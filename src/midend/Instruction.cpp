@@ -681,8 +681,15 @@ CmpBrInst *CmpBrInst::createCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *
 }
 
 std::string CmpBrInst::print() {
+    static int cmp_num=0;
+    string cmp_name="cmpbr"+std::to_string(cmp_num++);
     std::string instr_ir;
-    instr_ir += this->getModule()->getInstrOpName( this->getInstrType() );
+    instr_ir += "%";
+    // instr_ir += this->getName();
+    instr_ir+=cmp_name;
+    instr_ir += " = ";
+    // instr_ir += this->getModule()->getInstrOpName(this->getInstrType());
+    instr_ir+="icmp";
     instr_ir += " ";
     instr_ir += printCmpType(this->cmp_op_);
     instr_ir += " ";
@@ -695,12 +702,21 @@ std::string CmpBrInst::print() {
     } else {
         instr_ir += printAsOp(this->getOperand(1), true);
     }
+    instr_ir+="\n\t";
+    // instr_ir += this->getModule()->getInstrOpName(this->getInstrType());
+    instr_ir+="br";
+    instr_ir += " ";
+    //// instr_ir += this->getOperand(0)->getType()->print();
+    // instr_ir += printAsOp(this->getOperand(0), true);
+    instr_ir+="i1 %";
+    instr_ir+=cmp_name;
 
-    instr_ir += ", ";
-    instr_ir += printAsOp(this->getOperand(2), true);
-    instr_ir += ", ";
-    instr_ir += printAsOp(this->getOperand(3), true);
-
+    // if (isCondBr()) {
+        instr_ir += ", ";
+        instr_ir += printAsOp(this->getOperand(2), true);
+        instr_ir += ", ";
+        instr_ir += printAsOp(this->getOperand(3), true);
+    // }
     return instr_ir;
 }
 
@@ -729,8 +745,15 @@ FCmpBrInst *FCmpBrInst::createFCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBloc
 }
 
 std::string FCmpBrInst::print() {
+    static int cmp_num=0;
+    string cmp_name="fcmpbr"+std::to_string(cmp_num++);
     std::string instr_ir;
-    instr_ir += this->getModule()->getInstrOpName( this->getInstrType());
+    instr_ir += "%";
+    // instr_ir += this->getName();
+    instr_ir+=cmp_name;
+    instr_ir += " = ";
+    // instr_ir += this->getModule()->getInstrOpName(this->getInstrType());
+    instr_ir+="fcmp";
     instr_ir += " ";
     instr_ir += printFCmpType(this->cmp_op_);
     instr_ir += " ";
@@ -743,13 +766,23 @@ std::string FCmpBrInst::print() {
     } else {
         instr_ir += printAsOp(this->getOperand(1), true);
     }
+    instr_ir+="\n\t";
+    // instr_ir += this->getModule()->getInstrOpName(this->getInstrType());
+    instr_ir+="br";
+    instr_ir += " ";
+    //// instr_ir += this->getOperand(0)->getType()->print();
+    // instr_ir += printAsOp(this->getOperand(0), true);
+    instr_ir+="i1 %";
+    instr_ir+=cmp_name;
 
-    instr_ir += ", ";
-    instr_ir += printAsOp(this->getOperand(2), true);
-    instr_ir += ", ";
-    instr_ir += printAsOp(this->getOperand(3), true);
-
+    // if (isCondBr()) {
+        instr_ir += ", ";
+        instr_ir += printAsOp(this->getOperand(2), true);
+        instr_ir += ", ";
+        instr_ir += printAsOp(this->getOperand(3), true);
+    // }
     return instr_ir;
+
 }
 
 LoadOffsetInst::LoadOffsetInst(Type *ty, Value *ptr, Value *offset, BasicBlock *bb)
