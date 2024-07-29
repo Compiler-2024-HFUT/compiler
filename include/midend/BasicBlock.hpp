@@ -90,6 +90,7 @@ public:
     void addInstruction(std::list<Instruction *>::iterator instr_pos, Instruction *instr);
     void addInstrBegin(Instruction *instr);
     void addInstrBeforeTerminator(Instruction *instr);
+    void addInstrAfterPhiInst(Instruction *instr);
 
     void deleteInstr(Instruction *instr);
     ::std::list<Instruction*>::iterator eraseInstr(::std::list<Instruction*>::iterator instr_iter);

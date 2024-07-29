@@ -2,6 +2,8 @@
 #define LICM_HPP
 
 #include "optimization/PassManager.hpp"
+#include "analysis/Dataflow.hpp"
+#include "analysis/Dominators.hpp"
 #include "analysis/LoopInvariant.hpp"
 #include "analysis/LoopInfo.hpp"
 

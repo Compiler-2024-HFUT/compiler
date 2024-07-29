@@ -52,6 +52,8 @@ void BasicBlock::addInstrBegin(Instruction *instr) {
 }
 
 void BasicBlock::addInstrBeforeTerminator(Instruction *instr) {
+    instr->setParent(this);
+    
     Instruction *term = instr_list_.back();
     instr_list_.pop_back();
 
@@ -84,6 +86,16 @@ void BasicBlock::addInstrBeforeTerminator(Instruction *instr) {
         break;
         default: assert(0 && "Unknown Terminator!");
     }
+}
+
+void BasicBlock::addInstrAfterPhiInst(Instruction *instr) {
+    instr->setParent(this);
+
+    auto iter = instr_list_.begin();
+    while ((*iter)->isPhi())
+        iter++;
+    
+    instr_list_.insert(iter, instr);
 }
 
 void BasicBlock::deleteInstr(Instruction *instr) {
