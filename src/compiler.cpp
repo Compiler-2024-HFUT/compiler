@@ -57,6 +57,7 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<ValNumbering>();
     pm.addPass<CombinBB>();
     pm.addPass<InstrCombine>();
+    pm.addPass<InstrReduc>();
     pm.addPass<MemInstOffset>();
     pm.addPass<MoveAlloca>();
     pm.addPass<DCE>();

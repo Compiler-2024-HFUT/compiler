@@ -11,7 +11,7 @@ int pow2(int num){
     return num!=0?2<<num:1;
 }
 //要考虑负吗
-int ispow2(int num){
+int islog2(int num){
     bool isneg=false;
     if(num<=0){
         isneg=true;
@@ -530,26 +530,53 @@ Modify InstrReduc::runOnFunc(Function*func){
     return ret;
 }
 Instruction*InstrReduc::reducMul(Instruction*instr){
+    auto rhs=instr->getOperand(1);
+    if(auto rhs_ci=dynamic_cast<ConstantInt*>(rhs)){
+        if(auto log=islog2(rhs_ci->getValue());log>0){
+            return BinaryInst::create(Instruction::OpID::shl,instr->getOperand(0),ConstantInt::get(log));
+        }
+    }
+    return 0;
 }
 Instruction*InstrReduc::reducAdd(Instruction*instr){
+    auto lhs=instr->getOperand(0);
+    if(lhs==instr->getOperand(1)){
+        return BinaryInst::create(Instruction::OpID::shl,instr->getOperand(0),ConstantInt::get(1));
+    }
+    return 0;
 }
 Instruction*InstrReduc::reducSub(Instruction*instr){
+    return 0;
 }
 Instruction*InstrReduc::reducDiv(Instruction*instr){
+    auto rhs=instr->getOperand(1);
+    if(auto rhs_ci=dynamic_cast<ConstantInt*>(rhs)){
+        if(auto log=islog2(rhs_ci->getValue());log>0){
+            return BinaryInst::create(Instruction::OpID::asr,instr->getOperand(0),ConstantInt::get(log));
+        }
+    }
+    return 0;
 }
 Instruction*InstrReduc::reducOr(Instruction*instr){
+    return 0;
 }
 Instruction*InstrReduc::reducXor(Instruction*instr){
+    return 0;
 }
 Instruction*InstrReduc::reducAnd(Instruction*instr){
+    return 0;
 }
 Instruction*InstrReduc::reducAsr(Instruction*instr){
+    return 0;
 }
 Instruction*InstrReduc::reducShl(Instruction*instr){
+    return 0;
 }
 Instruction*InstrReduc::reducFAdd(Instruction*instr){
+    return 0;
 }
 Instruction*InstrReduc::reducFMul(Instruction*instr){
+    return 0;
 }
 InstrReduc::InstrReduc(Module *m,InfoManager*im):FunctionPass(m,im),reduc_map_{
     {Instruction::OpID::lor,[this](Instruction* instr)->Instruction* { return reducOr(instr); }},
