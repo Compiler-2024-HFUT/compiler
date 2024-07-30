@@ -29,7 +29,7 @@ class LoopSimplified : public FunctionPass{
     BB *splitExit(Loop *loop, BB *exit);
     BB *insertUniqueBackedge(Loop *loop);
     BB *mergeExits(Loop *loop);
-    void findAndMoveIndVar(Loop *loop);
+    // void findAndMoveIndVar(Loop *loop);
 public:
     LoopSimplified(Module *m, InfoManager *im) : FunctionPass(m, im){}
     ~LoopSimplified(){};

@@ -251,59 +251,59 @@ void LoopSimplified::processLoop(Loop *loop) {
     }
 }
 
-void LoopSimplified::findAndMoveIndVar(Loop *loop) {
-    BB *preheader = loop->getPreheader();
-    list<PhiInst*> outIndVars = {};
-    list<PhiInst*> innIndVars = {};
-
-    for(Instruction* inst : loop->getHeader()->getInstructions()) {
-        if(!inst->isPhi())
-            break;
-        outIndVars.push_back(dynamic_cast<PhiInst*>(inst));
-    }
-    for(Loop *inner : loop->getInners()) {
-        for(Instruction *inst : inner->getHeader()->getInstructions()) {
-            if(!inst->isPhi())
-                break;
-            innIndVars.push_back(dynamic_cast<PhiInst*>(inst));
-        }
-    }
-
-    // 无法向内移动IndVar，退出
-    if(outIndVars.size() - innIndVars.size() != 1)
-        return;
-
-    for(PhiInst *oIndVar : outIndVars) {
-        // phi存在undef, deadphi
-        if(oIndVar->getNumOperands() == 2)
-            continue;
-        
-        Value *startVal;
-        if(oIndVar->getOperand(1) == preheader)
-            startVal = oIndVar->getOperand(0);
-        else    
-            startVal = oIndVar->getOperand(2);
-        
-        list<Use> oIndUseList = oIndVar->getUseList();
-        Use oIndUse = oIndUseList.front();
-        // deadphi 或在进入子循环前就已被使用
-        if(oIndUseList.size() != 1) 
-            return;
-        // 唯一使用oIndVal的inst是phi 且 在innIndVars里面
-        PhiInst *iIndUseOInd = dynamic_cast<PhiInst*>(oIndUse.val_);
-        auto iter = find(innIndVars.begin(), innIndVars.end(), iIndUseOInd);
-        if( iIndUseOInd && iter != innIndVars.end() ) {
-            oIndVar->getParent()->deleteInstr(oIndVar);
-            (*iter)->replaceOperand(oIndUse.arg_no_, startVal);
-        }
-    }
-
-    auto instIter1 = loop->getHeader()->getInstructions().begin();
-    auto instIter2 = ++instIter1;
-    if((*instIter1)->isPhi() && !(*instIter2)->isPhi()) {
-        loop->setIndVar( dynamic_cast<PhiInst*>(*instIter1) );
-    }
-}
+// void LoopSimplified::findAndMoveIndVar(Loop *loop) {
+//     BB *preheader = loop->getPreheader();
+//     list<PhiInst*> outIndVars = {};
+//     list<PhiInst*> innIndVars = {};
+// 
+//     for(Instruction* inst : loop->getHeader()->getInstructions()) {
+//         if(!inst->isPhi())
+//             break;
+//         outIndVars.push_back(dynamic_cast<PhiInst*>(inst));
+//     }
+//     for(Loop *inner : loop->getInners()) {
+//         for(Instruction *inst : inner->getHeader()->getInstructions()) {
+//             if(!inst->isPhi())
+//                 break;
+//             innIndVars.push_back(dynamic_cast<PhiInst*>(inst));
+//         }
+//     }
+// 
+//     // 无法向内移动IndVar，退出
+//     if(outIndVars.size() - innIndVars.size() != 1)
+//         return;
+// 
+//     for(PhiInst *oIndVar : outIndVars) {
+//         // phi存在undef, deadphi
+//         if(oIndVar->getNumOperands() == 2)
+//             continue;
+//         
+//         Value *startVal;
+//         if(oIndVar->getOperand(1) == preheader)
+//             startVal = oIndVar->getOperand(0);
+//         else    
+//             startVal = oIndVar->getOperand(2);
+//         
+//         list<Use> oIndUseList = oIndVar->getUseList();
+//         Use oIndUse = oIndUseList.front();
+//         // deadphi 或在进入子循环前就已被使用
+//         if(oIndUseList.size() != 1) 
+//             return;
+//         // 唯一使用oIndVal的inst是phi 且 在innIndVars里面
+//         PhiInst *iIndUseOInd = dynamic_cast<PhiInst*>(oIndUse.val_);
+//         auto iter = find(innIndVars.begin(), innIndVars.end(), iIndUseOInd);
+//         if( iIndUseOInd && iter != innIndVars.end() ) {
+//             oIndVar->getParent()->deleteInstr(oIndVar);
+//             (*iter)->replaceOperand(oIndUse.arg_no_, startVal);
+//         }
+//     }
+// 
+//     auto instIter1 = loop->getHeader()->getInstructions().begin();
+//     auto instIter2 = ++instIter1;
+//     if((*instIter1)->isPhi() && !(*instIter2)->isPhi()) {
+//         loop->setIndVar( dynamic_cast<PhiInst*>(*instIter1) );
+//     }
+// }
 
 void LoopSimplified::visitLoop(Loop *loop) {
     if(loop->isSimplifiedForm())
@@ -311,11 +311,11 @@ void LoopSimplified::visitLoop(Loop *loop) {
 
     processLoop(loop);
     loop->setSimplified();
-    findAndMoveIndVar(loop);
+    // findAndMoveIndVar(loop);
 
-    for(Loop *inner : loop->getInners()) {
-        visitLoop(inner);
-    }
+    // for(Loop *inner : loop->getInners()) {
+    //     visitLoop(inner);
+    // }
 }
 
 void LoopSimplified::runOnFunc(Function* func) {
