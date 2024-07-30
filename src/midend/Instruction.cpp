@@ -806,6 +806,32 @@ Type *LoadOffsetInst::getLoadType() const {
 
 std::string LoadOffsetInst::print() {
     std::string instr_ir;
+    if (!this->isVoid()) {
+        instr_ir += "%";
+        instr_ir += this->getName();
+        instr_ir += " =  call";
+    }
+    // instr_ir += this->getModule()->getInstrOpName(this->getInstrType());
+    instr_ir += " ";
+    instr_ir += this->getType()->print();
+    instr_ir += " ";
+    if(this->getType()->isIntegerType()){
+        instr_ir+="@loadoffset_i";
+    }else{
+        instr_ir+="@loadoffset_f";
+    }
+    instr_ir += "(";
+    for (int i = 0; i < this->getNumOperands(); i++) {
+        if (i > 0)
+            instr_ir += " , ";
+        instr_ir += this->getOperand(i)->getType()->print();
+        instr_ir += " ";
+        instr_ir += printAsOp(this->getOperand(i), false);
+    }
+    instr_ir += ")";
+    return instr_ir;
+/*
+    std::string instr_ir;
     instr_ir += "%";
     instr_ir += this->getName();
     instr_ir += " = ";
@@ -818,6 +844,7 @@ std::string LoadOffsetInst::print() {
     instr_ir += ", ";
     instr_ir += printAsOp(this->getOperand(1), true);
     return instr_ir;
+*/
 }
 
 StoreOffsetInst::StoreOffsetInst(Value *val, Value *ptr, Value *offset, BasicBlock *bb)
@@ -843,6 +870,28 @@ StoreOffsetInst *StoreOffsetInst::createStoreOffset(Value *val, Value *ptr, Valu
 
 std::string StoreOffsetInst::print() {
     std::string instr_ir;
+    instr_ir += "call";
+    // instr_ir += this->getModule()->getInstrOpName(this->getInstrType());
+    instr_ir += " ";
+    instr_ir += this->getType()->print();
+    instr_ir += " ";
+    if(this->getOperand(2)-> getType()->isIntegerType()){
+        instr_ir+="@storeoffset_i";
+    }else{
+        instr_ir+="@storeoffset_f";
+    }
+    instr_ir += "(";
+    for (int i = 0; i < this->getNumOperands(); i++) {
+        if (i > 0)
+            instr_ir += " , ";
+        instr_ir += this->getOperand(i)->getType()->print();
+        instr_ir += " ";
+        instr_ir += printAsOp(this->getOperand(i), false);
+    }
+    instr_ir += ")";
+    return instr_ir;
+/*
+    std::string instr_ir;
     instr_ir += this->getModule()->getInstrOpName( this->getInstrType() );
     instr_ir += " ";
     instr_ir += this->getOperand(0)->getType()->print();
@@ -853,6 +902,7 @@ std::string StoreOffsetInst::print() {
     instr_ir += ", ";
     instr_ir += printAsOp(this->getOperand(2), true);
     return instr_ir;
+*/
 }
 
 

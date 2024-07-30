@@ -97,6 +97,28 @@ void Module::setPrintName() {
 
 std::string Module::print() {
     std::string module_ir;
+    module_ir+=
+R"(define i32 @loadoffset_i(i32* %base_addr,i32 %offset){
+  %load = getelementptr i32 , i32* %base_addr , i32 %offset 
+  %ret = load i32, i32* %load
+  ret i32 %ret
+}
+define float @loadoffset_f(float* %base_addr,i32 %offset){
+  %load = getelementptr float , float* %base_addr , i32 %offset 
+  %ret = load float, float* %load
+  ret float %ret
+}
+define void @storeoffset_i(i32 %val ,i32* %base_addr, i32 %offset){
+    %store = getelementptr i32 , i32* %base_addr , i32 %offset
+    store i32 %val, i32* %store
+    ret void
+}
+define void @storeoffset_f(float %val , float* %base_addr, i32 %offset){
+    %store = getelementptr i32 , i32* %base_addr , i32 %offset
+    store float %val, i32* %store
+    ret void
+}
+)";
     for (auto &global_val : this->globals_list_) {
         module_ir += global_val->print();
         module_ir += "\n";
