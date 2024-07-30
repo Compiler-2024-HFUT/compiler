@@ -10,6 +10,7 @@
 #include "frontend/parser.hpp"
 #include "compiler.hpp"
 #include "midend/IRGen.hpp"
+#include "optimization/ArrReduc.hpp"
 #include "optimization/CombinBB.hpp"
 #include "optimization/ConstBrEli.hpp"
 #include "optimization/DCE.hpp"
@@ -41,7 +42,6 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<CombinBB>();
     pm.addPass<Mem2Reg>();
     pm.addPass<DeadPHIEli>();
-    pm.addPass<DCE>();
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
     pm.addPass<InstrCombine>();
@@ -49,18 +49,19 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<CombinBB>();
     pm.addPass<G2L>();
     pm.addPass<DeadPHIEli>();
+    pm.addPass<DCE>();
     pm.addPass<SCCP>();
     pm.addPass<InstrCombine>();
     pm.addPass<ConstBr>();
-    pm.addPass<CombineJJ>();
-    pm.addPass<BreakGEP>();
     pm.addPass<ValNumbering>();
+    pm.addPass<ArrReduc>();
+    pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
+    lir(pm);
+    pm.addPass<ValNumbering>();
+    pm.addPass<DCE>();
     pm.addPass<InstrCombine>();
     pm.addPass<InstrReduc>();
-    pm.addPass<MemInstOffset>();
-    pm.addPass<MoveAlloca>();
-    pm.addPass<DCE>();
 }
 
 void Compiler::buildDefault(PassManager &pm){
@@ -70,13 +71,16 @@ void Compiler::buildDefault(PassManager &pm){
     pm.addPass<Mem2Reg>();
     pm.addPass<DeadPHIEli>();
     pm.addPass<SCCP>();
-    pm.addPass<CombineJJ>();
-    pm.addPass<BreakGEP>(); 
-    pm.addPass<MemInstOffset>();  
-    pm.addPass<MoveAlloca>();
+    pm.addPass<ValNumbering>();
+    lir(pm);
+    pm.addPass<DCE>();
     
 }
-Compiler::Compiler(int argc, char** argv){
+Compiler::Compiler(int argc, char** argv):lir([](PassManager&pm){
+    pm.addPass<CombineJJ>();
+    pm.addPass<BreakGEP>();
+    pm.addPass<MemInstOffset>();
+    pm.addPass<MoveAlloca>();}){
     if(argc<5){
         usage();
     }

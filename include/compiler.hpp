@@ -1,4 +1,5 @@
 #include "optimization/PassManager.hpp"
+#include <functional>
 void usage();
 class Compiler{
     enum OPT:int{
@@ -10,6 +11,7 @@ class Compiler{
     bool is_out_llvm=false;
     char const * out_name=nullptr;
     char const *in_name=nullptr;
+    std::function<void(PassManager&pm)> const lir;
     void buildDefault(PassManager &pm);
     void buildOpt(PassManager &pm);
 public:
