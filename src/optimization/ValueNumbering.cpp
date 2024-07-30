@@ -61,13 +61,14 @@ uint32_t ValueTable::getValueNum(Value*v){
             e=creatExpr(i2f);
         }else if(auto zext=dynamic_cast<ZextInst*>(ins)){
             e=creatExpr(zext);
-        }else if(auto cmp=dynamic_cast<CmpInst*>(ins)){
-            e=creatExpr(cmp);
-        }else if(auto fcmp=dynamic_cast<FCmpInst*>(ins)){
-            e=creatExpr(fcmp);
         }else if(auto gep=dynamic_cast<GetElementPtrInst*>(ins)){
             e=creatExpr(gep);
         }
+        /*else if(auto cmp=dynamic_cast<CmpInst*>(ins)){
+            e=creatExpr(cmp);
+        }else if(auto fcmp=dynamic_cast<FCmpInst*>(ins)){
+            e=creatExpr(fcmp);
+        }*/
         //alloc call phi br ret store load cmpbr fcmpbr loadoffset storeoffset select
     }
     if(e.op_!=Expr::ExprOp::EMPTY){
@@ -263,15 +264,15 @@ Expr ValueTable::creatExpr(FpToSiInst*ins){
 Expr ValueTable::creatExpr(ZextInst*ins){
     return Expr(Expr::instop2exprop(ins->getInstrType()),ins->getType(),getValueNum(ins->getOperand(0)));
 }
-Expr ValueTable::creatExpr(CmpInst*ins){
-    int32_t tmp=ins->getCmpOp()+10;
-    Expr::ExprOp op=static_cast<Expr::ExprOp>(ins->getCmpOp()+(int32_t)Expr::EXPR_EQ-CmpOp::EQ);
-    return Expr(op,ins->getType(),getValueNum(ins->getOperand(0)),getValueNum(ins->getOperand(1)));
-}
-Expr ValueTable::creatExpr(FCmpInst*ins){
-    Expr::ExprOp op=static_cast<Expr::ExprOp>(ins->getCmpOp()+(int32_t)Expr::EXPR_EQ-CmpOp::EQ);
-    return Expr(op,ins->getType(),getValueNum(ins->getOperand(0)),getValueNum(ins->getOperand(1)));
-}
+// Expr ValueTable::creatExpr(CmpInst*ins){
+//     int32_t tmp=ins->getCmpOp()+10;
+//     Expr::ExprOp op=static_cast<Expr::ExprOp>(ins->getCmpOp()+(int32_t)Expr::EXPR_EQ-CmpOp::EQ);
+//     return Expr(op,ins->getType(),getValueNum(ins->getOperand(0)),getValueNum(ins->getOperand(1)));
+// }
+// Expr ValueTable::creatExpr(FCmpInst*ins){
+//     Expr::ExprOp op=static_cast<Expr::ExprOp>(ins->getCmpOp()+(int32_t)Expr::EXPR_EQ-CmpOp::EQ);
+//     return Expr(op,ins->getType(),getValueNum(ins->getOperand(0)),getValueNum(ins->getOperand(1)));
+// }
 Expr ValueTable::creatExpr(GetElementPtrInst*ins){
     if(ins->getNumOperands()==3){
         auto cons=dynamic_cast<ConstantInt*>(ins->getOperand(1));

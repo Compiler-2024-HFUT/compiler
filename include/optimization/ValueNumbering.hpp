@@ -54,8 +54,8 @@ public:
     Expr creatExpr(FpToSiInst* ins);
     Expr creatExpr(SiToFpInst* ins);
     Expr creatExpr(ZextInst* ins);
-    Expr creatExpr(CmpInst* ins);
-    Expr creatExpr(FCmpInst* ins);
+    // Expr creatExpr(CmpInst* ins);
+    // Expr creatExpr(FCmpInst* ins);
     Expr creatExpr(GetElementPtrInst* ins);
     ::std::vector<Value*>& getNumVal(uint32_t num){
         return  number_value[num];
