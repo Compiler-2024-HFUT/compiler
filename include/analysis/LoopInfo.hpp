@@ -108,11 +108,14 @@ class Loop {
     vector<Loop*> inners;               // 内循环
     int depth = 1;                      // 循环深度, 最外层深度为1
 
+    PhiInst *indVar = nullptr;
+
     bool simple = false;                // 是否已经简化
     vector<LoopCond*> conditions;       // cond1 && cond2... 暂不考虑 或 的情况，出现则conditions为空
 public:
     Loop(BB *tail, BB *head): latchs({tail}), header(head) {}
     
+    PhiInst *getIndVar() { return indVar; }
     Function *getFunction() { return header->getParent(); }
     BB* getHeader() { return header; }
     BB* getPreheader() { return preheader; }
@@ -121,6 +124,7 @@ public:
     int getDepth() { return depth; }
     Loop *getOuter() { return outer; }
 
+    void setIndVar(PhiInst *iv) { indVar = iv; }
     void setPreheader(BB *ph) { preheader = ph; }
     void setDepth(int d) { depth = d; }
     void setOuter(Loop *l) { outer = l; }

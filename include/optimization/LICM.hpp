@@ -1,3 +1,9 @@
+/*
+    循环不变量外移
+    https://www.cs.cornell.edu/courses/cs6120/2019fa/blog/loop-reduction/
+    https://www.cs.toronto.edu/~pekhimenko/courses/cscd70-w18/docs/Lecture%205%20%5BLICM%20and%20Strength%20Reduction%5D%2002.08.2018.pdf
+*/
+
 #ifndef LICM_HPP
 #define LICM_HPP
 
