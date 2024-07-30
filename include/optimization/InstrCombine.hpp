@@ -61,6 +61,7 @@ private:
     Instruction* reducOr(Instruction*instr);
     Instruction* reducXor(Instruction*instr);
     Instruction* reducAnd(Instruction*instr);
+    Instruction* reducRem(Instruction*instr);
 
     // using visitfn = std::function<Instruction*(Instruction*)>;
     

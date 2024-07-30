@@ -148,14 +148,15 @@ Instruction* InstrCombine::combineMul(Instruction*instr){
         int cr_val=cr->getValue();
         if(cr_val==0)
             return replaceInstUsesWith(instr,cr);
-        else if(bin_lhs){
+        if(cr_val==1){
+            return replaceInstUsesWith(instr,lhs);
+        }
+        if(bin_lhs){
             if(bin_lhs->isLsl()&&dynamic_cast<ConstantInt*>(bin_lhs->getOperand(1))){
                 auto lhs_op1=(ConstantInt*)(bin_lhs);
                 return BinaryInst::create(Instruction::OpID::mul,bin_lhs,
                     ConstantInt::getFromBin(cr,Instruction::OpID::shl,lhs_op1));
             }
-        }   else if(cr_val==1){
-            return replaceInstUsesWith(instr,lhs);
         }else{
             // int log2_cr=log2(cr->getValue());
             // if(pow(2,log2_cr)!=cr->getValue()) return ret;
@@ -298,11 +299,12 @@ Instruction* InstrCombine::combineDiv(Instruction*instr){
         if(cl->getValue()==0)
             return replaceInstUsesWith(instr,cl);
     }
+    if(cl&&cr){
+        return replaceInstUsesWith(instr,ConstantInt::get(cl->getValue()/cr->getValue()));
+    }
     if(cr!=nullptr){
         if(cr->getValue()==1){
             ret=replaceInstUsesWith(instr,lhs);
-        }else if(cl){
-            ret=replaceInstUsesWith(instr,ConstantInt::get(cl->getValue()/cr->getValue()));
         }else{
             auto lhs_bin=dynamic_cast<BinaryInst*>(lhs);
             if(lhs_bin==0)return ret;
@@ -578,6 +580,15 @@ Instruction*InstrReduc::reducFAdd(Instruction*instr){
 Instruction*InstrReduc::reducFMul(Instruction*instr){
     return 0;
 }
+Instruction*InstrReduc::reducRem(Instruction*instr){
+    // auto rhs=instr->getOperand(1);
+    // if(auto rhs_ci=dynamic_cast<ConstantInt*>(rhs)){
+    //     if(auto log=islog2(rhs_ci->getValue());log>0){
+    //         return BinaryInst::create(Instruction::OpID::land,instr->getOperand(0),ConstantInt::get(rhs_ci->getValue()-1));
+    //     }
+    // }
+    return 0;
+}
 InstrReduc::InstrReduc(Module *m,InfoManager*im):FunctionPass(m,im),reduc_map_{
     {Instruction::OpID::lor,[this](Instruction* instr)->Instruction* { return reducOr(instr); }},
     {Instruction::OpID::sub,[this](Instruction* instr)->Instruction* { return reducSub(instr); }},
@@ -591,6 +602,7 @@ InstrReduc::InstrReduc(Module *m,InfoManager*im):FunctionPass(m,im),reduc_map_{
     // {Instruction::OpID::fsub,[this](Instruction* instr)->Instruction* { return combineFSub(instr); }},
     {Instruction::OpID::fadd,[this](Instruction* instr)->Instruction* { return reducFAdd(instr); }},
     {Instruction::OpID::fmul,[this](Instruction* instr)->Instruction* { return reducFMul(instr); }},
+    {Instruction::OpID::srem,[this](Instruction* instr)->Instruction* { return reducRem(instr); }},
 
     // {Instruction::OpID::lsr,[this](Instruction* instr)->Instruction* { return combineMul(instr); }},
     // {Instruction::OpID::fdiv,[this](Instruction* instr)->Instruction* { return combineDiv(instr); }},
