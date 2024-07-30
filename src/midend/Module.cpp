@@ -114,8 +114,8 @@ define void @storeoffset_i(i32 %val ,i32* %base_addr, i32 %offset){
     ret void
 }
 define void @storeoffset_f(float %val , float* %base_addr, i32 %offset){
-    %store = getelementptr i32 , i32* %base_addr , i32 %offset
-    store float %val, i32* %store
+    %store = getelementptr float , float* %base_addr , i32 %offset
+    store float %val, float* %store
     ret void
 }
 )";
