@@ -23,13 +23,21 @@ SCEVVal *SCEVVal::addSCEVVal(SCEVVal *rhs)  {
             return createMulVal(ConstantInt::get(2), lhsPhi);
         else
             return createAddVal(lhsPhi, rhsPhi);
-    } else if(lhs->isConst() && rhs->isPhi() || lhs->isConst() && rhs->isMul()) {
-        return createAddVal(lhsInt, rhsPhi);
-    } else if(lhs->isPhi() && rhs->isConst() || lhs->isMul() && rhs->isConst()) {
-        return createAddVal(rhsInt, lhsPhi);
+    } else if(lhs->isConst() && rhs->isPhi() || lhs->isPhi() && rhs->isConst()) {
+        if(lhs->isConst())
+            return createAddVal(lhsInt, rhsPhi);
+        else
+            return createAddVal(rhsInt,lhsPhi);
+    } else if(lhs->isConst() && rhs->isMul() || lhs->isMul() && rhs->isConst()) {
+        if(lhs->isConst())
+            return createAddVal({lhs, rhs});
+        else
+            return createAddVal({rhs, lhs});
     } else if(lhs->isMul() && rhs->isMul()) {
-        if(lhs->operands[1] == rhs->operands[1]) {
-            return createMulVal(ConstantInt::get(2), lhs->operands[1]->sval);
+        if(lhs->operands[1]->sval == rhs->operands[1]->sval) {
+            int sum = dynamic_cast<ConstantInt*>(lhs->operands[0]->sval)->getValue()
+                    + dynamic_cast<ConstantInt*>(rhs->operands[0]->sval)->getValue();
+            return createMulVal(ConstantInt::get(sum), lhs->operands[1]->sval);
         } else {
             return createAddVal({lhs, rhs}); 
         }
