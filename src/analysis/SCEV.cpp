@@ -16,6 +16,13 @@ SCEVVal *SCEVVal::addSCEVVal(SCEVVal *rhs)  {
     PhiInst *lhsPhi = dynamic_cast<PhiInst*>(lhs->sval);
     PhiInst *rhsPhi = dynamic_cast<PhiInst*>(rhs->sval);
 
+    if( lhsInt && lhsInt->getValue() == 0 || rhsInt && rhsInt->getValue() == 0) {
+        if(lhs->isConst())
+            return rhs;
+        else    
+            return lhs;
+    }
+
     if(lhs->isConst() && rhs->isConst()) {
         return createConVal(ConstantInt::get(lhsInt->getValue() + rhsInt->getValue()));
     } else if(lhs->isPhi() && rhs->isPhi()) {
@@ -108,6 +115,18 @@ SCEVVal *SCEVVal::mulSCEVVal(SCEVVal *rhs) {
     PhiInst *lhsPhi = dynamic_cast<PhiInst*>(lhs->sval);
     PhiInst *rhsPhi = dynamic_cast<PhiInst*>(rhs->sval);
 
+    // val * 0
+    if( lhsInt && lhsInt->getValue() == 0 || rhsInt && rhsInt->getValue() == 0) {
+        return createConVal(ConstantInt::get(0));
+    }
+    // val * 1
+    if( lhsInt && lhsInt->getValue() == 1 || rhsInt && rhsInt->getValue() == 1) {
+        if(lhs->isConst())
+            return rhs;
+        else    
+            return lhs;
+    }
+
     if(lhs->isConst() && rhs->isConst()) {
         int sum = lhsInt->getValue() * rhsInt->getValue();
         return createConVal(ConstantInt::get(sum));
@@ -126,10 +145,10 @@ SCEVVal *SCEVVal::mulSCEVVal(SCEVVal *rhs) {
         for(int i = 0; i < newOperands.size(); i++) {
             newOperands[i] = newOperands[i]->mulSCEVVal(constVal);
         }
+        return createAddVal(newOperands);
     } else {
         return createUnkVal();
     }
-    return createUnkVal();
 }
 
 SCEVExpr *SCEVExpr::foldAdd(SCEVExpr *scev){
@@ -265,9 +284,8 @@ void SCEV::analyseOnFunc(Function *func) {
     for(Loop *loop : loops) {
         loopPhis[loop] = {};
         // 访问loop中的所有loop-phi（位于header的phi），包括子循环中的loop-phi
-        visitLoop(loop, loop);
+        visitLoop(loop);
 
-        // BFS遍历基本块，计算非loop-phi的SCEVExpr
         BB *header = loop->getHeader();
         BB *latch  = loop->getSingleLatch();
         umap<BB*, bool> isVisited = {};
@@ -275,6 +293,22 @@ void SCEV::analyseOnFunc(Function *func) {
         list<BB*> bbStack = { header };
         LOG_ERROR("Analyzing SCEV After LoopSimplify!", !latch)
 
+        // 每个BB对应的最里层loop
+        umap<BB*, Loop*> bbLoop = {};
+        std::function<void(Loop*)> findBBLoop = [&](Loop *loop) {
+            for(Loop *inner : loop->getInners()) {
+                findBBLoop(inner);
+            }
+
+            for(BB *bb : loop->getBlocks()) {
+                if(bbLoop.count(bb))
+                    continue;
+                bbLoop[bb] = loop;
+            }
+        };
+        findBBLoop(loop);
+
+        // BFS遍历基本块，计算非loop-phi的SCEVExpr
         for(BB *bb : loop->getBlocks())
             isVisited[bb] = false;
 
@@ -288,25 +322,23 @@ void SCEV::analyseOnFunc(Function *func) {
                     bbStack.push_back(succ);
             }
 
-            visitBlock(curBB, loop);
+            visitBlock(curBB, bbLoop[curBB]);
         }
-
     }
 }
 
-void SCEV::visitLoop(Loop *outer, Loop *inner) {
-    for(Instruction *inst : inner->getHeader()->getInstructions()) {
+void SCEV::visitLoop(Loop *loop) {
+    for(Instruction *inst : loop->getHeader()->getInstructions()) {
         if(!inst->isPhi())
             break;
 
-        // LoopPhi，暂时不访问
-        loopPhis[outer].insert(dynamic_cast<PhiInst*>(inst));
-        // exprMapping[inst] = getPhiSCEV( dynamic_cast<PhiInst*>(inst), outer );
-        // LOG_WARNING(exprMapping[inst]->print())
+        loopPhis[loop].insert(dynamic_cast<PhiInst*>(inst));
+        exprMapping[loop][inst] = getPhiSCEV( dynamic_cast<PhiInst*>(inst), loop );
+        // LOG_WARNING(exprMapping[loop][inst]->print())
     }
 
-    for(Loop *inn : inner->getInners()) {
-        visitLoop(outer, inn);
+    for(Loop *inner : loop->getInners()) {
+        visitLoop(inner);
     }
 }
 
@@ -315,7 +347,6 @@ void SCEV::visitBlock(BasicBlock *bb, Loop *loop) {
     for(Instruction *inst : bb->getInstructions()) {
         // loop-phi
         if(inst->isPhi() && loopPhis[loop].count(dynamic_cast<PhiInst*>(inst))) {
-            exprMapping[inst] =  getPhiSCEV( dynamic_cast<PhiInst*>(inst), loop );
             continue;
         } 
 
@@ -326,22 +357,22 @@ void SCEV::visitBlock(BasicBlock *bb, Loop *loop) {
             SCEVExpr *exprB = getExpr(b, loop);
             // a,b 不为空且不为unknown
             if( !exprA || !exprB || exprA->isUnknown() || exprB->isUnknown() ) {
-                exprMapping[inst] = SCEVExpr::createUnknown(loop);
+                exprMapping[loop][inst] = SCEVExpr::createUnknown(loop);
             } else {
                 if(inst->isAdd()) {
-                    exprMapping[inst] = exprA->foldAdd( exprB );
+                    exprMapping[loop][inst] = exprA->foldAdd( exprB );
                 } else if(inst->isSub()) {
-                    exprMapping[inst] = exprA->foldAdd( exprB->getNegate() );
+                    exprMapping[loop][inst] = exprA->foldAdd( exprB->getNegate() );
                 } else {
-                    exprMapping[inst] = exprA->foldMul( exprB );
+                    exprMapping[loop][inst] = exprA->foldMul( exprB );
                 }
             }
-        } else if(inst->isPhi() && exprMapping.count(inst)==0) {       // if-phi
+        } else if(inst->isPhi() && exprMapping[loop].count(inst)==0) {       // if-phi
             if(inst->getNumOperands() == 4 && inst->getOperand(0) == inst->getOperand(2)) {
-                exprMapping[inst] = getExpr(inst->getOperand(0), loop);
+                exprMapping[loop][inst] = getExpr(inst->getOperand(0), loop);
             }
         } else if(!inst->isVoid()) {
-            exprMapping[inst] = SCEVExpr::createUnknown(loop);
+            exprMapping[loop][inst] = SCEVExpr::createUnknown(loop);
         }        
     }
 }
@@ -395,8 +426,28 @@ SCEVExpr *SCEV::getPhiSCEV(PhiInst *phi, Loop *loop) {
 string SCEV::print(){
     module_->print();
     
+    std::function<string(Loop *)> printInner = [&](Loop *l) -> string {
+        string innerStr = "";
+        for(Loop *inner : l->getInners()) {
+            innerStr += STRING_RED("Loop<" + inner->getHeader()->getName() + ">:\n");
+            for(BasicBlock *bb : inner->getBlocks()) {
+                for(Instruction *inst : bb->getInstructions()) {
+                    if(getExpr(inst, inner) != nullptr) {
+                        if(getExpr(inst, inner)->isUnknown())
+                            continue;
+                        innerStr += STRING(inst->print()) + "\n";
+                        innerStr += STRING_YELLOW(inst->getName()) + ": " + getExpr(inst, inner)->print() + "\n";
+                    }
+                }
+            }
+            innerStr += printInner(inner);
+        }
+        return innerStr;
+    };
+    
     string scevStr = "";
     for(Loop *loop : loops) {
+        scevStr += STRING_RED("Loop<" + loop->getHeader()->getName() + ">:\n");
         for(BasicBlock *bb : loop->getBlocks()) {
             for(Instruction *inst : bb->getInstructions()) {
                 if(getExpr(inst, loop) != nullptr) {
@@ -409,6 +460,7 @@ string SCEV::print(){
                 }
             }
         }
+        scevStr += printInner(loop);
     }
     return scevStr;
 }

@@ -254,11 +254,11 @@ struct SCEVExpr {
 };
 
 class SCEV: public FunctionInfo {
-    umap<Value*, SCEVExpr*> exprMapping;
+    umap<Loop*, umap<Value*, SCEVExpr*> > exprMapping;
     umap<Loop*, uset<PhiInst*> > loopPhis;
     vector<Loop*> loops;
 
-    void visitLoop(Loop *outer, Loop *inner);                // 深度优先访问嵌套循环
+    void visitLoop(Loop *loop);                // 深度优先访问嵌套循环
     void visitBlock(BasicBlock *bb, Loop *loop);
     SCEVExpr *getPhiSCEV(PhiInst *phi, Loop *loop);
 public:
@@ -266,18 +266,18 @@ public:
     virtual ~SCEV() { }
 
     SCEVExpr *getExpr(Value *v, Loop *loop) {            // 安全地获取v对应的SCEVExpr
-        if(exprMapping.count(v) && exprMapping[v]->loop == loop) {
-            return exprMapping[v]; 
+        if(exprMapping[loop].count(v)) {
+            return exprMapping[loop][v]; 
         }  
         if(dynamic_cast<ConstantInt*>(v)) {
             SCEVVal *val = SCEVVal::createConVal(v);
-            exprMapping[v] = SCEVExpr::createValue(val, loop);
-            return exprMapping[v];
+            exprMapping[loop][v] = SCEVExpr::createValue(val, loop);
+            return exprMapping[loop][v];
         }
         if(dynamic_cast<PhiInst*>(v)) {
             SCEVVal *val = SCEVVal::createPhiVal(v);
-            exprMapping[v] = SCEVExpr::createValue(val, loop);
-            return exprMapping[v];
+            exprMapping[loop][v] = SCEVExpr::createValue(val, loop);
+            return exprMapping[loop][v];
         }
         return nullptr;
     };         
