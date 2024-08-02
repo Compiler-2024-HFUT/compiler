@@ -313,9 +313,9 @@ void LoopSimplified::visitLoop(Loop *loop) {
     loop->setSimplified();
     // findAndMoveIndVar(loop);
 
-    // for(Loop *inner : loop->getInners()) {
-    //     visitLoop(inner);
-    // }
+    for(Loop *inner : loop->getInners()) {
+        visitLoop(inner);
+    }
 }
 
 void LoopSimplified::runOnFunc(Function* func) {

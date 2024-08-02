@@ -100,7 +100,7 @@ class Loop {
     BB *latch = nullptr;                // 仅只有一个latch时有效，多于1个为空
 
     vector<BB*> exits;                  // 执行完循环或break后到达的基本块   
-    BB *exit = nullptr;                 // 仅只有一个exit时有效，多于1个为空
+    // BB *exit = nullptr;                 // 仅只有一个exit时有效，多于1个为空
 
     uset<BB*> blocks;                   // 组成natural loop的集合
                      
@@ -120,20 +120,24 @@ public:
     BB* getHeader() { return header; }
     BB* getPreheader() { return preheader; }
     BB* getSingleLatch() { return latch; }
-    BB* getSingleExit() { return exit; }
+    // BB* getSingleExit() { return exit; }
     int getDepth() { return depth; }
     Loop *getOuter() { return outer; }
 
     void setIndVar(PhiInst *iv) { indVar = iv; }
-    void setPreheader(BB *ph) { preheader = ph; }
+    void setPreheader(BB *ph) { 
+        preheader = ph;
+        if(outer)
+            outer->addBlock(ph);
+    }
     void setDepth(int d) { depth = d; }
     void setOuter(Loop *l) { outer = l; }
     void setSingleLatch(BB *sl) { 
         latch = sl; 
         if(!latch) { blocks.erase(latch); } 
-        blocks.insert(sl);
+        addBlock(sl);
     }
-    void setSingleExit(BB *se) { exit = se; }
+    // void setSingleExit(BB *se) { exit = se; }
 
     // 检查除header外，其它因短路求值而产生的表示条件判断的BB，匹配如下格式：
     // %op = icmp ...   ; 不考虑fcmp
@@ -170,11 +174,17 @@ public:
     vector<Loop*> &getInners()  { return inners; }
  
     void addExit(BB *bb) { exits.push_back(bb); }
-    void addLatch(BB *bb) { latchs.push_back(bb); blocks.insert(bb); }
-    void addBlock(BB *bb) { blocks.insert(bb); }
+    void addLatch(BB *bb) { latchs.push_back(bb); addBlock(bb); }
+    void addBlock(BB *bb) { 
+        blocks.insert(bb);
+        if(outer)
+            outer->addBlock(bb);
+    }
     void addBlocks(vector<BB*> bbs) {
         for(BB *bb : bbs)
             blocks.insert(bb);
+        if(outer)
+            outer->addBlocks(bbs);
     }
     void addInner(Loop *l) { inners.push_back(l); }
 
@@ -206,12 +216,8 @@ public:
         }
         
         loop += STRING_YELLOW("exits") + ":\n";
-        if(exit == nullptr) {
-            for(auto bb : exits) {
-                loop += '\t' + bb->getName() + '\n';
-            }
-        } else {
-            loop += '\t' + exit->getName() + '\n';
+        for(auto bb : exits) {
+            loop += '\t' + bb->getName() + '\n';
         }
 
         if(inners.size() != 0) {
