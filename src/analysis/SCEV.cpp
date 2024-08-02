@@ -48,6 +48,17 @@ SCEVVal *SCEVVal::addSCEVVal(SCEVVal *rhs)  {
         } else {
             return createAddVal({lhs, rhs}); 
         }
+    } else if(lhs->isPhi() && rhs->isMul() || lhs->isMul() && rhs->isPhi()) {
+        SCEVVal *phiVal = (lhs->isPhi()? lhs : rhs);
+        SCEVVal *mulVal = (lhs->isMul()? lhs : rhs);
+        vector<SCEVVal*> &mulOperands = mulVal->operands;
+        
+        if(mulOperands[1]->sval == phiVal->sval) {
+            int sum = dynamic_cast<ConstantInt*>(mulOperands[0]->sval)->getValue()+ 1;
+            return createMulVal(ConstantInt::get(sum), mulOperands[1]->sval);
+        } else {
+            return createAddVal({phiVal, mulVal});
+        }
     } else if(lhs->isAdd() && rhs->isConst() || lhs->isConst() && rhs->isAdd()) {
         SCEVVal *addVal = (lhs->isAdd() ? lhs : rhs);
         SCEVVal *constVal = (lhs->isConst() ? lhs : rhs);
@@ -55,12 +66,16 @@ SCEVVal *SCEVVal::addSCEVVal(SCEVVal *rhs)  {
 
         if(addVal->operands[0]->isConst()) {
             newOperands.push_back( addVal->operands[0]->addSCEVVal(constVal) );
+            for(int i = 1; i < addVal->operands.size(); i++) {
+                newOperands.push_back(addVal->operands[i]);
+            }
         } else {
             newOperands.push_back( constVal );
             for(SCEVVal *val : addVal->operands) {
                 newOperands.push_back(val);
             }
         }
+
         return createAddVal(newOperands);
     } else if(lhs->isAdd() && rhs->isPhi() || lhs->isPhi() && rhs->isAdd()) {
         SCEVVal *addVal = (lhs->isAdd() ? lhs : rhs);
@@ -98,8 +113,14 @@ SCEVVal *SCEVVal::addSCEVVal(SCEVVal *rhs)  {
             newOperands.push_back(mulVal);
         
         return createAddVal(newOperands); 
-    }
-    else {
+    } else if(lhs->isAdd() && rhs->isAdd()) {
+        vector<SCEVVal*> &rhsOperands = rhs->operands;
+        SCEVVal *res = lhs;
+        for(SCEVVal *op : rhsOperands) {
+            res = res->addSCEVVal(op);
+        }
+        return res;
+    } else {
         return createAddVal({lhs, rhs}); 
     }
 }
@@ -120,18 +141,19 @@ SCEVVal *SCEVVal::mulSCEVVal(SCEVVal *rhs) {
         return createConVal(ConstantInt::get(0));
     }
     // val * 1
-    if( lhsInt && lhsInt->getValue() == 1 || rhsInt && rhsInt->getValue() == 1) {
-        if(lhs->isConst())
+    if( lhsInt && lhsInt->getValue() == 1 )
             return rhs;
-        else    
+    else if( rhsInt && rhsInt->getValue() == 1 )
             return lhs;
-    }
 
     if(lhs->isConst() && rhs->isConst()) {
         int sum = lhsInt->getValue() * rhsInt->getValue();
         return createConVal(ConstantInt::get(sum));
     } else if(lhs->isConst() && rhs->isPhi() || lhs->isPhi() && rhs->isConst()) {
-        return createMulVal(lhs->sval, rhs->sval);
+        if(lhs->isConst())
+            return createMulVal(lhsInt, rhsPhi);
+        else
+            return createMulVal(rhsInt, lhsPhi);
     } else if(lhs->isConst() && rhs->isMul() || lhs->isMul() && rhs->isConst()) {
         int prod = lhs->isConst() ? lhsInt->getValue() : rhsInt->getValue();
         prod *= lhs->isMul() ? 

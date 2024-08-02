@@ -280,7 +280,8 @@ public:
             return exprMapping[loop][v];
         }
         return nullptr;
-    };         
+    };   
+    umap<Value*, SCEVExpr*> &getExprs(Loop *loop) { return exprMapping[loop]; }      
 
     virtual void analyseOnFunc(Function *func) override;
     virtual string print() override;
