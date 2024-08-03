@@ -59,9 +59,6 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<InstrResolve>();
     pm.addPass<InstrResolve>();
 
-    pm.addPass<LoopSimplified>();
-    pm.addPass<LICM>();
-
     pm.addPass<FuncInline>();
     pm.addPass<CombinBB>();
     pm.addPass<G2L>();
@@ -73,6 +70,10 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<ValNumbering>();
     pm.addPass<ArrReduc>();
     pm.addPass<SCCP>();
+    pm.addPass<CombinBB>();
+
+    pm.addPass<LoopSimplified>();
+    pm.addPass<LICM>();
     pm.addPass<CombinBB>();
 
     // lir(pm);

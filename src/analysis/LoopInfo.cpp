@@ -16,6 +16,9 @@ using umap = std::unordered_map<key, value>;
 void LoopInfo::analyseOnFunc(Function *func_) {
     if(func_->getBasicBlocks().size() == 0)
         return;
+    // 整个优化过程loopinfo只跑一遍
+    if(loops[func_].size() > 0)
+        return;
     DFS_CFG(func_->getEntryBlock(), 0);
     findRetreatEdges(func_);
     findBackEdges();
