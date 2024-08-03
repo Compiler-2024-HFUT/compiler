@@ -73,4 +73,21 @@ public:
 
 };
 
+class InstrResolve : public FunctionPass{
+private:
+    Function * cur_func_;
+    ::std::vector<Instruction*> work_set_;
+    // std::list<Instruction*> resolve(Instruction*instr);
+    std::list<Instruction*> resolveAdd(Instruction*instr);
+    std::list<Instruction*> resolveRAdd(Instruction*instr);
+    // std::list<Instruction*> resolveMul(Instruction*instr);
+    
+    const ::std::map<Instruction::OpID,std::function<Instruction*(Instruction*)>> reduc_map_;
+public:
+    using FunctionPass::FunctionPass;
+    ~InstrResolve(){};
+    Modify runOnFunc(Function*func) override;
+
+};
+
 #endif

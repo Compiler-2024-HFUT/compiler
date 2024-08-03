@@ -5,8 +5,123 @@
 #include "midend/Constant.hpp"
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
+#include "optimization/PassManager.hpp"
 #include <algorithm>
 #include <cassert>
+#include <list>
+std::list<Instruction*> InstrResolve::resolveAdd(Instruction*instr){
+    auto lhs=dynamic_cast<Instruction*>(instr->getOperand(0));
+    if(lhs==0)
+        return {};
+    if(!lhs->isMul()){
+        if(lhs->isAdd()){
+            auto rc=dynamic_cast<ConstantInt*>(instr->getOperand(1));
+            auto lhs_lhs=dynamic_cast<Instruction*>(lhs->getOperand(0));
+            auto lhs_rhs=dynamic_cast<Instruction*>(lhs->getOperand(1));
+            //((a+c1)+b)+c2==>a+b+(c1+c2)==>a+b+c3
+            if(lhs_lhs==0||lhs_rhs==0||rc)
+                return{};
+            if(lhs_lhs->isAdd()&&dynamic_cast<ConstantInt*>(lhs_lhs->getOperand(1))){
+                if(auto llr=dynamic_cast<ConstantInt*>(lhs_lhs->getOperand(1))){
+                    auto ret1=BinaryInst::create(Instruction::OpID::add,lhs_lhs->getOperand(0),lhs->getOperand(1));
+                    auto ret2=BinaryInst::create(Instruction::OpID::add,ret1,ConstantInt::get(llr->getValue()+rc->getValue()));
+                    ret1->setParent(instr->getParent());
+                    ret2->setParent(instr->getParent());
+                    return {ret1,ret2};
+                }
+            }else if(lhs_rhs->isAdd()&&dynamic_cast<ConstantInt*>(lhs_rhs->getOperand(1))){
+                if(auto lrr=dynamic_cast<ConstantInt*>(lhs_rhs->getOperand(1))){
+                    auto ret1=BinaryInst::create(Instruction::OpID::add,lhs->getOperand(0),lhs_rhs->getOperand(0));
+                    auto ret2=BinaryInst::create(Instruction::OpID::add,ret1,ConstantInt::get(lrr->getValue()+rc->getValue()));
+                    ret1->setParent(instr->getParent());
+                    ret2->setParent(instr->getParent());
+                    return {ret1,ret2};
+                }
+            }
+            //(a+(b+c1))+c2
+        }
+        return {};
+    }
+    auto rhs=dynamic_cast<Instruction*>(instr->getOperand(1));
+    if(rhs==0)
+        return{};
+    auto lhs_lhs=dynamic_cast<Instruction*>(lhs->getOperand(0));
+    auto lhs_rhs=dynamic_cast<ConstantInt*>(lhs->getOperand(1));
+    if(lhs_lhs==0||lhs_rhs==0)
+        return {};
+    if(!lhs_lhs->isAdd())
+        return{};
+    if(auto lhs_lhs_lhs=dynamic_cast<Instruction*>(lhs_lhs->getOperand(0))){
+        auto lhs_lhs_rhs=dynamic_cast<ConstantInt*>(lhs_lhs->getOperand(1));
+        if(lhs_lhs_rhs){
+            auto ins1=BinaryInst::create(Instruction::OpID::mul,lhs_lhs_lhs,lhs_rhs);
+            auto ins2=BinaryInst::create(Instruction::OpID::add,ins1,rhs);
+            auto ins3=BinaryInst::create(Instruction::OpID::add,ins2,ConstantInt::get(lhs_rhs->getValue()*lhs_lhs_rhs->getValue()));
+            ins1->setParent(instr->getParent());
+            ins2->setParent(instr->getParent());
+            ins3->setParent(instr->getParent());
+            return {ins1,ins2,ins3};
+        }
+    }
+    return{};
+}
+std::list<Instruction*> InstrResolve::resolveRAdd(Instruction*instr){
+    auto lhs=dynamic_cast<Instruction*>(instr->getOperand(0)),rhs=dynamic_cast<Instruction*>(instr->getOperand(1));
+    if(lhs==0||rhs==0)
+        return {};
+    if(!rhs->isMul())
+        return {};
+    auto rhs_lhs=dynamic_cast<Instruction*>(rhs->getOperand(0));
+    auto rhs_rhs=dynamic_cast<ConstantInt*>(rhs->getOperand(1));
+    if(rhs_lhs==0||rhs_rhs==0)
+        return {};
+    if(!rhs_lhs->isAdd())
+        return{};
+
+    if(auto rhs_lhs_lhs=dynamic_cast<Instruction*>(rhs_lhs->getOperand(0))){
+        auto rhs_lhs_rhs=dynamic_cast<ConstantInt*>(rhs_lhs->getOperand(1));
+        if(rhs_lhs_rhs){
+            auto ins1=BinaryInst::create(Instruction::OpID::mul,rhs_lhs_lhs,rhs_rhs);
+            auto ins2=BinaryInst::create(Instruction::OpID::add,lhs,ins1);
+            auto ins3=BinaryInst::create(Instruction::OpID::add,ins2,ConstantInt::get(rhs_rhs->getValue()*rhs_lhs_rhs->getValue()));
+            ins1->setParent(instr->getParent());
+            ins2->setParent(instr->getParent());
+            ins3->setParent(instr->getParent());
+            return {ins1,ins2,ins3};
+        }
+    }    
+    return{};
+}
+// Instruction* resolveMul(Instruction*instr){
+
+// }
+
+Modify InstrResolve::runOnFunc(Function*func){
+    Modify ret{};
+    for(auto b:func->getBasicBlocks()){
+        for(auto iter=b->getInstructions().begin();iter!=b->getInstructions().end();){
+            auto ins=*iter;
+            auto cur_iter=iter;
+            iter++;
+            std::list<Instruction*> new_ins;
+            if(ins->isAdd())
+                new_ins=resolveAdd(ins);
+            else continue;
+            // else if(i->isMul()){
+            //     ret=resolveMul(i);
+            // }
+            if(new_ins.empty())
+                new_ins=resolveRAdd(ins);
+            if(new_ins.empty())
+                continue;
+            ret.modify_instr=true;
+            ins->replaceAllUseWith(new_ins.back());
+            b->getInstructions().insert(cur_iter,new_ins.begin(),new_ins.end());
+        }
+    }
+    return ret;
+}
+
 int pow2(int num){
     return num!=0?2<<num:1;
 }
@@ -234,10 +349,10 @@ Instruction* InstrCombine::combineAdd(Instruction*instr){
         }
         //(a - c1) + c2 => a + (c2 - c1)
         if(blhs){
-            if(blhs->isSub()){
+            if(blhs->isAdd()){
                 if(auto lhs_rhs_ci=dynamic_cast<ConstantInt*>(blhs->getOperand(1))){
                     instr->replaceOperand(0,blhs->getOperand(0));
-                    instr->replaceOperand(1,ConstantInt::getFromBin(cons_r,Instruction::OpID::sub,lhs_rhs_ci));
+                    instr->replaceOperand(1,ConstantInt::getFromBin(cons_r,Instruction::OpID::add,lhs_rhs_ci));
                     ret=instr;
                 }
             //(-a)+b ==> b-a
@@ -416,7 +531,7 @@ Instruction* InstrCombine::combine(Instruction*instr){
 }
 
 void InstrCombine::removeInsWithWorkset(Instruction*ins){
-  work_set_.erase(std::remove(work_set_.begin(), work_set_.end(), ins),work_set_.end());
+    work_set_.erase(std::remove(work_set_.begin(), work_set_.end(), ins),work_set_.end());
     ins->getParent()->eraseInstr(ins->getParent()->findInstruction(ins));
     delete ins;
 }
