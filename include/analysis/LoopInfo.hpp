@@ -104,7 +104,7 @@ class Loop {
 
     uset<BB*> blocks;                   // 组成natural loop的集合
                      
-    Loop *outer;                        // 外层循环
+    Loop *outer = nullptr;                        // 外层循环
     vector<Loop*> inners;               // 内循环
     int depth = 1;                      // 循环深度, 最外层深度为1
 

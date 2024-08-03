@@ -26,10 +26,7 @@ class LoopSimplified : public FunctionPass{
     void visitLoop(Loop *loop);
     void processLoop(Loop *loop);
     BB *insertPreheader(Loop *loop);
-    BB *splitExit(Loop *loop, BB *exit);
     BB *insertUniqueBackedge(Loop *loop);
-    BB *mergeExits(Loop *loop);
-    // void findAndMoveIndVar(Loop *loop);
 public:
     LoopSimplified(Module *m, InfoManager *im) : FunctionPass(m, im){}
     ~LoopSimplified(){};

@@ -6,20 +6,6 @@
 using std::find;
 using std::remove;
 
-// fix later
-// exit可无条件跳转的最终目标
-// static BB *getExitDest(BB *bb) {
-//     // 返回表示exit可以一直无条件跳转至ret_label
-//     if(bb->getTerminator()->isRet())
-//         return bb;
-//     
-//     // 无条件跳转 
-//     if(bb->getTerminator()->getNumOperands() == 1 && bb->getInstructions().front() == bb->getTerminator() ) 
-//         return getExitDest( dynamic_cast<BB*>(bb->getTerminator()->getOperand(0)) );
-//     else    
-//         return bb;
-// }
-
 // move to BBUtils.cpp later
 // 在to和froms之间插入inserted后, 更新to的phi 以及 为inserted添加phi
 static void updatePhiAfterInsert(vector<BB*> &froms, BB *inserted, BB *to) {
@@ -104,37 +90,6 @@ static BB *splitBlockByPreBB(BB *block, vector<BB*> &preds) {
 
     return newBB;
 }
-
-// // 仅保留唯一的公共exit，并将中间跳转的exit删除，返回合并后的BB
-// BB *LoopSimplified::mergeExits(Loop *loop) {
-//     if(loop->getSingleExit() != nullptr)
-//         return loop->getSingleExit();
-//     if(loop->getExits().size()==1)
-//         return loop->getExits()[0];
-//     
-//     vector<BB*> &exits = loop->getExits();
-//     BB *singleExit = getExitDest(exits[0]);
-//     list<BB*> funcBlocks = loop->getFunction()->getBasicBlocks();
-// 
-//     for(BB *exit : exits) {
-//         if(exit == singleExit)
-//             continue;
-// 
-//         BB *preBB = exit->getPreBasicBlocks().front();
-//         if(exit->getPreBasicBlocks().size() > 1)
-//             LOG_WARNING("Why splited exit has more than one preBB?")
-//         exit->replaceAllUseWith(singleExit);
-//         for(Value* &val : singleExit->getTerminator()->getOperands()) {
-//             if(val = singleExit) {
-//                 val = preBB;
-//             }
-//         }
-//         remove(funcBlocks.begin(), funcBlocks.end(), exit);
-//     }
-//     exits.clear();
-// 
-//     return singleExit;
-// }
 
 BB *LoopSimplified::insertUniqueBackedge(Loop *loop) {
     BB *newLatch = BasicBlock::create("", loop->getFunction());
@@ -223,22 +178,6 @@ void LoopSimplified::processLoop(Loop *loop) {
         }
     }
 
-    // // If this loop has multiple exits and the exits all go to the same block, 
-    // // attempt to merge the exits.
-    // bool isExitSingle = true;
-    // for(int i=1; i<exits.size(); i++) {
-    //     if(getExitDest(exits[0]) != getExitDest(exits[i])) {
-    //         isExitSingle = false;
-    //         break;
-    //     }
-    // }
-
-    // // only one exit or exit can be merge
-    // if(isExitSingle) {
-    //     BB *newExit = mergeExits(loop);
-    //     loop->setSingleExit(newExit);
-    // }
-
     // more than one Latch, combine as one latch
     if(!loop->getSingleLatch()) {
         if(loop->getLatchs().size() == 1) {
@@ -250,60 +189,6 @@ void LoopSimplified::processLoop(Loop *loop) {
         loop->setSingleLatch(singleLatch);
     }
 }
-
-// void LoopSimplified::findAndMoveIndVar(Loop *loop) {
-//     BB *preheader = loop->getPreheader();
-//     list<PhiInst*> outIndVars = {};
-//     list<PhiInst*> innIndVars = {};
-// 
-//     for(Instruction* inst : loop->getHeader()->getInstructions()) {
-//         if(!inst->isPhi())
-//             break;
-//         outIndVars.push_back(dynamic_cast<PhiInst*>(inst));
-//     }
-//     for(Loop *inner : loop->getInners()) {
-//         for(Instruction *inst : inner->getHeader()->getInstructions()) {
-//             if(!inst->isPhi())
-//                 break;
-//             innIndVars.push_back(dynamic_cast<PhiInst*>(inst));
-//         }
-//     }
-// 
-//     // 无法向内移动IndVar，退出
-//     if(outIndVars.size() - innIndVars.size() != 1)
-//         return;
-// 
-//     for(PhiInst *oIndVar : outIndVars) {
-//         // phi存在undef, deadphi
-//         if(oIndVar->getNumOperands() == 2)
-//             continue;
-//         
-//         Value *startVal;
-//         if(oIndVar->getOperand(1) == preheader)
-//             startVal = oIndVar->getOperand(0);
-//         else    
-//             startVal = oIndVar->getOperand(2);
-//         
-//         list<Use> oIndUseList = oIndVar->getUseList();
-//         Use oIndUse = oIndUseList.front();
-//         // deadphi 或在进入子循环前就已被使用
-//         if(oIndUseList.size() != 1) 
-//             return;
-//         // 唯一使用oIndVal的inst是phi 且 在innIndVars里面
-//         PhiInst *iIndUseOInd = dynamic_cast<PhiInst*>(oIndUse.val_);
-//         auto iter = find(innIndVars.begin(), innIndVars.end(), iIndUseOInd);
-//         if( iIndUseOInd && iter != innIndVars.end() ) {
-//             oIndVar->getParent()->deleteInstr(oIndVar);
-//             (*iter)->replaceOperand(oIndUse.arg_no_, startVal);
-//         }
-//     }
-// 
-//     auto instIter1 = loop->getHeader()->getInstructions().begin();
-//     auto instIter2 = ++instIter1;
-//     if((*instIter1)->isPhi() && !(*instIter2)->isPhi()) {
-//         loop->setIndVar( dynamic_cast<PhiInst*>(*instIter1) );
-//     }
-// }
 
 void LoopSimplified::visitLoop(Loop *loop) {
     if(loop->isSimplifiedForm())
