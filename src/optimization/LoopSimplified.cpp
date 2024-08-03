@@ -194,16 +194,14 @@ void LoopSimplified::processLoop(Loop *loop) {
 }
 
 void LoopSimplified::visitLoop(Loop *loop) {
-    if(loop->isSimplifiedForm())
-        return;
-
-    processLoop(loop);
-    loop->setSimplified();
-    // findAndMoveIndVar(loop);
-
     for(Loop *inner : loop->getInners()) {
         visitLoop(inner);
     }
+
+    if(loop->isSimplifiedForm())
+        return;
+    processLoop(loop);
+    loop->setSimplified();
 }
 
 void LoopSimplified::runOnFunc(Function* func) {

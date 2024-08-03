@@ -94,18 +94,18 @@ struct LoopTrip {
 
 class Loop {
     BB *preheader = nullptr;
-    BB *header;  
+    BB *header = nullptr;  
 
-    vector<BB*> latchs;                 // 有一条边连接到header, latch->header形成回边backedge
+    vector<BB*> latchs = {};            // 有一条边连接到header, latch->header形成回边backedge
     BB *latch = nullptr;                // 仅只有一个latch时有效，多于1个为空
 
-    vector<BB*> exits;                  // 执行完循环或break后到达的基本块   
-    // BB *exit = nullptr;                 // 仅只有一个exit时有效，多于1个为空
+    vector<BB*> exits = {};             // 执行完循环或break后到达的基本块   
+    // BB *exit = nullptr;              // 仅只有一个exit时有效，多于1个为空
 
-    uset<BB*> blocks;                   // 组成natural loop的集合
+    uset<BB*> blocks = {};              // 组成natural loop的集合
                      
-    Loop *outer = nullptr;                        // 外层循环
-    vector<Loop*> inners;               // 内循环
+    Loop *outer = nullptr;              // 外层循环
+    vector<Loop*> inners = {};          // 内循环
     int depth = 1;                      // 循环深度, 最外层深度为1
 
     PhiInst *indVar = nullptr;

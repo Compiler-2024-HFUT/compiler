@@ -112,7 +112,7 @@ void LoopInfo::findExits(Function *func_) {
 // 同header的loop合并
 void LoopInfo::combineLoops(Function *func_) {
     // loops按照header排序，使得同样header的loop相邻
-    sort(loops[func_].begin(), loops[func_].begin(), [](Loop *a, Loop* b){ return a->getHeader() < b->getHeader(); });
+    sort(loops[func_].begin(), loops[func_].end(), [](Loop *a, Loop* b){ return a->getHeader() < b->getHeader(); });
 
     auto iter1 = loops[func_].begin(), iter2 = loops[func_].begin();
     while(iter1 != loops[func_].end()) { 
