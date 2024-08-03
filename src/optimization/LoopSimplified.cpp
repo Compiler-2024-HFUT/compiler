@@ -106,6 +106,7 @@ BB *LoopSimplified::insertUniqueBackedge(Loop *loop) {
         toHeader->getOperands()[0] = newLatch;
         latch->removeSuccBasicBlock(header);
         latch->addSuccBasicBlock(newLatch);
+        newLatch->addPreBasicBlock(latch);
 
         header->removePreBasicBlock(latch);
     }
