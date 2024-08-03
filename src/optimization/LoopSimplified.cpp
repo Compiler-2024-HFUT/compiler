@@ -81,7 +81,8 @@ static BB *splitBlockByPreBB(BB *block, vector<BB*> &preds) {
         }
         pre->removeSuccBasicBlock(block);
         pre->addSuccBasicBlock(newBB);
-        
+        newBB->addPreBasicBlock(pre);
+
         block->removePreBasicBlock(pre);
     }
 
