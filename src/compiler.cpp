@@ -73,10 +73,12 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
 
+    pm.addPass<LoopSimplified>();
+    pm.addPass<LICM>();
+
     // lir(pm);
     pm.addPass<ValNumbering>();
     pm.addPass<DCE>();
-    pm.addPass<InstrCombine>();
     pm.addPass<InstrReduc>();
 }
 

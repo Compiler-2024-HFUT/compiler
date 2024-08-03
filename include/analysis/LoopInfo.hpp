@@ -247,7 +247,7 @@ class LoopInfo: public FunctionInfo {
     void DFS_CFG( BB* rootBB, int level ); 
     void DFS_CFG( BB* tail, BB* head, Loop *loop, Function *func_);
 public:
-    LoopInfo(Module *m, InfoManager *im): FunctionInfo(m, im) { }
+    LoopInfo(Module *m, InfoManager *im): FunctionInfo(m, im) { this->mod.modify_bb=true;}
     virtual ~LoopInfo() { }
 
     virtual void analyseOnFunc(Function *func) override;
