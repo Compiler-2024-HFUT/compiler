@@ -11,7 +11,7 @@ void LICM::visitLoop(Loop *loop) {
     Dominators *dom = info_man_->getInfo<Dominators>();
     const pair< set<Value*>, set<Value*> > &liveOutOfPreHeader = lv->getLiveVarOut(preheader);
 
-    vector<Instruction*> &invariantsVec = info_man_->getInfo<LoopInvariant>()->getInvariants(loop);
+    list<Instruction*> &invariantsVec = info_man_->getInfo<LoopInvariant>()->getInvariants(loop);
     list<Instruction*> invariantsList = list<Instruction*>(invariantsVec.begin(), invariantsVec.end());
     uset<Instruction*> invariantsUset = uset<Instruction*>(invariantsVec.begin(), invariantsVec.end());
 
@@ -66,10 +66,9 @@ void LICM::visitLoop(Loop *loop) {
         }
     }
 
-    // 暂不考虑子循环
-    // for(Loop *inner : loop->getInners()) {
-    //     visitLoop(inner);
-    // }
+    for(Loop *inner : loop->getInners()) {
+        visitLoop(inner);
+    }
 }
 
 void LICM::runOnFunc(Function* func) {

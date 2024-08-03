@@ -9,11 +9,13 @@
 #include "analysis/LoopInfo.hpp"
 #include "utils/Logger.hpp"
 
+#include <list>
 #include <algorithm>
+using std::list;
 using std::find;
 
 class LoopInvariant : public FunctionInfo {
-    umap<Loop*, vector<Instruction*> > invariants;
+    umap<Loop*, list<Instruction*> > invariants;
 
     bool isInstInvariant(Loop *loop, Instruction *inst);
     void computeInvariants(Loop *loop);
@@ -22,13 +24,13 @@ public:
         if(dynamic_cast<Constant*>(val))
             return true;
         else if(dynamic_cast<Instruction*>(val)) {
-            vector<Instruction*> &iiset = invariants[loop];
+            list<Instruction*> &iiset = invariants[loop];
             return ( find(iiset.begin(), iiset.end(), val ) != iiset.end() );
         } else 
             return false;
     }
 
-    vector<Instruction*> &getInvariants(Loop *loop) {
+    list<Instruction*> &getInvariants(Loop *loop) {
         return invariants[loop];
     }
     

@@ -92,7 +92,7 @@ void BasicBlock::addInstrAfterPhiInst(Instruction *instr) {
     instr->setParent(this);
 
     auto iter = instr_list_.begin();
-    while ((*iter)->isPhi())
+    while (iter != instr_list_.end() && (*iter)->isPhi())
         iter++;
     
     instr_list_.insert(iter, instr);
