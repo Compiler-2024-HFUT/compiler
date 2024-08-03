@@ -1146,6 +1146,7 @@ void IRGen::visit(ast::BinopExpr &node) {
 void IRGen::visit(ast::LvalExpr &node){
     string name =node.name;
     auto var = scope.find(node.name);
+    assert(var && "Don't use before def var");
     Type *type;
     if(!var->getType()->getPointerElementType())
         if(var->getType()->isFloatType()){

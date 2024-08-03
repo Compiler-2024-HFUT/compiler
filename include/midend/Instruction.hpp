@@ -609,6 +609,21 @@ public:
         this->addOperand(pre_bb);
     }
 
+    void removePhiPairOperand(Value *pre_bb) {
+        for(int i = 1; i < getNumOperands(); i += 2) {
+            if(getOperand(i) == pre_bb) {
+                removeOperands(i-1, i);
+                break;
+            }
+        }
+
+        std::vector<Value*> &ops = this->getOperands();
+        this->removeUseOfOps();
+        for(int i = 0; i < ops.size(); i++) {
+            this->getOperand(i)->addUse(this, i);
+        }
+    }
+
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
