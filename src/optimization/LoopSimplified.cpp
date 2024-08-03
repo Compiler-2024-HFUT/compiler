@@ -204,9 +204,12 @@ void LoopSimplified::visitLoop(Loop *loop) {
     loop->setSimplified();
 }
 
-void LoopSimplified::runOnFunc(Function* func) {
+Modify LoopSimplified::runOnFunc(Function* func) {
+    Modify mod{};
     vector<Loop*> loops = info_man_->getInfo<LoopInfo>()->getLoops(func);
     for(Loop *loop : loops) {
         visitLoop(loop);
     }
+    // mod.modify_bb = true;
+    return mod;
 }

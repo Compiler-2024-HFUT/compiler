@@ -14,6 +14,8 @@ template<typename key, typename value>
 using umap = std::unordered_map<key, value>;
 
 void LoopInfo::analyseOnFunc(Function *func_) {
+    if(func_->getBasicBlocks().size() == 0)
+        return;
     DFS_CFG(func_->getEntryBlock(), 0);
     findRetreatEdges(func_);
     findBackEdges();
@@ -250,8 +252,8 @@ void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting, map<BB*,
         }   
         BBMap.insert({bb, newBB});
 
-        list bbInsts = bb->getInstructions();
-        list newBBInsts = newBB->getInstructions();
+        list<Instruction*> bbInsts = bb->getInstructions();
+        list<Instruction*> newBBInsts = newBB->getInstructions();
         auto bbIter = bbInsts.begin();
         auto newBBIter = newBBInsts.begin();
         for(; 

@@ -19,7 +19,7 @@ public:
     LICM(Module *m, InfoManager *im) : FunctionPass(m, im){}
     ~LICM(){};
 
-    void runOnFunc(Function* func) override;
+    Modify runOnFunc(Function* func) override;
 };
 
 #endif

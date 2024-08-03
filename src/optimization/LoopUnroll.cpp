@@ -169,12 +169,16 @@ void LoopUnroll::visitLoop(Loop *loop) {
     // }
 }
 
-void LoopUnroll::runOnFunc(Function* func) {
+Modify LoopUnroll::runOnFunc(Function* func) {
+    Modify mod{};
     vector<Loop*> loops = info_man_->getInfo<LoopInfo>()->getLoops(func);
     for(Loop *loop : loops) {
         // 暂不考虑多重循环
         if(loop->getInners().size() == 0)
             visitLoop(loop);
     }
+
+    mod.modify_bb = true;
+    return mod;
 }
 

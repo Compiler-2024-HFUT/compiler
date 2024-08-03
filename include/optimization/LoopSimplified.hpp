@@ -6,8 +6,6 @@
     1. 插入preheader，使得header只有一个preBB，用于LICM
     2. 只有一条BackEdge/Latch，加上preheader，保证循环header的preBB只有2个
     3. 循环的exits的preBB都不在循环之外，也即header支配所有exit
-    // 出于需要自行添加的
-    4. 对于多重循环存在的多个IndVar，保证其IndVar只出现在其header内，而不跑到其外循环的header内
 */
 
 #ifndef LOOP_SIMPLIFIED_HPP
@@ -31,7 +29,7 @@ public:
     LoopSimplified(Module *m, InfoManager *im) : FunctionPass(m, im){}
     ~LoopSimplified(){};
 
-    void runOnFunc(Function* func) override;
+    Modify runOnFunc(Function* func) override;
 };
 
 #endif

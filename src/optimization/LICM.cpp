@@ -71,9 +71,14 @@ void LICM::visitLoop(Loop *loop) {
     }
 }
 
-void LICM::runOnFunc(Function* func) {
+Modify LICM::runOnFunc(Function* func) {
+    Modify mod{};
+
     vector<Loop*> loops = info_man_->getInfo<LoopInfo>()->getLoops(func);
     for(Loop *loop : loops) {
         visitLoop(loop);
     }
+
+    mod.modify_instr=true;
+    return mod;
 }

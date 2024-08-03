@@ -4,6 +4,9 @@ void LoopStrengthReduction::visitLoop(Loop *loop) {
 
 }
 
-void LoopStrengthReduction::runOnFunc(Function* func) {
+Modify LoopStrengthReduction::runOnFunc(Function* func) {
+    Modify mod{};
 
+    mod.modify_instr = true;
+    return mod;
 }

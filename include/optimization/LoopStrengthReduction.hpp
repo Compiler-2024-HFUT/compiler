@@ -10,7 +10,7 @@ public:
     LoopStrengthReduction(Module *m, InfoManager *im) : FunctionPass(m, im){}
     ~LoopStrengthReduction(){};
 
-    void runOnFunc(Function* func) override;
+    Modify runOnFunc(Function* func) override;
 };
 
 #endif

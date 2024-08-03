@@ -57,7 +57,7 @@ public:
     LoopUnroll(Module *m, InfoManager *im) : FunctionPass(m, im){}
     ~LoopUnroll(){};
 
-    void runOnFunc(Function* func) override;
+    Modify runOnFunc(Function* func) override;
 };
 
 #endif
