@@ -24,6 +24,7 @@
 #include "optimization/SCCP.hpp"
 #include "optimization/ValueNumbering.hpp"
 #include "optimization/inline.hpp"
+#include "optimization/instrResolve.hpp"
 
 #include "analysis/LoopInfo.hpp"
 #include "analysis/LoopInvariant.hpp"
@@ -57,7 +58,9 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<CombinBB>();
     pm.addPass<InstrCombine>();
     pm.addPass<InstrResolve>();
+    pm.addPass<DCE>();
     pm.addPass<InstrResolve>();
+    pm.addPass<DCE>();
 
     pm.addPass<FuncInline>();
     pm.addPass<CombinBB>();
@@ -76,7 +79,8 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<LICM>();
     pm.addPass<CombinBB>();
 
-    // lir(pm);
+    lir(pm);
+    pm.addPass<DCE>();
     pm.addPass<ValNumbering>();
     pm.addPass<DCE>();
     pm.addPass<InstrReduc>();
@@ -89,7 +93,6 @@ void Compiler::buildDefault(PassManager &pm){
     pm.addPass<Mem2Reg>();
     pm.addPass<DeadPHIEli>();
     pm.addPass<SCCP>();
-    pm.addPass<ValNumbering>();
     lir(pm);
     pm.addPass<DCE>();
     
