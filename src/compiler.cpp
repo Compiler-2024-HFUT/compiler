@@ -59,8 +59,6 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<InstrCombine>();
     pm.addPass<InstrResolve>();
     pm.addPass<DCE>();
-    pm.addPass<InstrResolve>();
-    pm.addPass<DCE>();
 
     pm.addPass<FuncInline>();
     pm.addPass<CombinBB>();
