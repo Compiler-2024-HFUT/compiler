@@ -134,6 +134,8 @@ struct SCEVVal {
     SCEVVal *addSCEVVal(SCEVVal *rhs);
     SCEVVal *mulSCEVVal(SCEVVal *rhs);
 
+    Value *transToValue(BB *bb);
+
     string print() {
         string str = "";
 
