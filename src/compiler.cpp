@@ -25,6 +25,13 @@
 #include "optimization/ValueNumbering.hpp"
 #include "optimization/inline.hpp"
 
+#include "analysis/LoopInfo.hpp"
+#include "analysis/LoopInvariant.hpp"
+#include "analysis/Dataflow.hpp"
+
+#include "optimization/LoopSimplified.hpp"
+#include "optimization/LICM.hpp"
+
 #include "optimization/BreakGEP.hpp"
 #include "optimization/CombineJJ.hpp"
 #include "optimization/MemInstOffset.hpp"
@@ -38,6 +45,10 @@ void usage(){
 void Compiler::buildOpt(PassManager &pm){
     pm.addInfo<Dominators>();
     pm.addInfo<FuncAnalyse>();
+    pm.addInfo<LiveVar>();
+    pm.addInfo<LoopInfo>();
+    pm.addInfo<LoopInvariant>();
+
     pm.addPass<DeadStoreEli>();    
     pm.addPass<CombinBB>();
     pm.addPass<Mem2Reg>();
@@ -45,6 +56,9 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
     pm.addPass<InstrCombine>();
+    pm.addPass<InstrResolve>();
+    pm.addPass<InstrResolve>();
+
     pm.addPass<FuncInline>();
     pm.addPass<CombinBB>();
     pm.addPass<G2L>();
@@ -57,10 +71,14 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<ArrReduc>();
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
-    lir(pm);
+
+    pm.addPass<LoopSimplified>();
+    pm.addPass<LICM>();
+    pm.addPass<CombinBB>();
+
+    // lir(pm);
     pm.addPass<ValNumbering>();
     pm.addPass<DCE>();
-    pm.addPass<InstrCombine>();
     pm.addPass<InstrReduc>();
 }
 

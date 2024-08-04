@@ -22,14 +22,14 @@ public:
             i++;
         } while (res == nullptr && i < infos.size());
         
-        if(res->isInvalid()) {
-            res->analyse();
-        }
-        
         if(res == nullptr) {
             LOG_ERROR("you don't add info", 1)
         }
 
+        if(res->isInvalid()) {
+            res->analyse();
+        }
+        
         return res;
     }
 
