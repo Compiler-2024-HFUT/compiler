@@ -1,5 +1,14 @@
 #include "analysis/LoopInvariant.hpp"
 
+bool LoopInvariant::isValueInvariant(Loop *loop, Value *val) {
+    if(dynamic_cast<Instruction*>(val))
+        return isInstInvariant(loop, dynamic_cast<Instruction*>(val));
+    else if(dynamic_cast<Constant*>(val) || dynamic_cast<Argument*>(val))
+        return true;
+    else    
+        return false;
+}
+
 bool LoopInvariant::isInstInvariant(Loop *loop, Instruction *inst) {
     if(!inst)
         return false;
@@ -38,14 +47,10 @@ bool LoopInvariant::isInstInvariant(Loop *loop, Instruction *inst) {
     } else {
         LOG_ERROR("inst isn't a BinaryInst!", !inst->isBinary())
 
-        Instruction *inst1 = dynamic_cast<Instruction*>( inst->getOperand(0) );
-        Instruction *inst2 = dynamic_cast<Instruction*>( inst->getOperand(1) );
+        Value *op1 = inst->getOperand(0);
+        Value *op2 = inst->getOperand(1);
 
-        Constant *op1 = dynamic_cast<Constant*>( inst->getOperand(0) );
-        Constant *op2 = dynamic_cast<Constant*>( inst->getOperand(1) );
-        if( op1 && op2
-        || op1 && isInstInvariant(loop, inst2) || op2 && isInstInvariant(loop, inst1)
-        || isInstInvariant(loop, inst2) && isInstInvariant(loop, inst1) ) {
+        if(isValueInvariant(loop, op1) && isValueInvariant(loop, op2) ) {
             return true;
         } else {
             return false;
