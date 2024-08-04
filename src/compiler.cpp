@@ -76,7 +76,7 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<LICM>();
     pm.addPass<CombinBB>();
 
-    // lir(pm);
+    lir(pm);
     pm.addPass<ValNumbering>();
     pm.addPass<DCE>();
     pm.addPass<InstrReduc>();
