@@ -162,6 +162,9 @@ BasicBlock *BasicBlock::copyBB() {
     std::map<Instruction*, Instruction*> instMap = {};
     for(Instruction *inst : instr_list_) {
         Instruction *newInst = inst->copyInst(newBB);
+        if(inst->isPhi()) {
+            newBB->addInstrAfterPhiInst(newInst);
+        }
         instMap.insert({inst, newInst});
     }
 

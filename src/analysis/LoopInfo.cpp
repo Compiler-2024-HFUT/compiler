@@ -192,18 +192,19 @@ string LoopInfo::print() {
     return loopinfo;
 }
 
+// 暂时只考虑单条件的情况
 bool Loop::computeConds() {
     conditions.clear();
 
     list<Instruction*> &headerInsts = header->getInstructions();
     auto iter = headerInsts.end();
-    iter--; iter--;
+    iter = std::prev(iter, 2);
     LoopCond *cond = LoopCond::createLoopCond( *iter );
     if(!cond)   return false;
     conditions.push_back(cond);
 
     Instruction *br = dynamic_cast<BranchInst*>(headerInsts.back());
-    LOG_ERROR("should be a brinst, or bb isn't a header?", !br)
+    LOG_ERROR("should be a cond brinst, or bb isn't a header?", !br || br->getNumOperands()!= 3)
         
     BB  *next = dynamic_cast<BB*>( br->getOperand(1) ),     // if_true
         *exit = dynamic_cast<BB*>( br->getOperand(2) );     // if_false
@@ -213,16 +214,48 @@ bool Loop::computeConds() {
         return false;
     }
     return true;    
-
-    /* 暂时只考虑单条件的情况
-    while(isCondBlock(next)) {
-        // ...
-    }
-    */
 }
 
-void Loop::setCondsAndUpdateBlocks(vector<LoopCond*> conds) {
-    // ...
+void Loop::replaceCond(LoopCond *newCond) {
+    LOG_ERROR("Only support one cond", conditions.size()!=1)
+
+    BranchInst *br = dynamic_cast<BranchInst*>(header->getTerminator());
+    LOG_ERROR("should be a cond brinst, or bb isn't a header?", !br || br->getNumOperands()!= 3)
+
+    Instruction *oldCondInst = dynamic_cast<Instruction*>(br->getOperand(0));
+    Instruction *newCondInst = newCond->transToInst(header);
+    list<Instruction*> &insts = header->getInstructions();
+    insts.pop_back();
+    
+    oldCondInst->replaceAllUseWith(dynamic_cast<Value*>(newCondInst));
+    auto insertPos = insts.erase(std::find(insts.begin(), insts.end(), oldCondInst));
+    insts.insert(insertPos, newCondInst);
+}
+
+// i < (num) -> i < (num) && weakCond
+void Loop::addWeakCond(LoopCond *weakCond) {
+    Instruction *br = dynamic_cast<BranchInst*>(header->getInstructions().back());
+    LOG_ERROR("should be a cond brinst, or bb isn't a header?", !br || br->getNumOperands()!= 3)
+    BB  *ifTrue = dynamic_cast<BB*>( br->getOperand(1) ),     // if_true
+        *ifFalse = dynamic_cast<BB*>( br->getOperand(2) );     // if_false
+
+    // create BB
+    BB *weakCondBB = BB::create("", getFunction());
+    Instruction *condInst = weakCond->transToInst(weakCondBB);
+    BranchInst::createCondBr(condInst, ifTrue, ifFalse, weakCondBB);
+
+    // upadate loop Info
+    addBlock(weakCondBB);
+    conditions.push_back(weakCond);
+
+    // update BB Info
+    br->getOperands()[2] = weakCondBB;
+    header->removeSuccBasicBlock(ifTrue);
+    header->addSuccBasicBlock(weakCondBB);
+
+    weakCondBB->addPreBasicBlock(header);
+    weakCondBB->addSuccBasicBlock(ifTrue);
+    weakCondBB->addSuccBasicBlock(ifFalse);
 }
 
 // 需要注意：
@@ -286,12 +319,18 @@ void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting, map<BB*,
 
     // 替换指令
     for(auto [oldInst, newInst] : instMap) {
+        if(!newInst)
+            continue;
+        
         vector<Value*> &ops = newInst->getOperands();
         if(oldInst->isPhi()) {
             for(int i = 1; i < ops.size(); i += 2) {
+                Instruction *inInst = dynamic_cast<Instruction*>(ops[i-1]);
                 BB *incoming = dynamic_cast<BB*>(ops[i]);
                 if(incoming && BBMap[incoming]) {
-                    ops[i] = BBMap[incoming];
+                    if(inInst && instMap[inInst])
+                        newInst->replaceOperand(i-1, instMap[inInst]);
+                    newInst->replaceOperand(i, BBMap[incoming]);
                 } 
             }
         } else if (oldInst->isBr()) {
@@ -326,8 +365,121 @@ void Loop::copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting, map<BB*,
             if(op2 && instMap[op2]) { newInst->replaceOperand(1, instMap[op2]); }
             if(trueBB && BBMap[trueBB]) { newInst->replaceOperand(2, BBMap[trueBB]); }
             if(falseBB && BBMap[falseBB]) { newInst->replaceOperand(3, BBMap[falseBB]); }
+        } else {
+            for(int i = 0; i < ops.size(); i++) {
+                Instruction *opI = dynamic_cast<Instruction*>(ops[i]);
+                if(opI && instMap[opI])
+                    newInst->replaceOperand(i, instMap[opI]);
+            }
         }
     }
+}
+
+// preHeader的PreBB、header的SuccBB中的exit、newLoop的exits都还是原来的
+// 不复制inner
+Loop *Loop::copyLoop() {
+    LOG_ERROR("Only copy Simplified Loop!", !simple)
+
+    BB *entry;
+    BB *singleLatch;
+    vector<BB*> exiting;
+    map<BB*, BB*> BBMap;
+    map<Instruction*, Instruction*> instMap;
+
+    copyBody(entry, singleLatch, exiting, BBMap, instMap);
+    BB *ph = preheader->copyBB();
+    BB *h = header->copyBB();
+
+    // 更新header和preheader中的指令，但要注意新Loop header中的初始值是旧Loop的迭代结果
+    ph->getTerminator()->replaceOperand(0, h);
+    for(int i = 0; i < h->getInstructions().size(); i++) {
+        Instruction *inst = *std::next(h->getInstructions().begin(), i);
+        if(!inst->isPhi())
+            break;
+        vector<Value*> &ops = inst->getOperands();
+        for(int j = 1; j < ops.size(); j += 2) {
+            if(ops[j] == preheader){
+                Instruction *instO = *std::next(header->getInstructions().begin(), i);
+                inst->replaceOperand(j-1, instO);
+                inst->replaceOperand(j, ph);
+            }
+            if(ops[j] == latch) {
+                inst->replaceOperand(j-1, instMap[dynamic_cast<Instruction*>(ops[j-1])]);
+                inst->replaceOperand(j, singleLatch);
+            }
+        }
+    }
+
+    // 在instMap里加入header中的phi的映射
+    instMap.clear();
+    list<Instruction*> instsO = header->getInstructions();
+    list<Instruction*> instsN = h->getInstructions();
+    auto iterO = instsO.begin();
+    auto iterN = instsN.begin();
+    for(; iterO!= instsO.end() && iterN!= instsN.end(); iterO++, iterN++) {
+        instMap.insert({*iterO, *iterN});
+    }
+
+    // 替换原来header中的phi
+    for(auto [oldBB, newBB] : BBMap) {
+        if(!newBB)
+            continue;
+        for(Instruction *inst : newBB->getInstructions()) {
+            vector<Value*> &ops = inst->getOperands();
+            for(int i = 0; i < ops.size(); i++) {
+                Instruction *opI = dynamic_cast<Instruction*>(ops[i]);
+                if(opI && instMap[opI])
+                    inst->replaceOperand(i, instMap[opI]);
+            }
+        }
+    }
+
+    // 建立连接ph->h->entry
+    ph->getSuccBasicBlocks().clear();
+    ph->addSuccBasicBlock(h);
+    h->getPreBasicBlocks().clear();
+    h->addPreBasicBlock(ph);
+    for(auto [bb, newBB] : BBMap) {
+        if(newBB && newBB == entry) {
+            h->removeSuccBasicBlock(bb);
+            break;
+        }
+    }
+    h->addSuccBasicBlock(entry);
+    h->getTerminator()->replaceOperand(1, entry);   // ifTrue = entry
+
+    // 复制原loop信息，block、latch替换，exits不变
+    Loop *newLoop = new Loop({}, h);
+    newLoop->addBlock(h);
+    newLoop->setPreheader(ph);
+    for(auto [bb, newBB] : BBMap) {
+        if(newBB && contain(bb))
+            newLoop->addBlock(newBB);
+    }
+    for(auto bb : latchs) {
+        if(BBMap[bb])
+            newLoop->addLatch(BBMap[bb]);
+    }
+    newLoop->setSingleLatch(singleLatch);
+    Instruction *term = singleLatch->getTerminator();
+    vector<Value*> termOps = term->getOperands();
+    for(int i = 0; i < termOps.size(); i++) {
+        if(termOps[i] == header) {
+            term->replaceOperand(i, h);
+            singleLatch->getSuccBasicBlocks().clear();
+            singleLatch->addSuccBasicBlock(h);
+            h->addPreBasicBlock(singleLatch);
+        }
+    }
+
+    for(auto bb : exits) {
+        newLoop->addExit(bb);
+    }
+    newLoop->setSimplified();
+    newLoop->setOuter(outer);
+    newLoop->setDepth(depth);
+
+    return newLoop;
 }
 
 void Loop::findExits() {
@@ -337,6 +489,10 @@ void Loop::findExits() {
                 addExit(succ);
             }
         }
+    }
+
+    for(Loop *inner : inners) {
+        inner->findExits();
     }
 }
 
