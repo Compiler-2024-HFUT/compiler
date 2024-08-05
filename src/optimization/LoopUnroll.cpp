@@ -256,6 +256,9 @@ void LoopUnroll::removeLoop(Loop *loop) {
 }
 
 void LoopUnroll::visitLoop(Loop *loop) {
+    if(UNROLLING_TIME == 1)
+        return;
+
     SCEV *scev = info_man_->getInfo<SCEV>();
     LoopTrip trip = loop->computeTrip(scev);
     LOG_WARNING(trip.print())

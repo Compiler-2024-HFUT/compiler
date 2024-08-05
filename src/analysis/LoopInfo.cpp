@@ -198,7 +198,18 @@ bool Loop::computeConds() {
 
     list<Instruction*> &headerInsts = header->getInstructions();
     auto iter = headerInsts.end();
-    iter = std::prev(iter, 2);
+    iter++;
+    ConstantInt *condVal = dynamic_cast<ConstantInt*>((*iter)->getOperand(0));
+    if(condVal) {
+        if(condVal->getValue() == 1) {
+            conditions.push_back(new LoopCond{condVal, LoopCond::eq, condVal});
+        } else {
+            conditions.push_back(new LoopCond{condVal, LoopCond::ne, condVal});
+        }   
+        return true;
+    }
+
+    iter++;
     LoopCond *cond = LoopCond::createLoopCond( *iter );
     if(!cond)   return false;
     conditions.push_back(cond);
