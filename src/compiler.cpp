@@ -23,6 +23,7 @@
 #include "optimization/PassManager.hpp"
 #include "optimization/SCCP.hpp"
 #include "optimization/ValueNumbering.hpp"
+#include "optimization/VirtualRetEli.hpp"
 #include "optimization/inline.hpp"
 #include "optimization/instrResolve.hpp"
 
@@ -75,7 +76,9 @@ void Compiler::buildOpt(PassManager &pm){
 
     pm.addPass<LoopSimplified>();
     pm.addPass<LICM>();
+
     pm.addPass<CombinBB>();
+    pm.addPass<VRE>();
 
     lir(pm);
     pm.addPass<DCE>();
