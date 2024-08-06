@@ -75,6 +75,10 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
 
+    pm.addPass<BreakGEP>();
+    pm.addPass<DCE>();
+    pm.addPass<ValNumbering>();
+
     pm.addPass<LoopSimplified>();
     pm.addPass<LICM>();
 
@@ -86,7 +90,6 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<GepOpt>();
     pm.addPass<DCE>();
     pm.addPass<ValNumbering>();
-    pm.addPass<DCE>();
     pm.addPass<InstrReduc>();
 }
 
@@ -97,13 +100,13 @@ void Compiler::buildDefault(PassManager &pm){
     pm.addPass<Mem2Reg>();
     pm.addPass<DeadPHIEli>();
     pm.addPass<SCCP>();
+    pm.addPass<BreakGEP>();
     lir(pm);
     pm.addPass<DCE>();
     
 }
 Compiler::Compiler(int argc, char** argv):lir([](PassManager&pm){
     pm.addPass<CombineJJ>();
-    pm.addPass<BreakGEP>();
     pm.addPass<MemInstOffset>();
     pm.addPass<MoveAlloca>();}){
     if(argc<5){
@@ -158,7 +161,7 @@ int Compiler::run(){
     else
         buildDefault(pm);
     pm.run();
-    m->print();
+    m->setPrintName();
 
     std::fstream out_file(out_name,std::ios::out|std::ios::trunc);
     if(is_out_llvm){
