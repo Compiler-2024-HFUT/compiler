@@ -68,31 +68,31 @@ void Function::setInstrName() {
         auto bb = bb1;
         if (seq.find(bb) == seq.end()) {
             auto seq_num = seq.size() + seq_cnt_;
-            #ifdef DEBUG
+#ifdef DEBUG
                 std::string f_name=this->getName();
             if (bb->setName(f_name+"_label_" + std::to_string(seq_num))) {
                 seq.insert({bb, seq_num});
             }
-            #else
+#else
                 if (bb->setName("label" + std::to_string(seq_num))) {
                     seq.insert({bb, seq_num});
                 }
-            #endif
+#endif
 
         }
         for (auto &instr : bb->getInstructions()) {
             if (!instr->isVoid() && seq.find(instr) == seq.end()) {
                 auto seq_num = seq.size() + seq_cnt_;
-                #ifdef DEBUG
+#ifdef DEBUG
                 std::string f_name=this->getName();
                     if (instr->setName(f_name+"_op_" + std::to_string(seq_num))) {
                         seq.insert({instr, seq_num});
                     }
-                #else
+#else
                 if (instr->setName("op" + std::to_string(seq_num))) {
                     seq.insert({instr, seq_num});
                 }
-                #endif
+#endif
 
             }
         }
@@ -190,9 +190,5 @@ std::string Function::printGra(){
     return ret;
 }
 std::string Argument::print() {
-    std::string arg_ir;
-    arg_ir += this->getType()->print();
-    arg_ir += " %";
-    arg_ir += this->getName();
-    return arg_ir;
+    return this->getType()->print()+" %"+this->getName();
 }
