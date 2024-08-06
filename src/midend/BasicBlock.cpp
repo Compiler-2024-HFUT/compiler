@@ -4,7 +4,6 @@
 
 #include "midend/BasicBlock.hpp"
 #include "midend/Function.hpp"
-#include "midend/IRprint.hpp"
 #include "midend/Instruction.hpp"
 
 BasicBlock::BasicBlock(const std::string &name, Function *parent = nullptr)
@@ -142,7 +141,7 @@ std::string BasicBlock::print() {
     for (auto bb : this->getPreBasicBlocks()) {
         if (bb != *this->getPreBasicBlocks().begin())
             bb_ir += ", ";
-        bb_ir += printAsOp(bb);
+        bb_ir += "%"+bb->getName();
     }
 
     //// print prebb

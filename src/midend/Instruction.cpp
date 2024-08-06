@@ -2,7 +2,6 @@
 #include <array>
 
 #include "midend/BasicBlock.hpp"
-#include "midend/IRprint.hpp"
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include "midend/Module.hpp"
@@ -49,6 +48,56 @@ static  std::array<std::string,38> const INSTR_ID2STRING{
 __attribute__((always_inline)) std::string OpID2String(Instruction::OpID op){
     return INSTR_ID2STRING[static_cast<int>(op)];
 }
+static std::array<std::string,6> const CMP2STR={
+    "eq",
+    "ne",
+    "sgt",
+    "sge",
+    "slt",
+    "sle",
+};
+__attribute__((always_inline)) std::string Cmp2String(CmpOp op){
+    return CMP2STR[op];
+}
+static std::array<std::string,6> const FCMP2STR={
+    "ueq",
+    "une",
+    "ugt",
+    "uge",
+    "ult",
+    "ule",
+};
+__attribute__((always_inline)) std::string FCmp2String(CmpOp op){
+    return FCMP2STR[op];
+}
+std::string printAsOp(Value *v) {
+    std::string op_ir;
+
+    if (dynamic_cast<GlobalVariable *>(v)||dynamic_cast<Function *>(v)) {
+        op_ir = "@" + v->getName();
+    } else if (dynamic_cast<Constant *>(v)) {
+        op_ir = v->print();
+    } else {
+        op_ir = "%" + v->getName();
+    }
+
+    return op_ir;
+}
+
+std::string printAsOpWithType(Value *v) {
+    std::string ret=v->getType()->print();
+    ret += " ";
+    if (dynamic_cast<GlobalVariable *>(v)||dynamic_cast<Function *>(v)) {
+        ret += "@" + v->getName();
+    } else if (dynamic_cast<Constant *>(v)) {
+        ret += v->print();
+    } else {
+        ret += "%" + v->getName();
+    }
+
+    return ret;
+}
+
 
 //& Instruction
 Instruction::Instruction(Type *ty, OpID id, unsigned num_ops, BasicBlock *parent)
@@ -222,7 +271,7 @@ std::string CmpInst::print() {
     instr_ir += " = ";
     instr_ir += OpID2String(this->getInstrType());
     instr_ir += " ";
-    instr_ir += printCmpType(this->cmp_op_);
+    instr_ir += Cmp2String(this->cmp_op_);
     instr_ir += " ";
     instr_ir += this->getOperand(0)->getType()->print();
     instr_ir += " ";
@@ -282,7 +331,7 @@ std::string FCmpInst::print() {
     instr_ir += " = ";
     instr_ir += OpID2String(this->getInstrType());
     instr_ir += " ";
-    instr_ir += printFCmpType(this->cmp_op_);
+    instr_ir += FCmp2String(this->cmp_op_);
     instr_ir += " ";
     instr_ir += this->getOperand(0)->getType()->print();
     instr_ir += " ";
@@ -731,7 +780,7 @@ std::string CmpBrInst::print() {
     // instr_ir += OpID2String(this->getInstrType());
     instr_ir+="icmp";
     instr_ir += " ";
-    instr_ir += printCmpType(this->cmp_op_);
+    instr_ir += Cmp2String(this->cmp_op_);
     instr_ir += " ";
     instr_ir += this->getOperand(0)->getType()->print();
     instr_ir += " ";
@@ -795,7 +844,7 @@ std::string FCmpBrInst::print() {
     // instr_ir += OpID2String(this->getInstrType());
     instr_ir+="fcmp";
     instr_ir += " ";
-    instr_ir += printFCmpType(this->cmp_op_);
+    instr_ir += FCmp2String(this->cmp_op_);
     instr_ir += " ";
     instr_ir += this->getOperand(0)->getType()->print();
     instr_ir += " ";
