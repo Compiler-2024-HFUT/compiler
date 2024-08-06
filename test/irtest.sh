@@ -9,5 +9,10 @@ rm_file
 for file in $f
 do
     name=(${file//./ })
+    compile_pass $name
+done
+for file in $f
+do
+    name=(${file//./ })
     pass_test $name
 done
