@@ -2,9 +2,9 @@
 #define BASICBLOCK_HPP
 
 #include <list>
+#include <algorithm>
 
 #include "Value.hpp"
-
 
 class Function;
 class Instruction;
@@ -28,24 +28,10 @@ public:
 
     void removePreBasicBlock(BasicBlock *bb) { pre_bbs_.remove(bb); }
     void removeSuccBasicBlock(BasicBlock *bb) { succ_bbs_.remove(bb); }
-    //void incomingReset() { incoming_branch = 0; }
-    //bool isIncomingZero() { return incoming_branch == 0; }
-    //void incomingAdd(int num) { incoming_branch += num; }
-    //void incomingDecrement(){incoming_branch--;}
-    //int getIncomingBranch() { return incoming_branch; }
+
     void loopDepthReset() { loop_depth = 0; }
     int getLoopDepth() { return loop_depth; }
     void loopDepthAdd(int num) { loop_depth += num; }
-    //& cfg api end
-
-    //void setLiveInInt(std::set<Value*> in){ilive_in = in;}
-    //void setLiveOutInt(std::set<Value*> out){ilive_out = out;}
-    //void setLiveInFloat(std::set<Value*> in){flive_in = in;}
-    //void setLiveOutFloat(std::set<Value*> out){flive_out = out;}
-    //std::set<Value*>& getLiveInInt(){return ilive_in;}
-    //std::set<Value*>& getLiveOutInt(){return ilive_out;}
-    //std::set<Value*>& getLiveInFloat(){return flive_in;}
-    //std::set<Value*>& getLiveOutFloat(){return flive_out;}
 
     //// Returns the terminator instruction if the block is well formed or null
     //// if the block is not well formed.
@@ -56,23 +42,15 @@ public:
       );
     }
 
-    // std::list<Instruction*>::iterator begin() { return instr_list_.begin(); }
-    // std::list<Instruction*>::iterator end() { return instr_list_.end(); }
-    // std::list<Instruction*>::iterator getTerminatorItr() {
-    //     auto itr = end();
-    //     itr--;
-    //     return itr;
-    // }
-
     void setInstructionsList(std::list<Instruction*> &insts_list) {
         instr_list_.clear();
         instr_list_.assign(insts_list.begin(), insts_list.end());
     }
   
     //// add instruction
-    void addInstruction(Instruction *instr);
-    void addInstruction(std::list<Instruction *>::iterator instr_pos, Instruction *instr);
-    void addInstrBegin(Instruction *instr);
+    __attribute__((always_inline)) void addInstruction(Instruction *instr) {instr_list_.push_back(instr);}
+    __attribute__((always_inline)) void addInstruction(std::list<Instruction*>::iterator instr_pos, Instruction *instr) {instr_list_.insert(instr_pos, instr);}
+    __attribute__((always_inline)) void addInstrBegin(Instruction *instr) {instr_list_.push_front(instr);}
     void addInstrBeforeTerminator(Instruction *instr);
     void addInstrAfterPhiInst(Instruction *instr);
 
@@ -80,7 +58,7 @@ public:
     ::std::list<Instruction*>::iterator eraseInstr(::std::list<Instruction*>::iterator instr_iter);
     ::std::list<Instruction*>::iterator insertInstr(::std::list<Instruction*>::iterator instr_iter,Instruction*instr);
 
-    std::list<Instruction *>::iterator findInstruction(Instruction *instr);
+    __attribute__((always_inline)) std::list<Instruction *>::iterator findInstruction(Instruction *instr){return std::find(instr_list_.begin(), instr_list_.end(), instr);}
     void replaceInsWith(Instruction* old_ins,Instruction* new_ins);
 
     bool empty() { return instr_list_.empty(); }
@@ -90,9 +68,6 @@ public:
     void eraseFromParent();
 
     BasicBlock *copyBB();
-    // void domFrontierReset() {
-    //     dom_frontier_.clear();
-    // }
 
     virtual std::string print() override;
 
@@ -108,10 +83,6 @@ private:
     std::list<BasicBlock *> succ_bbs_;
     std::list<Instruction *> instr_list_;
     Function *parent_;
-   // std::set<Value*> ilive_in;
-   // std::set<Value*> ilive_out;
-   // std::set<Value*> flive_in;
-   // std::set<Value*> flive_out;
    // int incoming_branch = 0;
     int loop_depth = 0;
 

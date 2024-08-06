@@ -1,5 +1,4 @@
 #include <cassert>
-#include <algorithm>
 #include <map>
 
 #include "midend/BasicBlock.hpp"
@@ -39,16 +38,6 @@ const Instruction *BasicBlock::getTerminator() const {
     }
 }
 
-void BasicBlock::addInstruction(Instruction *instr) {
-    instr_list_.push_back(instr);
-}
-
-void BasicBlock::addInstruction(std::list<Instruction*>::iterator instr_pos, Instruction *instr) {
-    instr_list_.insert(instr_pos, instr);
-}
-void BasicBlock::addInstrBegin(Instruction *instr) {
-    instr_list_.push_front(instr);
-}
 
 void BasicBlock::addInstrBeforeTerminator(Instruction *instr) {
     instr->setParent(this);
@@ -113,9 +102,6 @@ void BasicBlock::deleteInstr(Instruction *instr) {
 
 ::std::list<Instruction*>::iterator BasicBlock::insertInstr(::std::list<Instruction*>::iterator instr_iter,Instruction* instr) {
     return instr_list_.insert(instr_iter,instr);
-}
-std::list<Instruction*>::iterator BasicBlock::findInstruction(Instruction *instr) {
-    return std::find(instr_list_.begin(), instr_list_.end(), instr);
 }
 
 void BasicBlock::replaceInsWith(Instruction* old_ins,Instruction* new_ins){
