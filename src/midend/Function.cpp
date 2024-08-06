@@ -112,7 +112,7 @@ std::string Function::print() {
 
     func_ir += this->getReturnType()->print();
     func_ir += " ";
-    func_ir += printAsOp(this, false);
+    func_ir += printAsOp(this);
     func_ir += "(";
 
     //// print arg

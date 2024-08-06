@@ -142,7 +142,7 @@ std::string BasicBlock::print() {
     for (auto bb : this->getPreBasicBlocks()) {
         if (bb != *this->getPreBasicBlocks().begin())
             bb_ir += ", ";
-        bb_ir += printAsOp(bb, false);
+        bb_ir += printAsOp(bb);
     }
 
     //// print prebb

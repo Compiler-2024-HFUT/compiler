@@ -5,16 +5,10 @@
 #include <array>
 #include <cassert>
 #include <string>
-std::string printAsOp(Value *v, bool print_ty) {
+std::string printAsOp(Value *v) {
     std::string op_ir;
-    if (print_ty) {
-        op_ir += v->getType()->print();
-        op_ir += " ";
-    }
 
-    if (dynamic_cast<GlobalVariable *>(v)) {
-        op_ir += "@" + v->getName();
-    } else if (dynamic_cast<Function *>(v)) {
+    if (dynamic_cast<GlobalVariable *>(v)||dynamic_cast<Function *>(v)) {
         op_ir += "@" + v->getName();
     } else if (dynamic_cast<Constant *>(v)) {
         op_ir += v->print();
@@ -23,6 +17,20 @@ std::string printAsOp(Value *v, bool print_ty) {
     }
 
     return op_ir;
+}
+
+std::string printAsOpWithType(Value *v) {
+    std::string ret=v->getType()->print();
+    ret += " ";
+    if (dynamic_cast<GlobalVariable *>(v)||dynamic_cast<Function *>(v)) {
+        ret += "@" + v->getName();
+    } else if (dynamic_cast<Constant *>(v)) {
+        ret += v->print();
+    } else {
+        ret += "%" + v->getName();
+    }
+
+    return ret;
 }
 
 std::string printCmpType(CmpOp op) {
@@ -35,8 +43,6 @@ std::string printCmpType(CmpOp op) {
         "sle",
     };
     assert(op>=0&&op<=CmpOp::LE);
-    // const auto iter=cmp2str.find(op);
-    // assert(iter!=cmp2str.end()&&"wrong cmp op");
     return cmp2str[op];
 }
 
@@ -50,7 +56,5 @@ std::string printFCmpType(CmpOp op) {
         "ule",
     };
     assert(op>=0&&op<=CmpOp::LE);
-    // const auto iter=fcmp2str.find(op);
-    // assert(iter!=fcmp2str.end()&&"wrong fcmp op");
     return fcmp2str[op];
 }

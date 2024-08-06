@@ -128,12 +128,12 @@ std::string BinaryInst::print() {
     instr_ir += " ";
     instr_ir += this->getOperand(0)->getType()->print();
     instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0), false);
+    instr_ir += printAsOp(this->getOperand(0));
     instr_ir += ", ";
     if (Type::isEqType(this->getOperand(0)->getType(), this->getOperand(1)->getType())) {
-        instr_ir += printAsOp(this->getOperand(1), false);
+        instr_ir += printAsOp(this->getOperand(1));
     } else {
-        instr_ir += printAsOp(this->getOperand(1), true);
+        instr_ir += printAsOpWithType(this->getOperand(1));
     }
     return instr_ir;
 }
@@ -186,12 +186,12 @@ std::string CmpInst::print() {
     instr_ir += " ";
     instr_ir += this->getOperand(0)->getType()->print();
     instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0), false);
+    instr_ir += printAsOp(this->getOperand(0));
     instr_ir += ", ";
     if (Type::isEqType(this->getOperand(0)->getType(), this->getOperand(1)->getType())) {
-        instr_ir += printAsOp(this->getOperand(1), false);
+        instr_ir += printAsOp(this->getOperand(1));
     } else {
-        instr_ir += printAsOp(this->getOperand(1), true);
+        instr_ir += printAsOpWithType(this->getOperand(1));
     }
     return instr_ir;
 }
@@ -246,12 +246,12 @@ std::string FCmpInst::print() {
     instr_ir += " ";
     instr_ir += this->getOperand(0)->getType()->print();
     instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0), false);
+    instr_ir += printAsOp(this->getOperand(0));
     instr_ir += ",";
     if (Type::isEqType(this->getOperand(0)->getType(), this->getOperand(1)->getType())) {
-        instr_ir += printAsOp(this->getOperand(1), false);
+        instr_ir += printAsOp(this->getOperand(1));
     } else {
-        instr_ir += printAsOp(this->getOperand(1), true);
+        instr_ir += printAsOpWithType(this->getOperand(1));
     }
     return instr_ir;
 }
@@ -292,14 +292,14 @@ std::string CallInst::print() {
 
     instr_ir += " ";
     assert(dynamic_cast<Function *>(this->getOperand(0)) && "Wrong call operand function");
-    instr_ir += printAsOp(this->getOperand(0), false);
+    instr_ir += printAsOp(this->getOperand(0));
     instr_ir += "(";
     for (int i = 1; i < this->getNumOperands(); i++) {
         if (i > 1)
             instr_ir += ", ";
         instr_ir += this->getOperand(i)->getType()->print();
         instr_ir += " ";
-        instr_ir += printAsOp(this->getOperand(i), false);
+        instr_ir += printAsOp(this->getOperand(i));
     }
     instr_ir += ")";
     return instr_ir;
@@ -349,12 +349,12 @@ std::string BranchInst::print() {
     instr_ir += this->getModule()->getInstrOpName(this->getInstrType());
     instr_ir += " ";
     //// instr_ir += this->getOperand(0)->getType()->print();
-    instr_ir += printAsOp(this->getOperand(0), true);
+    instr_ir += printAsOpWithType(this->getOperand(0));
     if (isCondBr()) {
         instr_ir += ", ";
-        instr_ir += printAsOp(this->getOperand(1), true);
+        instr_ir += printAsOpWithType(this->getOperand(1));
         instr_ir += ", ";
-        instr_ir += printAsOp(this->getOperand(2), true);
+        instr_ir += printAsOpWithType(this->getOperand(2));
     }
     return instr_ir;
 }
@@ -386,7 +386,7 @@ std::string ReturnInst::print() {
     if (!isVoidRet()) {
         instr_ir += this->getOperand(0)->getType()->print();
         instr_ir += " ";
-        instr_ir += printAsOp(this->getOperand(0), false);
+        instr_ir += printAsOp(this->getOperand(0));
     } else {
         instr_ir += "void";
     }
@@ -442,7 +442,7 @@ std::string GetElementPtrInst::print() {
             instr_ir += ", ";
         instr_ir += this->getOperand(i)->getType()->print();
         instr_ir += " ";
-        instr_ir += printAsOp(this->getOperand(i), false);
+        instr_ir += printAsOp(this->getOperand(i));
     }
     return instr_ir;
 }
@@ -464,9 +464,9 @@ std::string StoreInst::print() {
     instr_ir += " ";
     instr_ir += this->getOperand(0)->getType()->print();
     instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0), false);
+    instr_ir += printAsOp(this->getOperand(0));
     instr_ir += ", ";
-    instr_ir += printAsOp(this->getOperand(1), true);
+    instr_ir += printAsOpWithType(this->getOperand(1));
     return instr_ir;
 }
 
@@ -484,7 +484,7 @@ std::string MemsetInst::print() {
     std::string instr_ir;
     instr_ir += this->getModule()->getInstrOpName(this->getInstrType());
     instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0), true);
+    instr_ir += printAsOpWithType(this->getOperand(0));
     return instr_ir;
 }
 
@@ -511,7 +511,7 @@ std::string LoadInst::print() {
     instr_ir += this->getOperand(0)->getType()->getPointerElementType()->print();
     instr_ir += ",";
     instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0), true);
+    instr_ir += printAsOpWithType(this->getOperand(0));
     return instr_ir;
 }
 
@@ -555,7 +555,7 @@ std::string ZextInst::print() {
     instr_ir += " ";
     instr_ir += this->getOperand(0)->getType()->print();
     instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0), false);
+    instr_ir += printAsOp(this->getOperand(0));
     instr_ir += " to ";
     instr_ir += this->getDestType()->print();
     return instr_ir;
@@ -580,7 +580,7 @@ std::string FpToSiInst::print() {
     instr_ir += " ";
     instr_ir += this->getOperand(0)->getType()->print();
     instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0), false);
+    instr_ir += printAsOp(this->getOperand(0));
     instr_ir += " to ";
     instr_ir += this->getDestType()->print();
     return instr_ir;
@@ -605,7 +605,7 @@ std::string SiToFpInst::print() {
     instr_ir += " ";
     instr_ir += this->getOperand(0)->getType()->print();
     instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0), false);
+    instr_ir += printAsOp(this->getOperand(0));
     instr_ir += " to ";
     instr_ir += this->getDestType()->print();
     return instr_ir;
@@ -638,9 +638,9 @@ std::string PhiInst::print() {
         if (i > 0)
             instr_ir += ", ";
         instr_ir += "[ ";
-        instr_ir += printAsOp(this->getOperand(2 * i), false);
+        instr_ir += printAsOp(this->getOperand(2 * i));
         instr_ir += ", ";
-        instr_ir += printAsOp(this->getOperand(2 * i + 1), false);
+        instr_ir += printAsOp(this->getOperand(2 * i + 1));
         instr_ir += " ]";
     }
     if (this->getNumOperands() / 2 < this->getParent()->getPreBasicBlocks().size()) {
@@ -648,7 +648,7 @@ std::string PhiInst::print() {
             if (std::find(this->getOperands().begin(), this->getOperands().end(), static_cast<Value *>(pre_bb)) ==
                 this->getOperands().end()) {
                 // find a pre_bb is not in phi
-                instr_ir += ", [ undef, " + printAsOp(pre_bb, false) + " ]";
+                instr_ir += ", [ undef, " + printAsOp(pre_bb) + " ]";
             }
         }
     }
@@ -695,27 +695,27 @@ std::string CmpBrInst::print() {
     instr_ir += " ";
     instr_ir += this->getOperand(0)->getType()->print();
     instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0), false);
+    instr_ir += printAsOp(this->getOperand(0));
     instr_ir += ", ";
     if (Type::isEqType(this->getOperand(0)->getType(), this->getOperand(1)->getType())) {
-        instr_ir += printAsOp(this->getOperand(1), false);
+        instr_ir += printAsOp(this->getOperand(1));
     } else {
-        instr_ir += printAsOp(this->getOperand(1), true);
+        instr_ir += printAsOpWithType(this->getOperand(1));
     }
     instr_ir+="\n\t";
     // instr_ir += this->getModule()->getInstrOpName(this->getInstrType());
     instr_ir+="br";
     instr_ir += " ";
     //// instr_ir += this->getOperand(0)->getType()->print();
-    // instr_ir += printAsOp(this->getOperand(0), true);
+    // instr_ir += printAsOpWithType(this->getOperand(0));
     instr_ir+="i1 %";
     instr_ir+=cmp_name;
 
     // if (isCondBr()) {
         instr_ir += ", ";
-        instr_ir += printAsOp(this->getOperand(2), true);
+        instr_ir += printAsOpWithType(this->getOperand(2));
         instr_ir += ", ";
-        instr_ir += printAsOp(this->getOperand(3), true);
+        instr_ir += printAsOpWithType(this->getOperand(3));
     // }
     return instr_ir;
 }
@@ -759,27 +759,27 @@ std::string FCmpBrInst::print() {
     instr_ir += " ";
     instr_ir += this->getOperand(0)->getType()->print();
     instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0), false);
+    instr_ir += printAsOp(this->getOperand(0));
     instr_ir += ", ";
     if (Type::isEqType(this->getOperand(0)->getType(), this->getOperand(1)->getType())) {
-        instr_ir += printAsOp(this->getOperand(1), false);
+        instr_ir += printAsOp(this->getOperand(1));
     } else {
-        instr_ir += printAsOp(this->getOperand(1), true);
+        instr_ir += printAsOpWithType(this->getOperand(1));
     }
     instr_ir+="\n\t";
     // instr_ir += this->getModule()->getInstrOpName(this->getInstrType());
     instr_ir+="br";
     instr_ir += " ";
     //// instr_ir += this->getOperand(0)->getType()->print();
-    // instr_ir += printAsOp(this->getOperand(0), true);
+    // instr_ir += printAsOpWithType(this->getOperand(0));
     instr_ir+="i1 %";
     instr_ir+=cmp_name;
 
     // if (isCondBr()) {
         instr_ir += ", ";
-        instr_ir += printAsOp(this->getOperand(2), true);
+        instr_ir += printAsOpWithType(this->getOperand(2));
         instr_ir += ", ";
-        instr_ir += printAsOp(this->getOperand(3), true);
+        instr_ir += printAsOpWithType(this->getOperand(3));
     // }
     return instr_ir;
 
@@ -826,7 +826,7 @@ std::string LoadOffsetInst::print() {
             instr_ir += " , ";
         instr_ir += this->getOperand(i)->getType()->print();
         instr_ir += " ";
-        instr_ir += printAsOp(this->getOperand(i), false);
+        instr_ir += printAsOp(this->getOperand(i));
     }
     instr_ir += ")";
     return instr_ir;
@@ -840,9 +840,9 @@ std::string LoadOffsetInst::print() {
     instr_ir += this->getOperand(0)->getType()->getPointerElementType()->print();
     instr_ir += ",";
     instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0), true);
+    instr_ir += printAsOpWithType(this->getOperand(0));
     instr_ir += ", ";
-    instr_ir += printAsOp(this->getOperand(1), true);
+    instr_ir += printAsOpWithType(this->getOperand(1));
     return instr_ir;
 */
 }
@@ -886,7 +886,7 @@ std::string StoreOffsetInst::print() {
             instr_ir += " , ";
         instr_ir += this->getOperand(i)->getType()->print();
         instr_ir += " ";
-        instr_ir += printAsOp(this->getOperand(i), false);
+        instr_ir += printAsOp(this->getOperand(i));
     }
     instr_ir += ")";
     return instr_ir;
@@ -896,9 +896,9 @@ std::string StoreOffsetInst::print() {
     instr_ir += " ";
     instr_ir += this->getOperand(0)->getType()->print();
     instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0), false);
+    instr_ir += printAsOp(this->getOperand(0));
     instr_ir += ", ";
-    instr_ir += printAsOp(this->getOperand(1), true);
+    instr_ir += printAsOpWithType(this->getOperand(1));
     instr_ir += ", ";
     instr_ir += printAsOp(this->getOperand(2), true);
     return instr_ir;
@@ -932,11 +932,11 @@ std::string SelectInst::print() {
     instr_ir += " = ";
     instr_ir += this->getModule()->getInstrOpName(this->getInstrType());
     instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0), true);
+    instr_ir += printAsOpWithType(this->getOperand(0));
     instr_ir += ", ";
-    instr_ir += printAsOp(this->getOperand(1), true);
+    instr_ir += printAsOpWithType(this->getOperand(1));
     instr_ir += ", ";
-    instr_ir += printAsOp(this->getOperand(2), true);
+    instr_ir += printAsOpWithType(this->getOperand(2));
     return instr_ir;
 }
 

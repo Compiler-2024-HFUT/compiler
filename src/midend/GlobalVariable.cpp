@@ -19,7 +19,7 @@ GlobalVariable *GlobalVariable::create(std::string name, Module *m, Type *ty,
 
 std::string GlobalVariable::print() {
     std::string global_val_ir;
-    global_val_ir += printAsOp(this, false);
+    global_val_ir += printAsOp(this);
     global_val_ir += " = ";
     global_val_ir += (this->isConst() ? "constant " : "global ");
     global_val_ir += this->getType()->getPointerElementType()->print();
