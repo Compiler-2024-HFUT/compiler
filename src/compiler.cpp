@@ -17,6 +17,7 @@
 #include "optimization/DeadPHIEli.hpp"
 #include "optimization/DeadStoreEli.hpp"
 #include "optimization/G2L.hpp"
+#include "optimization/GepOpt.hpp"
 #include "optimization/InstrCombine.hpp"
 #include "optimization/Mem2Reg.hpp"
 #include "optimization/MoveAlloca.hpp"
@@ -81,6 +82,8 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<VRE>();
 
     lir(pm);
+
+    pm.addPass<GepOpt>();
     pm.addPass<DCE>();
     pm.addPass<ValNumbering>();
     pm.addPass<DCE>();
