@@ -198,7 +198,7 @@ bool Loop::computeConds() {
 
     list<Instruction*> &headerInsts = header->getInstructions();
     auto iter = headerInsts.end();
-    iter++;
+    iter--;
     ConstantInt *condVal = dynamic_cast<ConstantInt*>((*iter)->getOperand(0));
     if(condVal) {
         if(condVal->getValue() == 1) {
@@ -208,8 +208,7 @@ bool Loop::computeConds() {
         }   
         return true;
     }
-
-    iter++;
+    iter--;
     LoopCond *cond = LoopCond::createLoopCond( *iter );
     if(!cond)   return false;
     conditions.push_back(cond);
