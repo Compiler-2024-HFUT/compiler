@@ -4,7 +4,6 @@
 #include <set>
 #include "midend/Module.hpp"
 #include "midend/Function.hpp"
-#include "midend/IRprint.hpp"
 #include "midend/BasicBlock.hpp"
 
 void Function::buildArgs() {
@@ -112,7 +111,7 @@ std::string Function::print() {
 
     func_ir += this->getReturnType()->print();
     func_ir += " ";
-    func_ir += printAsOp(this);
+    func_ir += "@" + this->getName();
     func_ir += "(";
 
     //// print arg
