@@ -26,24 +26,25 @@ bool LoopInvariant::isInstInvariant(Loop *loop, Instruction *inst) {
         return true;
     } else if(inst->isVoid() || inst->isPhi()) {
         return false;
-    } else if(inst->isLoad() || inst->isGep() ||  inst->isCmp() || inst->isFCmp()) {
-    // can be better?
+    } else if (inst->isCmp() || inst->isFCmp()) {
         return false;
-    } else if (inst->isCall()) {
+    } else if (inst->isLoad()) {    
+        Type *opType = inst->getOperand(0)->getType();
+        // 指向指针的指针其值总不变
+        if(opType->getPointerElementType()->isPointerType()) 
+            return true;
+        // 普通指针load的值可能因store而变化
+        return false;
+    } else if (inst->isCall() || inst->isGep()) {
         vector<Value*> &ops = inst->getOperands();
         for(Value *op : ops) {
-            if( dynamic_cast<Constant*>(op) )
-                continue;
-            if ( !isInstInvariant(loop, dynamic_cast<Instruction*>(op)) )
+            if ( !isValueInvariant(loop, op) )
                 return false;
         }
         return true;
     } else if (inst->isSitofp() || inst->isFptosi()) {
         Value *op = inst->getOperand(0);
-        if( dynamic_cast<Constant*>(op) )
-            return true;
-        else 
-            return isInstInvariant(loop, dynamic_cast<Instruction*>(op));
+        return isValueInvariant(loop, op);
     } else {
         LOG_ERROR("inst isn't a BinaryInst!", !inst->isBinary())
 
