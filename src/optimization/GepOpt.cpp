@@ -12,95 +12,95 @@
 #include <map>
 #include <sys/cdefs.h>
 #include <vector>
-Modify GepOpt::glbArrInitRm(){
-    ::std::vector<GlobalVariable*>glbarr;
-    std::vector<Value*> uselist;
-    std::list<GetElementPtrInst*> geplist;
-    for(auto glb:module_->getGlobalVariables()){
-        auto type=glb->getType();
-        if(!type->getPointerElementType()->isArrayType())
-            continue;
-        ConstantArray*init=dynamic_cast<ConstantArray*>(glb->getInit());
-        if(init==0)
-            continue;
-        for(auto u:glb->getUseList()){
-            uselist.push_back(u.val_);
-        }
-        bool other_op=false;
+// Modify GepOpt::glbArrInitRm(){
+//     ::std::vector<GlobalVariable*>glbarr;
+//     std::vector<Value*> uselist;
+//     std::list<GetElementPtrInst*> geplist;
+//     for(auto glb:module_->getGlobalVariables()){
+//         auto type=glb->getType();
+//         if(!type->getPointerElementType()->isArrayType())
+//             continue;
+//         ConstantArray*init=dynamic_cast<ConstantArray*>(glb->getInit());
+//         if(init==0)
+//             continue;
+//         for(auto u:glb->getUseList()){
+//             uselist.push_back(u.val_);
+//         }
+//         bool other_op=false;
 
-        while(!uselist.empty()){
-            auto use=uselist.back();
-            uselist.pop_back();
-            if(auto gep=dynamic_cast<GetElementPtrInst*>(use)){
-                if(gep->getNumOperands()==3){
-                    if(auto off=dynamic_cast<ConstantInt*>(gep->getOperand(2));off==0){
-                        other_op=true;
-                        break;
-                    }
-                }
-                else if(gep->getNumOperands()==2){
-                    if(auto off=dynamic_cast<ConstantInt*>(gep->getOperand(1));off==0){
-                        other_op=true;
-                        break;
-                    }
-                }
-                for(auto u:use->getUseList()){
-                    uselist.push_back(u.val_);
-                }
-            }else if(dynamic_cast<CallInst*>(use)||dynamic_cast<StoreInst*>(use)){
-                other_op=true;
-                break;
-            }
-        }
+//         while(!uselist.empty()){
+//             auto use=uselist.back();
+//             uselist.pop_back();
+//             if(auto gep=dynamic_cast<GetElementPtrInst*>(use)){
+//                 if(gep->getNumOperands()==3){
+//                     if(auto off=dynamic_cast<ConstantInt*>(gep->getOperand(2));off==0){
+//                         other_op=true;
+//                         break;
+//                     }
+//                 }
+//                 else if(gep->getNumOperands()==2){
+//                     if(auto off=dynamic_cast<ConstantInt*>(gep->getOperand(1));off==0){
+//                         other_op=true;
+//                         break;
+//                     }
+//                 }
+//                 for(auto u:use->getUseList()){
+//                     uselist.push_back(u.val_);
+//                 }
+//             }else if(dynamic_cast<CallInst*>(use)||dynamic_cast<StoreInst*>(use)){
+//                 other_op=true;
+//                 break;
+//             }
+//         }
 
-        if(other_op)
-            continue;
+//         if(other_op)
+//             continue;
 
-        for(auto u:glb->getUseList()){
-            if(auto gep=dynamic_cast<GetElementPtrInst*>(u.val_)){
-                geplist.push_back(gep);
-            }else{
-                uselist.push_back(u.val_);
-            }
-        }
-        std::map<Value*,int>offset{{glb,0}};
-        while(!geplist.empty()){
-            auto gep=geplist.front();
-            geplist.pop_front();
-            for(auto u:gep->getUseList()){
-                if(auto gep_gep=dynamic_cast<GetElementPtrInst*>(u.val_)){
-                    geplist.push_back(gep_gep);
-                }else{
-                    uselist.push_back(u.val_);
-                }
-            }
-            if(gep->getNumOperands()==3){
-                if(auto off=dynamic_cast<ConstantInt*>(gep->getOperand(2))){
-                    offset.insert({gep,off->getValue()+offset.find(gep->getOperand(0))->second});
-                }
-            }
-            else if(gep->getNumOperands()==2){
-                if(auto off=dynamic_cast<ConstantInt*>(gep->getOperand(1))){
-                    offset.insert({gep,off->getValue()+offset.find(gep->getOperand(0))->second});
-                }
-            }else{assert(0);}
+//         for(auto u:glb->getUseList()){
+//             if(auto gep=dynamic_cast<GetElementPtrInst*>(u.val_)){
+//                 geplist.push_back(gep);
+//             }else{
+//                 uselist.push_back(u.val_);
+//             }
+//         }
+//         std::map<Value*,int>offset{{glb,0}};
+//         while(!geplist.empty()){
+//             auto gep=geplist.front();
+//             geplist.pop_front();
+//             for(auto u:gep->getUseList()){
+//                 if(auto gep_gep=dynamic_cast<GetElementPtrInst*>(u.val_)){
+//                     geplist.push_back(gep_gep);
+//                 }else{
+//                     uselist.push_back(u.val_);
+//                 }
+//             }
+//             if(gep->getNumOperands()==3){
+//                 if(auto off=dynamic_cast<ConstantInt*>(gep->getOperand(2))){
+//                     offset.insert({gep,off->getValue()+offset.find(gep->getOperand(0))->second});
+//                 }
+//             }
+//             else if(gep->getNumOperands()==2){
+//                 if(auto off=dynamic_cast<ConstantInt*>(gep->getOperand(1))){
+//                     offset.insert({gep,off->getValue()+offset.find(gep->getOperand(0))->second});
+//                 }
+//             }else{assert(0);}
 
-        }
-        while(!uselist.empty()){
-            auto use=uselist.back();
-            uselist.pop_back();
-            if(dynamic_cast<GetElementPtrInst*>(use)){
-                for(auto u:use->getUseList()){
-                    uselist.push_back(u.val_);
-                }
-            }else if(auto load=dynamic_cast<LoadInst*>(use)){
-                load->replaceAllUseWith(init->getElementValue(offset.find(load->getLVal())->second));
-                delete load;
-            }
-        }
-    }
-    return{};
-}
+//         }
+//         while(!uselist.empty()){
+//             auto use=uselist.back();
+//             uselist.pop_back();
+//             if(dynamic_cast<GetElementPtrInst*>(use)){
+//                 for(auto u:use->getUseList()){
+//                     uselist.push_back(u.val_);
+//                 }
+//             }else if(auto load=dynamic_cast<LoadInst*>(use)){
+//                 load->replaceAllUseWith(init->getElementValue(offset.find(load->getLVal())->second));
+//                 delete load;
+//             }
+//         }
+//     }
+//     return{};
+// }
 Modify GepOpt::rmGep0(Function*func){
     Modify ret;
     for(auto b:func->getBasicBlocks()){
