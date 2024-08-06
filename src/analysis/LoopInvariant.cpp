@@ -1,5 +1,14 @@
 #include "analysis/LoopInvariant.hpp"
 
+bool LoopInvariant::isValueInvariant(Loop *loop, Value *val) {
+    if(dynamic_cast<Instruction*>(val))
+        return isInstInvariant(loop, dynamic_cast<Instruction*>(val));
+    else if(dynamic_cast<Constant*>(val) || dynamic_cast<Argument*>(val))
+        return true;
+    else    
+        return false;
+}
+
 bool LoopInvariant::isInstInvariant(Loop *loop, Instruction *inst) {
     if(!inst)
         return false;
@@ -17,35 +26,32 @@ bool LoopInvariant::isInstInvariant(Loop *loop, Instruction *inst) {
         return true;
     } else if(inst->isVoid() || inst->isPhi()) {
         return false;
-    } else if(inst->isLoad() || inst->isGep() ||  inst->isCmp() || inst->isFCmp()) {
-    // can be better?
+    } else if (inst->isCmp() || inst->isFCmp()) {
         return false;
-    } else if (inst->isCall()) {
+    } else if (inst->isLoad()) {    
+        Type *opType = inst->getOperand(0)->getType();
+        // 指向指针的指针其值总不变
+        if(opType->getPointerElementType()->isPointerType()) 
+            return true;
+        // 普通指针load的值可能因store而变化
+        return false;
+    } else if (inst->isCall() || inst->isGep()) {
         vector<Value*> &ops = inst->getOperands();
         for(Value *op : ops) {
-            if( dynamic_cast<Constant*>(op) )
-                continue;
-            if ( !isInstInvariant(loop, dynamic_cast<Instruction*>(op)) )
+            if ( !isValueInvariant(loop, op) )
                 return false;
         }
         return true;
     } else if (inst->isSitofp() || inst->isFptosi()) {
         Value *op = inst->getOperand(0);
-        if( dynamic_cast<Constant*>(op) )
-            return true;
-        else 
-            return isInstInvariant(loop, dynamic_cast<Instruction*>(op));
+        return isValueInvariant(loop, op);
     } else {
         LOG_ERROR("inst isn't a BinaryInst!", !inst->isBinary())
 
-        Instruction *inst1 = dynamic_cast<Instruction*>( inst->getOperand(0) );
-        Instruction *inst2 = dynamic_cast<Instruction*>( inst->getOperand(1) );
+        Value *op1 = inst->getOperand(0);
+        Value *op2 = inst->getOperand(1);
 
-        Constant *op1 = dynamic_cast<Constant*>( inst->getOperand(0) );
-        Constant *op2 = dynamic_cast<Constant*>( inst->getOperand(1) );
-        if( op1 && op2
-        || op1 && isInstInvariant(loop, inst2) || op2 && isInstInvariant(loop, inst1)
-        || isInstInvariant(loop, inst2) && isInstInvariant(loop, inst1) ) {
+        if(isValueInvariant(loop, op1) && isValueInvariant(loop, op2) ) {
             return true;
         } else {
             return false;

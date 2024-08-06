@@ -1,10 +1,8 @@
 #include <cassert>
-#include <algorithm>
 #include <map>
 
 #include "midend/BasicBlock.hpp"
 #include "midend/Function.hpp"
-#include "midend/IRprint.hpp"
 #include "midend/Instruction.hpp"
 
 BasicBlock::BasicBlock(const std::string &name, Function *parent = nullptr)
@@ -40,16 +38,6 @@ const Instruction *BasicBlock::getTerminator() const {
     }
 }
 
-void BasicBlock::addInstruction(Instruction *instr) {
-    instr_list_.push_back(instr);
-}
-
-void BasicBlock::addInstruction(std::list<Instruction*>::iterator instr_pos, Instruction *instr) {
-    instr_list_.insert(instr_pos, instr);
-}
-void BasicBlock::addInstrBegin(Instruction *instr) {
-    instr_list_.push_front(instr);
-}
 
 void BasicBlock::addInstrBeforeTerminator(Instruction *instr) {
     instr->setParent(this);
@@ -115,9 +103,6 @@ void BasicBlock::deleteInstr(Instruction *instr) {
 ::std::list<Instruction*>::iterator BasicBlock::insertInstr(::std::list<Instruction*>::iterator instr_iter,Instruction* instr) {
     return instr_list_.insert(instr_iter,instr);
 }
-std::list<Instruction*>::iterator BasicBlock::findInstruction(Instruction *instr) {
-    return std::find(instr_list_.begin(), instr_list_.end(), instr);
-}
 
 void BasicBlock::replaceInsWith(Instruction* old_ins,Instruction* new_ins){
     auto iter=findInstruction(old_ins);
@@ -142,7 +127,7 @@ std::string BasicBlock::print() {
     for (auto bb : this->getPreBasicBlocks()) {
         if (bb != *this->getPreBasicBlocks().begin())
             bb_ir += ", ";
-        bb_ir += printAsOp(bb, false);
+        bb_ir += "%"+bb->getName();
     }
 
     //// print prebb
@@ -170,6 +155,9 @@ BasicBlock *BasicBlock::copyBB() {
     std::map<Instruction*, Instruction*> instMap = {};
     for(Instruction *inst : instr_list_) {
         Instruction *newInst = inst->copyInst(newBB);
+        if(inst->isPhi()) {
+            newBB->addInstrAfterPhiInst(newInst);
+        }
         instMap.insert({inst, newInst});
     }
 

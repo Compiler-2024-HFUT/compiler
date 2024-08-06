@@ -6,6 +6,30 @@ using std::list;
 
 static SCEVExpr *CRProd(SCEVExpr*, SCEVExpr*);
 
+// 返回endInst，也即Value的运算结果
+Value *SCEVVal::transToValue(BB *bb) {
+    if(this->isConst() || this->isPhi())
+        return this->sval;
+    
+    Value *midValue;
+    if(this->isMul()) {
+        midValue = BinaryInst::createMul(operands[0]->sval, operands[1]->sval, bb);
+        bb->getInstructions().pop_back();
+        bb->addInstrBeforeTerminator(dynamic_cast<Instruction*>(midValue));
+    } else {
+    // AddVal
+        midValue = operands[0]->transToValue(bb);
+
+        for(int i = 1; i < operands.size(); i++) {
+            midValue = BinaryInst::createAdd(midValue, operands[i]->transToValue(bb), bb);
+            bb->getInstructions().pop_back();
+            bb->addInstrBeforeTerminator(dynamic_cast<Instruction*>(midValue));
+        }
+        // LOG_WARNING(midValue->print());
+    }
+    return midValue;
+}
+
 SCEVVal *SCEVVal::addSCEVVal(SCEVVal *rhs)  {
     SCEVVal *lhs = this;
     if(lhs->isUnk() || rhs->isUnk())

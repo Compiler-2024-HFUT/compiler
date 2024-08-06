@@ -35,36 +35,34 @@ struct LoopCond {
         gt = -2, ge = -1, lt = 1, le = 2, eq, ne
     } op;
     Value *rhs;
+
+    Instruction *transToInst(BB *bb) {
+        umap<opType, CmpOp> opMap = {
+            {opType::gt, CmpOp::GT},
+            {opType::ge, CmpOp::GE},
+            {opType::lt, CmpOp::LT},
+            {opType::le, CmpOp::LE},
+            {opType::eq, CmpOp::EQ},
+            {opType::ne, CmpOp::NE},
+        };
+        return CmpInst::createCmp(opMap[op], lhs, rhs, bb);
+    }
     static LoopCond *createLoopCond(Instruction *inst) {
-        if(!inst->isCmp())
+        if(!inst->isCmp())  // fcmp?
             return nullptr;
         
         opType op;
         CmpInst *cmp = dynamic_cast<CmpInst*>(inst);
-        switch (cmp->getCmpOp()) {
-            case  CmpOp::EQ:
-                op = opType::eq;
-                break;
-            case  CmpOp::NE:
-                op = opType::ne;
-                break;
-            case  CmpOp::GT:
-                op = opType::gt;
-                break;
-            case  CmpOp::GE:
-                op = opType::ge;
-                break;
-            case  CmpOp::LT:
-                op = opType::lt;
-                break;
-            case  CmpOp::LE:
-                op = opType::le;
-                break;
-            default:
-                assert(0);
-                break;
-        }
+        umap<CmpOp, opType> opMap = {
+            {CmpOp::GT, opType::gt},
+            {CmpOp::GE, opType::ge},
+            {CmpOp::LT, opType::lt},
+            {CmpOp::LE, opType::le},
+            {CmpOp::EQ, opType::eq},
+            {CmpOp::NE, opType::ne},
+        };
 
+        op = opMap[cmp->getCmpOp()];
         return new LoopCond{cmp->getOperand(0), op, cmp->getOperand(1)};
     }
     ~LoopCond() { delete this; }
@@ -114,13 +112,12 @@ class Loop {
     vector<LoopCond*> conditions;       // cond1 && cond2... 暂不考虑 或 的情况，出现则conditions为空
 public:
     Loop(BB *tail, BB *head): latchs({tail}), header(head) {}
-    
+
     PhiInst *getIndVar() { return indVar; }
     Function *getFunction() { return header->getParent(); }
     BB* getHeader() { return header; }
     BB* getPreheader() { return preheader; }
     BB* getSingleLatch() { return latch; }
-    // BB* getSingleExit() { return exit; }
     int getDepth() { return depth; }
     Loop *getOuter() { return outer; }
 
@@ -137,7 +134,6 @@ public:
         if(!latch) { blocks.erase(latch); } 
         addBlock(sl);
     }
-    // void setSingleExit(BB *se) { exit = se; }
 
     // 检查除header外，其它因短路求值而产生的表示条件判断的BB，匹配如下格式：
     // %op = icmp ...   ; 不考虑fcmp
@@ -153,7 +149,8 @@ public:
 
     vector<LoopCond*> const &getConds() { return conditions; }
     bool computeConds();
-    void setCondsAndUpdateBlocks(vector<LoopCond*> conds);
+    void replaceCond(LoopCond *newCond);
+    void addWeakCond(LoopCond *weakCond);
 
     LoopTrip computeTrip(SCEV *scev);
 
@@ -194,6 +191,8 @@ public:
 
     // 复制除header外的blocks，参数返回进入loopBody的entry和跳出循环的exiting(exit的preBB)，原BB和新BB的指令映射
     void copyBody(BB* &entry, BB* &singleLatch, vector<BB*> &exiting, map<BB*, BB*> &BBMap, map<Instruction*, Instruction*> &instMap);
+    // 复制简化后的Loop
+    Loop *copyLoop();
 
     string print() {
         string loop = "";

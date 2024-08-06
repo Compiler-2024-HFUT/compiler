@@ -33,8 +33,6 @@ public:
     void addGlobalVariable(GlobalVariable *g);
     std::list<GlobalVariable*> &getGlobalVariables() { return globals_list_; }
 
-    std::string getInstrOpName(Instruction::OpID instr) const { return instr_id2string_.find(instr)->second; }
-
     void setPrintName();
     void setFileName(std::string name) { source_file_name_ = name; }
     std::string getFileName() { return source_file_name_; }

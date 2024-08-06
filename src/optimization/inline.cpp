@@ -7,6 +7,7 @@
 #include "midend/Instruction.hpp"
 #include "midend/Module.hpp"
 #include "midend/Value.hpp"
+#include <algorithm>
 #include <list>
 #include <sys/cdefs.h>
 #include <vector>
@@ -65,8 +66,12 @@ using ::std::list,::std::map;
     }
 
     // auto func_list{};
+    //int name_num=0;
+    auto &bblist=cur_func->getBasicBlocks();
     for(auto old_bb: call_func->getBasicBlocks()){
+        //new_bb = BasicBlock::create( call_func->getName()+std::to_string(name_num++), cur_func);
         new_bb = BasicBlock::create( "", cur_func);
+        bblist.pop_back();
         old_new.insert({old_bb,new_bb});
         new_bbs.push_back(new_bb);
         for(auto old_instr: old_bb->getInstructions()){
@@ -77,6 +82,7 @@ using ::std::list,::std::map;
             old_new.insert({old_instr,  new_instr});
         }
     }
+    bblist.insert((++std::find(bblist.begin(),bblist.end(),cur_bb)),new_bbs.begin(),new_bbs.end());
     for(auto new_bb:new_bbs){
         for(auto instr:new_bb->getInstructions()){
             if(instr->isBr()&&instr->getNumOperands()==1){
@@ -164,6 +170,9 @@ Modify FuncInline::run(){
             // continue;
         auto iter=fan->call_info.find((Function*)call->getOperand(0));
         if(iter->second.direct_call.count((Function*)call->getOperand(0)))
+            continue;
+        auto __seiter=fan->direct_se_info.find((Function*)call->getOperand(0));
+        if(__seiter->second.isGetVar()||__seiter->second.isPutVar())
             continue;
         insertFunc(call,{call->getParent()->getParent()});
     }

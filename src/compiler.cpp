@@ -17,12 +17,14 @@
 #include "optimization/DeadPHIEli.hpp"
 #include "optimization/DeadStoreEli.hpp"
 #include "optimization/G2L.hpp"
+#include "optimization/GepOpt.hpp"
 #include "optimization/InstrCombine.hpp"
 #include "optimization/Mem2Reg.hpp"
 #include "optimization/MoveAlloca.hpp"
 #include "optimization/PassManager.hpp"
 #include "optimization/SCCP.hpp"
 #include "optimization/ValueNumbering.hpp"
+#include "optimization/VirtualRetEli.hpp"
 #include "optimization/inline.hpp"
 #include "optimization/instrResolve.hpp"
 
@@ -59,8 +61,6 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<InstrCombine>();
     pm.addPass<InstrResolve>();
     pm.addPass<DCE>();
-    pm.addPass<InstrResolve>();
-    pm.addPass<DCE>();
 
     pm.addPass<FuncInline>();
     pm.addPass<CombinBB>();
@@ -77,9 +77,13 @@ void Compiler::buildOpt(PassManager &pm){
 
     pm.addPass<LoopSimplified>();
     pm.addPass<LICM>();
+
     pm.addPass<CombinBB>();
+    pm.addPass<VRE>();
 
     lir(pm);
+
+    pm.addPass<GepOpt>();
     pm.addPass<DCE>();
     pm.addPass<ValNumbering>();
     pm.addPass<DCE>();
