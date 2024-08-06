@@ -17,6 +17,7 @@ using std::find;
 class LoopInvariant : public FunctionInfo {
     umap<Loop*, list<Instruction*> > invariants;
 
+    bool isValueInvariant(Loop *loop, Value *val);
     bool isInstInvariant(Loop *loop, Instruction *inst);
     void computeInvariants(Loop *loop);
 public:

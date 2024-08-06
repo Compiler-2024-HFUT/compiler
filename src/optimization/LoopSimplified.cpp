@@ -4,7 +4,6 @@
 
 #include <algorithm>
 using std::find;
-using std::remove;
 
 // move to BBUtils.cpp later
 // 在to和froms之间插入inserted后, 更新to的phi 以及 为inserted添加phi
@@ -129,10 +128,7 @@ BB *LoopSimplified::insertPreheader(Loop *loop) {
         preds.push_back(pre);
     }
 
-    if(preds.size() == 1)
-        preheader = preds[0];
-    else
-        preheader = splitBlockByPreBB(header, preds);
+    preheader = splitBlockByPreBB(header, preds);
     return preheader;
 }
 
@@ -196,14 +192,14 @@ void LoopSimplified::processLoop(Loop *loop) {
 }
 
 void LoopSimplified::visitLoop(Loop *loop) {
-    for(Loop *inner : loop->getInners()) {
-        visitLoop(inner);
-    }
-
     if(loop->isSimplifiedForm())
         return;
     processLoop(loop);
     loop->setSimplified();
+
+    for(Loop *inner : loop->getInners()) {
+        visitLoop(inner);
+    }
 }
 
 Modify LoopSimplified::runOnFunc(Function* func) {
