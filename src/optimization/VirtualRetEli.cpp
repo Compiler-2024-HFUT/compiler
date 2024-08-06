@@ -1,6 +1,7 @@
 #include "optimization/VirtualRetEli.hpp"
 #include "analysis/Info.hpp"
 #include "midend/Instruction.hpp"
+#include "midend/Type.hpp"
 #include "midend/Value.hpp"
 #include "optimization/util.hpp"
 #include "midend/BasicBlock.hpp"
@@ -9,7 +10,7 @@
 #include <utility>
 #include <vector>
 Modify VRE::runOnFunc(Function*func){
-    if(func->isDeclaration())
+    if(func->getBasicBlocks().size()<2)
         return {};
     Modify mod;
     BasicBlock*ret_bb=func->getRetBlock();
@@ -18,6 +19,8 @@ Modify VRE::runOnFunc(Function*func){
         return mod;
     auto phi=ret_inss.front();
     auto ret=ret_inss.back();
+    if(func->getReturnType()==Type::getVoidType())
+        return{};
     if(ret->getOperand(0)!=phi)
         return mod;
     

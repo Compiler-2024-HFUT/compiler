@@ -7,7 +7,7 @@
 class GepOpt:public Pass{
     ConstantInt*zero;
     Modify rmGep0(Function*func);
-    Modify glbArrInitRm();
+    // Modify glbArrInitRm();
 
 public:
     Modify run();
