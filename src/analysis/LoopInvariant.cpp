@@ -1,9 +1,10 @@
 #include "analysis/LoopInvariant.hpp"
+#include "midend/GlobalVariable.hpp"
 
 bool LoopInvariant::isValueInvariant(Loop *loop, Value *val) {
     if(dynamic_cast<Instruction*>(val))
         return isInstInvariant(loop, dynamic_cast<Instruction*>(val));
-    else if(dynamic_cast<Constant*>(val) || dynamic_cast<Argument*>(val))
+    else if(dynamic_cast<Constant*>(val) || dynamic_cast<Argument*>(val) || dynamic_cast<GlobalVariable*>(val))
         return true;
     else    
         return false;

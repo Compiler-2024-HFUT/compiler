@@ -74,12 +74,16 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<ArrReduc>();
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
+    pm.addPass<BreakGEP>();
+
 
     pm.addPass<LoopSimplified>();
     pm.addPass<LICM>();
 
     pm.addPass<CombinBB>();
     pm.addPass<VRE>();
+    pm.addPass<ValNumbering>();
+    pm.addPass<DCE>();
 
     lir(pm);
 
@@ -103,7 +107,6 @@ void Compiler::buildDefault(PassManager &pm){
 }
 Compiler::Compiler(int argc, char** argv):lir([](PassManager&pm){
     pm.addPass<CombineJJ>();
-    pm.addPass<BreakGEP>();
     pm.addPass<MemInstOffset>();
     pm.addPass<MoveAlloca>();}){
     if(argc<5){
