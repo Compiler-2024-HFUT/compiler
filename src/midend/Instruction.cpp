@@ -626,13 +626,13 @@ std::string AllocaInst::print() {
 }
 
 //& ZextInst
-ZextInst::ZextInst(OpID op, Value *val, Type *ty, BasicBlock *bb)
-    : Instruction(ty, op, 1, bb), dest_ty_(ty) {
+ZextInst::ZextInst( Value *val, Type *ty, BasicBlock *bb)
+    : Instruction(ty, Instruction::OpID::zext, 1, bb) {
     setOperand(0, val);
 }
 
 ZextInst *ZextInst::createZext(Value *val, Type *ty, BasicBlock *bb) {
-    return new ZextInst(Instruction::OpID::zext, val, ty, bb);
+    return new ZextInst(val, ty, bb);
 }
 
 std::string ZextInst::print() {
@@ -646,18 +646,18 @@ std::string ZextInst::print() {
     instr_ir += " ";
     instr_ir += printAsOp(this->getOperand(0));
     instr_ir += " to ";
-    instr_ir += this->getDestType()->print();
+    instr_ir += this->getType()->print();
     return instr_ir;
 }
 
 //& FpToSiInst
-FpToSiInst::FpToSiInst(OpID op, Value *val, Type *ty, BasicBlock *bb)
-    : Instruction(ty, op, 1, bb), dest_ty_(ty) {
+FpToSiInst::FpToSiInst( Value *val, Type *ty, BasicBlock *bb)
+    : Instruction(ty, Instruction::OpID::fptosi, 1, bb) {
     setOperand(0, val);
 }
 
 FpToSiInst *FpToSiInst::createFpToSi(Value *val, Type *ty, BasicBlock *bb) {
-    return new FpToSiInst(Instruction::OpID::fptosi, val, ty, bb);
+    return new FpToSiInst( val, ty, bb);
 }
 
 std::string FpToSiInst::print() {
@@ -676,13 +676,13 @@ std::string FpToSiInst::print() {
 }
 
 //& SiToFpInst
-SiToFpInst::SiToFpInst(OpID op, Value *val, Type *ty, BasicBlock *bb)
-    : Instruction(ty, op, 1, bb), dest_ty_(ty) {
+SiToFpInst::SiToFpInst( Value *val, Type *ty, BasicBlock *bb)
+    : Instruction(ty, Instruction::OpID::sitofp, 1, bb) {
     setOperand(0, val);
 }
 
 SiToFpInst *SiToFpInst::createSiToFp(Value *val, Type *ty, BasicBlock *bb) {
-    return new SiToFpInst(Instruction::OpID::sitofp, val, ty, bb);
+    return new SiToFpInst( val, ty, bb);
 }
 
 std::string SiToFpInst::print() {

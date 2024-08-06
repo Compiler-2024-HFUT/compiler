@@ -533,66 +533,61 @@ class ZextInst : public Instruction {
 public:
     static ZextInst *createZext(Value *val, Type *ty, BasicBlock *bb);
 
-    Type *getDestType() const { return dest_ty_; }
+    Type *getDestType() const { return getType(); }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        return new ZextInst(getInstrType(),getOperand(0),dest_ty_,bb);
+        return new ZextInst( getOperand(0),getDestType(),bb);
     }
 
     //后端遍历
     virtual void accept(IRVisitor &visitor) final;
 
 private:
-    ZextInst(OpID op, Value *val, Type *ty, BasicBlock *bb);
+    ZextInst( Value *val, Type *ty, BasicBlock *bb);
 
 private:
-  Type *dest_ty_;
 };
 
 class SiToFpInst : public Instruction {
 public:
     static SiToFpInst *createSiToFp(Value *val, Type *ty, BasicBlock *bb);
 
-    Type *getDestType() const { return dest_ty_; }
+    Type *getDestType() const { return getType(); }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        return new SiToFpInst(getInstrType(), getOperand(0), getDestType(), bb);
+        return new SiToFpInst( getOperand(0), getDestType(), bb);
     }
 
     //后端遍历
     virtual void accept(IRVisitor &visitor) final;
 
 private:
-    SiToFpInst(OpID op, Value *val, Type *ty, BasicBlock *bb);
+    SiToFpInst( Value *val, Type *ty, BasicBlock *bb);
 
-private:
-    Type *dest_ty_;
 };
 
 class FpToSiInst : public Instruction {
 public:
     static FpToSiInst *createFpToSi(Value *val, Type *ty, BasicBlock *bb);
 
-    Type *getDestType() const { return dest_ty_; }
+    Type *getDestType() const { return getType(); }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        return new FpToSiInst(getInstrType(), getOperand(0), getDestType(), bb);
+        return new FpToSiInst( getOperand(0), getDestType(), bb);
     }
 
     //后端遍历
     virtual void accept(IRVisitor &visitor) final;
 
 private:
-    FpToSiInst(OpID op, Value *val, Type *ty, BasicBlock *bb);
+    FpToSiInst( Value *val, Type *ty, BasicBlock *bb);
 
-private:
-    Type *dest_ty_;
 };
 
 class PhiInst : public Instruction {
