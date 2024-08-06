@@ -133,8 +133,6 @@ public:
     //// Return the function this instruction belongs to.
     Function *getFunction();
     
-    Module *getModule();
-
     bool isVoid() {
         return ((op_id_ == OpID::ret) || (op_id_ == OpID::br) || (op_id_ == OpID::store) || (op_id_ == OpID::cmpbr) || (op_id_ == OpID::fcmpbr) || (op_id_ == OpID::storeoffset) || (op_id_ == OpID::memset) ||
                 (op_id_ == OpID::call && this->getType()->isVoidType()));
