@@ -17,13 +17,7 @@ GlobalVariable *GlobalVariable::create(std::string name, Module *m, Type *ty,
 }
 
 std::string GlobalVariable::print() {
-    std::string global_val_ir;
-    global_val_ir += "@" + this->getName();
-    global_val_ir += " = ";
-    global_val_ir += (this->isConst() ? "constant " : "global ");
-    global_val_ir += this->getType()->getPointerElementType()->print();
-    global_val_ir += " ";
-    global_val_ir += this->getInit()->print();
-    global_val_ir += "\n";
-    return global_val_ir;
+    return    
+        "@" + this->getName()+ " = "+ (this->isConst() ? "constant " : "global ")+ 
+        this->getType()->getPointerElementType()->print()+ " "+ this->getInit()->print()+ "\n";
 }
