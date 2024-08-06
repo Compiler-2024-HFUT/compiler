@@ -35,12 +35,9 @@ struct true_false_BB {
     BasicBlock *falseBB = nullptr;
 };                              //& used for backpatching
 
-static std::list<true_false_BB> IF_WHILE_Cond_Stack; //& used for Cond
-static std::list<true_false_BB> While_Stack;         //& used for break and continue
+static std::vector<true_false_BB> IF_WHILE_COND_STACK; //& used for Cond
+static std::vector<true_false_BB> WHILE_STACK;         //& used for break and continue
 
-
-
-static std::vector<BasicBlock*> cur_basic_block_list;
 
 static Function *cur_fun = nullptr;    //& function that is being built
 // static BasicBlock *entry_block_of_cur_fun;
@@ -139,7 +136,6 @@ void IRGen::visit(ast::FuncDef &node) {
         // create entry block, which alloc params
         auto entryBB = BasicBlock::create( "entry_"+node.name, fun);
         cur_block_of_cur_fun = entryBB;
-        cur_basic_block_list.push_back(entryBB);
     // }
 
     // alloc params, it should be in vist funcParams!!!!!
@@ -214,7 +210,6 @@ void IRGen::visit(ast::FuncDef &node) {
         BranchInst::createBr(ret_BB, cur_block_of_cur_fun);
     }
 
-    cur_basic_block_list.pop_back();
     cur_block_of_cur_fun = ret_BB;
     if(fun->getReturnType() == VOID_T) {
         ReturnInst::createVoidRet(ret_BB);
@@ -810,10 +805,10 @@ void IRGen::visit(ast::AndExp &node) {
         }else
             assert(0&&"illgeal type");
     BasicBlock*false_bb;
-    if(IF_WHILE_Cond_Stack.empty())
+    if(IF_WHILE_COND_STACK.empty())
         false_bb=BasicBlock::create( "", cur_fun);
     else
-        false_bb=IF_WHILE_Cond_Stack.back().falseBB;
+        false_bb=IF_WHILE_COND_STACK.back().falseBB;
     BasicBlock* cur_bb=cur_block_of_cur_fun;
     // BranchInst::createCondBr(cond_val, true_BB, false_bb, cur_block_of_cur_fun);
     
@@ -821,7 +816,7 @@ void IRGen::visit(ast::AndExp &node) {
     // IF_WHILE_Cond_Stack.push_back({true_BB,IF_WHILE_Cond_Stack.back().falseBB});
     node.rhs->accept(*this);
     // IF_WHILE_Cond_Stack.pop_back();
-    if(false_bb->getInstructions().empty()&&IF_WHILE_Cond_Stack.empty()){
+    if(false_bb->getInstructions().empty()&&IF_WHILE_COND_STACK.empty()){
         BranchInst::createBr(true_BB,  cur_bb);
         false_bb->eraseFromParent();
     }else
@@ -829,15 +824,15 @@ void IRGen::visit(ast::AndExp &node) {
 }
 void IRGen::visit(ast::ORExp &node){
     BasicBlock* true_BB;
-    if(!IF_WHILE_Cond_Stack.empty()){
-        true_BB = IF_WHILE_Cond_Stack.back().trueBB;
+    if(!IF_WHILE_COND_STACK.empty()){
+        true_BB = IF_WHILE_COND_STACK.back().trueBB;
         //false1_BB=IF_WHILE_Cond_Stack.back().falseBB;
     }else{
         true_BB = BasicBlock::create( "", cur_fun);
     }
     auto false_BB = BasicBlock::create( "", cur_fun);
     require_lvalue = false;
-    IF_WHILE_Cond_Stack.push_back({true_BB,false_BB});
+    IF_WHILE_COND_STACK.push_back({true_BB,false_BB});
     node.lhs->accept(*this);
         
         Value *cond_val;
@@ -864,16 +859,16 @@ void IRGen::visit(ast::ORExp &node){
     BasicBlock* cur_bb=cur_block_of_cur_fun;
     
     cur_block_of_cur_fun=false_BB;
-    IF_WHILE_Cond_Stack.pop_back();
+    IF_WHILE_COND_STACK.pop_back();
     
     node.rhs->accept(*this);
     // IF_WHILE_Cond_Stack.push_back({true_BB,false1_BB});
     // BranchInst::createCondBr(cond_val, true_BB, false1_BB, cur_block_of_cur_fun);
     // cur_block_of_cur_fun=true_BB
-    if(IF_WHILE_Cond_Stack.empty()){
+    if(IF_WHILE_COND_STACK.empty()){
         cur_block_of_cur_fun=true_BB;
     }
-    if(false_BB->getInstructions().empty()&&IF_WHILE_Cond_Stack.empty()){
+    if(false_BB->getInstructions().empty()&&IF_WHILE_COND_STACK.empty()){
         BranchInst::createBr(true_BB,  cur_bb);
         false_BB->eraseFromParent();
     }else
@@ -1249,14 +1244,14 @@ void IRGen::visit(ast::IfStmt &node) {
     auto false_bb = BasicBlock::create( "", cur_fun);
     auto next_bb = BasicBlock::create( "", cur_fun);
 
-    IF_WHILE_Cond_Stack.push_back({nullptr, nullptr});
-    IF_WHILE_Cond_Stack.back().trueBB = true_bb;
+    IF_WHILE_COND_STACK.push_back({nullptr, nullptr});
+    IF_WHILE_COND_STACK.back().trueBB = true_bb;
    
     if(node.else_stmt == nullptr){
-        IF_WHILE_Cond_Stack.back().falseBB = next_bb;
+        IF_WHILE_COND_STACK.back().falseBB = next_bb;
     }
     else{
-        IF_WHILE_Cond_Stack.back().falseBB = false_bb;
+        IF_WHILE_COND_STACK.back().falseBB = false_bb;
     }
 
    // is_init_val = false;
@@ -1265,7 +1260,7 @@ void IRGen::visit(ast::IfStmt &node) {
 
     // tmp_val=CmpInst::createCmp(CmpOp::NE,CONST_INT(0),tmp_val,cur_block_of_cur_fun);
 
-    IF_WHILE_Cond_Stack.pop_back();
+    IF_WHILE_COND_STACK.pop_back();
 
     //生成比较指令
     Value* inst_cmp;
@@ -1292,9 +1287,7 @@ void IRGen::visit(ast::IfStmt &node) {
     if(node.else_stmt==nullptr) BranchInst::createCondBr(inst_cmp, true_bb, next_bb, cur_block_of_cur_fun);
     else    BranchInst::createCondBr(inst_cmp, true_bb, false_bb, cur_block_of_cur_fun);
 
-    cur_basic_block_list.pop_back();
     cur_block_of_cur_fun = true_bb;
-    cur_basic_block_list.push_back(true_bb);
   
     if(dynamic_cast<ast::BlockStmt*>(node.then_stmt.get()))  
         node.then_stmt->accept(*this);
@@ -1305,11 +1298,9 @@ void IRGen::visit(ast::IfStmt &node) {
     }
    
     if(cur_block_of_cur_fun->getTerminator()==nullptr)  BranchInst::createBr(next_bb, cur_block_of_cur_fun);
-    cur_basic_block_list.pop_back();
     if(node.else_stmt==nullptr) false_bb->eraseFromParent();
     else{
         cur_block_of_cur_fun=false_bb;
-        cur_basic_block_list.push_back(false_bb);
         if(dynamic_cast<ast::BlockStmt*>(node.else_stmt.get())) 
             node.else_stmt->accept(*this);
         else{
@@ -1318,10 +1309,8 @@ void IRGen::visit(ast::IfStmt &node) {
             scope.exit();
         }
         if(cur_block_of_cur_fun->getTerminator()==nullptr)  BranchInst::createBr(next_bb, cur_block_of_cur_fun);
-        cur_basic_block_list.pop_back();
     }
-   cur_block_of_cur_fun=next_bb;
-    cur_basic_block_list.push_back(next_bb);
+    cur_block_of_cur_fun=next_bb;
     if(next_bb->getPreBasicBlocks().size()==0){
         cur_block_of_cur_fun = true_bb;
         next_bb->eraseFromParent();
@@ -1335,13 +1324,12 @@ void IRGen::visit(ast::WhileStmt &node){
     auto next_bb = BasicBlock::create("", cur_fun);
     
     if(cur_block_of_cur_fun->getTerminator()==nullptr)  BranchInst::createBr(pred_bb, cur_block_of_cur_fun);
-    cur_basic_block_list.pop_back();
     cur_block_of_cur_fun = pred_bb;
-    IF_WHILE_Cond_Stack.push_back({iter_bb, next_bb});
+    IF_WHILE_COND_STACK.push_back({iter_bb, next_bb});
     node.pred->accept(*this);
     
-    IF_WHILE_Cond_Stack.pop_back();
-    While_Stack.push_back({pred_bb,next_bb});
+    IF_WHILE_COND_STACK.pop_back();
+    WHILE_STACK.push_back({pred_bb,next_bb});
     Value * inst_cmp;
     if(tmp_val->getType()==INT1_T)  inst_cmp = tmp_val;
     else if(tmp_val->getType()==INT32_T){
@@ -1358,7 +1346,6 @@ void IRGen::visit(ast::WhileStmt &node){
 
     BranchInst::createCondBr(inst_cmp, iter_bb, next_bb, cur_block_of_cur_fun);
     cur_block_of_cur_fun = iter_bb;
-    cur_basic_block_list.push_back(iter_bb);
     if(dynamic_cast<ast::BlockStmt*>(node.loop_stmt.get())) node.loop_stmt->accept(*this);
     else{
         scope.enter();
@@ -1367,10 +1354,8 @@ void IRGen::visit(ast::WhileStmt &node){
     }
 
     if(cur_block_of_cur_fun->getTerminator()==nullptr)  BranchInst::createBr(pred_bb, cur_block_of_cur_fun);
-    cur_basic_block_list.pop_back();
     cur_block_of_cur_fun = next_bb;
-    cur_basic_block_list.push_back(next_bb);
-    While_Stack.pop_back();
+    WHILE_STACK.pop_back();
     
     if_while_stack.pop_back();
 }
@@ -1457,10 +1442,10 @@ void IRGen::visit(ast::RetStmt &node) {
         real_ret=true;
 }
 void IRGen::visit(ast::ContinueStmt &node){
-    BranchInst::createBr(While_Stack.back().trueBB,cur_block_of_cur_fun);
+    BranchInst::createBr(WHILE_STACK.back().trueBB,cur_block_of_cur_fun);
 }
 void IRGen::visit(ast::BreakStmt &node) {
-    BranchInst::createBr(While_Stack.back().falseBB, cur_block_of_cur_fun);
+    BranchInst::createBr(WHILE_STACK.back().falseBB, cur_block_of_cur_fun);
 }
 void IRGen::visit(ast::EmptyStmt &node) {}
 
