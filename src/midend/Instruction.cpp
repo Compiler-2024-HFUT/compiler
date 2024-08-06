@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <array>
 
 #include "midend/BasicBlock.hpp"
@@ -70,29 +69,6 @@ static std::array<std::string,6> const FCMP2STR={
 __attribute__((always_inline)) std::string FCmp2String(CmpOp op){
     return FCMP2STR[op];
 }
-std::string printAsOp(Value *v) {
-    if (dynamic_cast<GlobalVariable *>(v)||dynamic_cast<Function *>(v)) {
-        return "@" + v->getName();
-    } else if (dynamic_cast<Constant *>(v)) {
-        return v->print();
-    } else {
-        return "%" + v->getName();
-    }
-}
-
-std::string printAsOpWithType(Value *v) {
-    std::string ret=v->getType()->print();
-    ret += " ";
-    if (dynamic_cast<GlobalVariable *>(v)||dynamic_cast<Function *>(v)) {
-        ret += "@" + v->getName();
-    } else if (dynamic_cast<Constant *>(v)) {
-        ret += v->print();
-    } else {
-        ret += "%" + v->getName();
-    }
-    return ret;
-}
-
 
 //& Instruction
 Instruction::Instruction(Type *ty, OpID id, unsigned num_ops, BasicBlock *parent)
@@ -202,26 +178,6 @@ BinaryInst *BinaryInst::createLsr64(Value *v1, Value *v2, BasicBlock *bb) {
 }
 
 
-
-std::string BinaryInst::print() {
-    std::string instr_ir;
-    instr_ir += "%";
-    instr_ir += this->getName();
-    instr_ir += " = ";
-    instr_ir += OpID2String(this->getInstrType());
-    instr_ir += " ";
-    instr_ir += this->getOperand(0)->getType()->print();
-    instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0));
-    instr_ir += ", ";
-    if (Type::isEqType(this->getOperand(0)->getType(), this->getOperand(1)->getType())) {
-        instr_ir += printAsOp(this->getOperand(1));
-    } else {
-        instr_ir += printAsOpWithType(this->getOperand(1));
-    }
-    return instr_ir;
-}
-
 //& CmpInst
 CmpInst::CmpInst(Type *ty, CmpOp op, Value *lhs, Value *rhs, BasicBlock *bb)
     : Instruction(ty, Instruction::OpID::cmp, 2, bb), cmp_op_(op) {
@@ -258,28 +214,6 @@ void CmpInst::negation() {
     }
     return ;
 }
-
-std::string CmpInst::print() {
-    std::string instr_ir;
-    instr_ir += "%";
-    instr_ir += this->getName();
-    instr_ir += " = ";
-    instr_ir += OpID2String(this->getInstrType());
-    instr_ir += " ";
-    instr_ir += Cmp2String(this->cmp_op_);
-    instr_ir += " ";
-    instr_ir += this->getOperand(0)->getType()->print();
-    instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0));
-    instr_ir += ", ";
-    if (Type::isEqType(this->getOperand(0)->getType(), this->getOperand(1)->getType())) {
-        instr_ir += printAsOp(this->getOperand(1));
-    } else {
-        instr_ir += printAsOpWithType(this->getOperand(1));
-    }
-    return instr_ir;
-}
-
 
 //& FCmpInst
 
@@ -319,26 +253,6 @@ void FCmpInst::negation() {
     return ;
 }
 
-std::string FCmpInst::print() {
-    std::string instr_ir;
-    instr_ir += "%";
-    instr_ir += this->getName();
-    instr_ir += " = ";
-    instr_ir += OpID2String(this->getInstrType());
-    instr_ir += " ";
-    instr_ir += FCmp2String(this->cmp_op_);
-    instr_ir += " ";
-    instr_ir += this->getOperand(0)->getType()->print();
-    instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0));
-    instr_ir += ",";
-    if (Type::isEqType(this->getOperand(0)->getType(), this->getOperand(1)->getType())) {
-        instr_ir += printAsOp(this->getOperand(1));
-    } else {
-        instr_ir += printAsOpWithType(this->getOperand(1));
-    }
-    return instr_ir;
-}
 
 //& CallInst
 CallInst::CallInst(Function *func, std::vector<Value *> args, BasicBlock *bb)
@@ -361,32 +275,6 @@ CallInst::CallInst(Type *ret_ty, std::vector<Value *> args, BasicBlock *bb)
 
 CallInst *CallInst::createCall(Function *func, std::vector<Value *> args, BasicBlock *bb) {
     return new CallInst(func, args, bb);
-}
-
-std::string CallInst::print() {
-    std::string instr_ir;
-    if (!this->isVoid()) {
-        instr_ir += "%";
-        instr_ir += this->getName();
-        instr_ir += " = ";
-    }
-    instr_ir += OpID2String(this->getInstrType());
-    instr_ir += " ";
-    instr_ir += this->getFunctionType()->getReturnType()->print();
-
-    instr_ir += " ";
-    assert(dynamic_cast<Function *>(this->getOperand(0)) && "Wrong call operand function");
-    instr_ir += printAsOp(this->getOperand(0));
-    instr_ir += "(";
-    for (int i = 1; i < this->getNumOperands(); i++) {
-        if (i > 1)
-            instr_ir += ", ";
-        instr_ir += this->getOperand(i)->getType()->print();
-        instr_ir += " ";
-        instr_ir += printAsOp(this->getOperand(i));
-    }
-    instr_ir += ")";
-    return instr_ir;
 }
 
 //& BranchInst
@@ -428,20 +316,6 @@ BranchInst *BranchInst::createBr(BasicBlock *if_true, BasicBlock *bb) {
     return new BranchInst(if_true, bb);
 }
 
-std::string BranchInst::print() {
-    std::string instr_ir;
-    instr_ir += OpID2String(this->getInstrType());
-    instr_ir += " ";
-    //// instr_ir += this->getOperand(0)->getType()->print();
-    instr_ir += printAsOpWithType(this->getOperand(0));
-    if (isCondBr()) {
-        instr_ir += ", ";
-        instr_ir += printAsOpWithType(this->getOperand(1));
-        instr_ir += ", ";
-        instr_ir += printAsOpWithType(this->getOperand(2));
-    }
-    return instr_ir;
-}
 
 //& ReturnInst
 
@@ -461,21 +335,6 @@ ReturnInst *ReturnInst::createRet(Value *val, BasicBlock *bb) {
 
 ReturnInst *ReturnInst::createVoidRet(BasicBlock *bb) {
     return new ReturnInst(bb);
-}
-
-std::string ReturnInst::print() {
-    std::string instr_ir;
-    instr_ir += OpID2String(this->getInstrType());
-    instr_ir += " ";
-    if (!isVoidRet()) {
-        instr_ir += this->getOperand(0)->getType()->print();
-        instr_ir += " ";
-        instr_ir += printAsOp(this->getOperand(0));
-    } else {
-        instr_ir += "void";
-    }
-
-    return instr_ir;
 }
 
 //& GetElementPtrInst
@@ -510,27 +369,6 @@ Type *GetElementPtrInst::getElementType(Value *ptr, std::vector<Value *> idxs) {
 GetElementPtrInst *GetElementPtrInst::createGep(Value *ptr, std::vector<Value *> idxs, BasicBlock *bb) {
     return new GetElementPtrInst(ptr, idxs, bb);
 }
-
-std::string GetElementPtrInst::print() {
-    std::string instr_ir;
-    instr_ir += "%";
-    instr_ir += this->getName();
-    instr_ir += " = ";
-    instr_ir += OpID2String(this->getInstrType());
-    instr_ir += " ";
-    assert(this->getOperand(0)->getType()->isPointerType());
-    instr_ir += this->getOperand(0)->getType()->getPointerElementType()->print();
-    instr_ir += ", ";
-    for (int i = 0; i < this->getNumOperands(); i++) {
-        if (i > 0)
-            instr_ir += ", ";
-        instr_ir += this->getOperand(i)->getType()->print();
-        instr_ir += " ";
-        instr_ir += printAsOp(this->getOperand(i));
-    }
-    return instr_ir;
-}
-
 //& StoreInst
 StoreInst::StoreInst(Value *val, Value *ptr, BasicBlock *bb)
     : Instruction(Type::getVoidType(), Instruction::OpID::store, 2, bb) {
@@ -540,12 +378,6 @@ StoreInst::StoreInst(Value *val, Value *ptr, BasicBlock *bb)
 
 StoreInst *StoreInst::createStore(Value *val, Value *ptr, BasicBlock *bb) {
     return new StoreInst(val, ptr, bb);
-}
-
-std::string StoreInst::print() {
-    return
-        OpID2String(this->getInstrType())+ " "+ this->getOperand(0)->getType()->print()+ " "
-        + printAsOp(this->getOperand(0))+ ", "+printAsOpWithType(this->getOperand(1));
 }
 
 //& MemsetInst
@@ -558,13 +390,6 @@ MemsetInst *MemsetInst::createMemset(Value *ptr, BasicBlock *bb) {
     return new MemsetInst(ptr, bb);
 }
 
-std::string MemsetInst::print() {
-    std::string instr_ir;
-    instr_ir += OpID2String(this->getInstrType());
-    instr_ir += " ";
-    instr_ir += printAsOpWithType(this->getOperand(0));
-    return instr_ir;
-}
 
 //& LoadInst
 LoadInst::LoadInst(Type *ty, Value *ptr, BasicBlock *bb)
@@ -578,20 +403,6 @@ LoadInst *LoadInst::createLoad(Type *ty, Value *ptr, BasicBlock *bb) {
     return new LoadInst(ty, ptr, bb);
 }
 
-std::string LoadInst::print() {
-    assert(this->getOperand(0)->getType()->isPointerType());
-    std::string instr_ir;
-    instr_ir += "%";
-    instr_ir += this->getName();
-    instr_ir += " = ";
-    instr_ir += OpID2String(this->getInstrType());
-    instr_ir += " ";
-    instr_ir += this->getOperand(0)->getType()->getPointerElementType()->print();
-    instr_ir += ",";
-    instr_ir += " ";
-    instr_ir += printAsOpWithType(this->getOperand(0));
-    return instr_ir;
-}
 
 //& AllocInst
 AllocaInst::AllocaInst(Type *ty, BasicBlock *bb)
@@ -603,17 +414,6 @@ AllocaInst *AllocaInst::createAlloca(Type *ty, BasicBlock *bb) {
     return new AllocaInst(ty, bb);
 }
 
-std::string AllocaInst::print() {
-    std::string instr_ir;
-    instr_ir += "%";
-    instr_ir += this->getName();
-    instr_ir += " = ";
-    instr_ir += OpID2String(this->getInstrType());
-    instr_ir += " ";
-    instr_ir += getAllocaType()->print();
-    return instr_ir;
-}
-
 //& ZextInst
 ZextInst::ZextInst( Value *val, Type *ty, BasicBlock *bb)
     : Instruction(ty, Instruction::OpID::zext, 1, bb) {
@@ -623,22 +423,6 @@ ZextInst::ZextInst( Value *val, Type *ty, BasicBlock *bb)
 ZextInst *ZextInst::createZext(Value *val, Type *ty, BasicBlock *bb) {
     return new ZextInst(val, ty, bb);
 }
-
-std::string ZextInst::print() {
-    std::string instr_ir;
-    instr_ir += "%";
-    instr_ir += this->getName();
-    instr_ir += " = ";
-    instr_ir += OpID2String(this->getInstrType());
-    instr_ir += " ";
-    instr_ir += this->getOperand(0)->getType()->print();
-    instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0));
-    instr_ir += " to ";
-    instr_ir += this->getType()->print();
-    return instr_ir;
-}
-
 //& FpToSiInst
 FpToSiInst::FpToSiInst( Value *val, Type *ty, BasicBlock *bb)
     : Instruction(ty, Instruction::OpID::fptosi, 1, bb) {
@@ -647,13 +431,6 @@ FpToSiInst::FpToSiInst( Value *val, Type *ty, BasicBlock *bb)
 
 FpToSiInst *FpToSiInst::createFpToSi(Value *val, Type *ty, BasicBlock *bb) {
     return new FpToSiInst( val, ty, bb);
-}
-
-std::string FpToSiInst::print() {
-    
-    return 
-        "%"+this->getName()+" = "+OpID2String(this->getInstrType())+" "+this->getOperand(0)->getType()->print()
-        +" "+printAsOp(this->getOperand(0))+" to "+this->getDestType()->print();
 }
 
 //& SiToFpInst
@@ -666,11 +443,6 @@ SiToFpInst *SiToFpInst::createSiToFp(Value *val, Type *ty, BasicBlock *bb) {
     return new SiToFpInst( val, ty, bb);
 }
 
-std::string SiToFpInst::print() {
-    return    
-        "%"+this->getName()+" = "+OpID2String(this->getInstrType())+" "+this->getOperand(0)->getType()->print()
-        +" "+printAsOp(this->getOperand(0))+" to "+this->getDestType()->print();
-}
 
 //& PhiInst
 PhiInst::PhiInst(OpID op, std::vector<Value *> vals, std::vector<BasicBlock *> val_bbs, Type *ty, BasicBlock *bb)
@@ -686,35 +458,6 @@ PhiInst *PhiInst::createPhi(Type *ty, BasicBlock *bb) {
     return new PhiInst(Instruction::OpID::phi, {}, {}, ty, bb);
 }
 
-std::string PhiInst::print() {
-    std::string instr_ir;
-    instr_ir += "%";
-    instr_ir += this->getName();
-    instr_ir += " = ";
-    instr_ir += OpID2String(this->getInstrType());
-    instr_ir += " ";
-    instr_ir += this->getOperand(0)->getType()->print();
-    instr_ir += " ";
-    for (int i = 0; i < this->getNumOperands() / 2; i++) {
-        if (i > 0)
-            instr_ir += ", ";
-        instr_ir += "[ ";
-        instr_ir += printAsOp(this->getOperand(2 * i));
-        instr_ir += ", ";
-        instr_ir += printAsOp(this->getOperand(2 * i + 1));
-        instr_ir += " ]";
-    }
-    if (this->getNumOperands() / 2 < this->getParent()->getPreBasicBlocks().size()) {
-        for (auto pre_bb : this->getParent()->getPreBasicBlocks()) {
-            if (std::find(this->getOperands().begin(), this->getOperands().end(), static_cast<Value *>(pre_bb)) ==
-                this->getOperands().end()) {
-                // find a pre_bb is not in phi
-                instr_ir += ", [ undef, " + printAsOp(pre_bb) + " ]";
-            }
-        }
-    }
-    return instr_ir;
-}
 
 CmpBrInst::CmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb)
         :Instruction(Type::getVoidType(), Instruction::OpID::cmpbr, 4, bb), cmp_op_(op) {
@@ -741,46 +484,6 @@ CmpBrInst *CmpBrInst::createCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBlock *
     return new CmpBrInst(op, lhs, rhs, if_true, if_false, bb);
 }
 
-std::string CmpBrInst::print() {
-    static int cmp_num=0;
-    std::string cmp_name="cmpbr"+std::to_string(cmp_num++);
-    std::string instr_ir;
-    instr_ir += "%";
-    // instr_ir += this->getName();
-    instr_ir+=cmp_name;
-    instr_ir += " = ";
-    // instr_ir += OpID2String(this->getInstrType());
-    instr_ir+="icmp";
-    instr_ir += " ";
-    instr_ir += Cmp2String(this->cmp_op_);
-    instr_ir += " ";
-    instr_ir += this->getOperand(0)->getType()->print();
-    instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0));
-    instr_ir += ", ";
-    if (Type::isEqType(this->getOperand(0)->getType(), this->getOperand(1)->getType())) {
-        instr_ir += printAsOp(this->getOperand(1));
-    } else {
-        instr_ir += printAsOpWithType(this->getOperand(1));
-    }
-    instr_ir+="\n\t";
-    // instr_ir += OpID2String(this->getInstrType());
-    instr_ir+="br";
-    instr_ir += " ";
-    //// instr_ir += this->getOperand(0)->getType()->print();
-    // instr_ir += printAsOpWithType(this->getOperand(0));
-    instr_ir+="i1 %";
-    instr_ir+=cmp_name;
-
-    // if (isCondBr()) {
-        instr_ir += ", ";
-        instr_ir += printAsOpWithType(this->getOperand(2));
-        instr_ir += ", ";
-        instr_ir += printAsOpWithType(this->getOperand(3));
-    // }
-    return instr_ir;
-}
-
 FCmpBrInst::FCmpBrInst(CmpOp op, Value *lhs, Value *rhs, BasicBlock *if_true, BasicBlock *if_false, BasicBlock *bb)
         :Instruction(Type::getVoidType(), Instruction::OpID::fcmpbr, 4, bb), cmp_op_(op) {
     setOperand(2, if_true);
@@ -804,47 +507,6 @@ FCmpBrInst *FCmpBrInst::createFCmpBr(CmpOp op, Value *lhs, Value *rhs, BasicBloc
     return new FCmpBrInst(op, lhs, rhs, if_true, if_false, bb);
 }
 
-std::string FCmpBrInst::print() {
-    static int cmp_num=0;
-    std::string cmp_name="fcmpbr"+std::to_string(cmp_num++);
-    std::string instr_ir;
-    instr_ir += "%";
-    // instr_ir += this->getName();
-    instr_ir+=cmp_name;
-    instr_ir += " = ";
-    // instr_ir += OpID2String(this->getInstrType());
-    instr_ir+="fcmp";
-    instr_ir += " ";
-    instr_ir += FCmp2String(this->cmp_op_);
-    instr_ir += " ";
-    instr_ir += this->getOperand(0)->getType()->print();
-    instr_ir += " ";
-    instr_ir += printAsOp(this->getOperand(0));
-    instr_ir += ", ";
-    if (Type::isEqType(this->getOperand(0)->getType(), this->getOperand(1)->getType())) {
-        instr_ir += printAsOp(this->getOperand(1));
-    } else {
-        instr_ir += printAsOpWithType(this->getOperand(1));
-    }
-    instr_ir+="\n\t";
-    // instr_ir += OpID2String(this->getInstrType());
-    instr_ir+="br";
-    instr_ir += " ";
-    //// instr_ir += this->getOperand(0)->getType()->print();
-    // instr_ir += printAsOpWithType(this->getOperand(0));
-    instr_ir+="i1 %";
-    instr_ir+=cmp_name;
-
-    // if (isCondBr()) {
-        instr_ir += ", ";
-        instr_ir += printAsOpWithType(this->getOperand(2));
-        instr_ir += ", ";
-        instr_ir += printAsOpWithType(this->getOperand(3));
-    // }
-    return instr_ir;
-
-}
-
 LoadOffsetInst::LoadOffsetInst(Type *ty, Value *ptr, Value *offset, BasicBlock *bb)
     : Instruction(ty, Instruction::OpID::loadoffset, 2, bb) {
     setOperand(0, ptr);
@@ -862,34 +524,6 @@ LoadOffsetInst *LoadOffsetInst::createLoadOffset(Type *ty, Value *ptr, Value *of
 
 Type *LoadOffsetInst::getLoadType() const {
     return static_cast<PointerType *>(getOperand(0)->getType())->getElementType();
-}
-
-std::string LoadOffsetInst::print() {
-    std::string instr_ir;
-    if (!this->isVoid()) {
-        instr_ir += "%";
-        instr_ir += this->getName();
-        instr_ir += " =  call";
-    }
-    // instr_ir += OpID2String(this->getInstrType());
-    instr_ir += " ";
-    instr_ir += this->getType()->print();
-    instr_ir += " ";
-    if(this->getType()->isIntegerType()){
-        instr_ir+="@loadoffset_i";
-    }else{
-        instr_ir+="@loadoffset_f";
-    }
-    instr_ir += "(";
-    for (int i = 0; i < this->getNumOperands(); i++) {
-        if (i > 0)
-            instr_ir += " , ";
-        instr_ir += this->getOperand(i)->getType()->print();
-        instr_ir += " ";
-        instr_ir += printAsOp(this->getOperand(i));
-    }
-    instr_ir += ")";
-    return instr_ir;
 }
 
 StoreOffsetInst::StoreOffsetInst(Value *val, Value *ptr, Value *offset, BasicBlock *bb)
@@ -913,31 +547,6 @@ StoreOffsetInst *StoreOffsetInst::createStoreOffset(Value *val, Value *ptr, Valu
     return new StoreOffsetInst(val, ptr, offset, bb);
 }
 
-std::string StoreOffsetInst::print() {
-    std::string instr_ir;
-    instr_ir += "call";
-    // instr_ir += OpID2String(this->getInstrType());
-    instr_ir += " ";
-    instr_ir += this->getType()->print();
-    instr_ir += " ";
-    if(this->getOperand(2)-> getType()->isIntegerType()){
-        instr_ir+="@storeoffset_i";
-    }else{
-        instr_ir+="@storeoffset_f";
-    }
-    instr_ir += "(";
-    for (int i = 0; i < this->getNumOperands(); i++) {
-        if (i > 0)
-            instr_ir += " , ";
-        instr_ir += this->getOperand(i)->getType()->print();
-        instr_ir += " ";
-        instr_ir += printAsOp(this->getOperand(i));
-    }
-    instr_ir += ")";
-    return instr_ir;
-}
-
-
 bool BinaryInst::isNeg(){
     bool ret=false;
     if(getInstrType()==Instruction::OpID::sub){
@@ -957,18 +566,3 @@ SelectInst::SelectInst(Type*type,Value *cond, Value *true_val, Value *false_val,
 SelectInst* SelectInst::createSelect(Type*type,Value *cond, Value *true_val, Value *false_val, BasicBlock *bb){
     return new SelectInst(type,cond, true_val, false_val,bb);
 }
-std::string SelectInst::print() {
-    std::string instr_ir;
-    instr_ir += "%";
-    instr_ir += this->getName();
-    instr_ir += " = ";
-    instr_ir += OpID2String(this->getInstrType());
-    instr_ir += " ";
-    instr_ir += printAsOpWithType(this->getOperand(0));
-    instr_ir += ", ";
-    instr_ir += printAsOpWithType(this->getOperand(1));
-    instr_ir += ", ";
-    instr_ir += printAsOpWithType(this->getOperand(2));
-    return instr_ir;
-}
-

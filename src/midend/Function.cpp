@@ -100,51 +100,6 @@ void Function::setInstrName() {
     seq_cnt_ += seq.size();
 }
 
-std::string Function::print() {
-    setInstrName();
-    std::string func_ir;
-    if (this->isDeclaration()) {
-        func_ir += "declare ";
-    } else {
-        func_ir += "define ";
-    }
-
-    func_ir += this->getReturnType()->print();
-    func_ir += " ";
-    func_ir += "@" + this->getName();
-    func_ir += "(";
-
-    //// print arg
-    if (this->isDeclaration()) {
-        for (int i = 0; i < this->getNumOfArgs(); i++) {
-            if (i)
-                func_ir += ", ";
-            func_ir += static_cast<FunctionType *>(this->getType())->getParamType(i)->print();
-        }
-    } else {
-        for (auto arg = this->argBegin(); arg != argEnd(); arg++) {
-            if (arg != this->argBegin()) {
-                func_ir += ", ";
-            }
-            func_ir += (*arg)->print();
-        }
-    }
-    func_ir += ")";
-
-    //// print bb
-    if (this->isDeclaration()) {
-        func_ir += "\n";
-    } else {
-        func_ir += " {";
-        func_ir += "\n";
-        for (auto &bb : this->getBasicBlocks()) {
-            func_ir += bb->print();
-        }
-        func_ir += "}";
-    }
-
-    return func_ir;
-}
 std::string Function::printGra(){
     ::std::string ret;
 #ifdef DEBUG
@@ -188,7 +143,4 @@ std::string Function::printGra(){
     // ret+="}\n";
 #endif
     return ret;
-}
-std::string Argument::print() {
-    return this->getType()->print()+" %"+this->getName();
 }

@@ -139,15 +139,6 @@ define void @storeoffset_f(float %val , float* %base_addr, i32 %offset){
     ret void
 }
 )";
-    for (auto &global_val : this->globals_list_) {
-        module_ir += global_val->print();
-        module_ir += "\n";
-    }
-    module_ir += "\n";
-    for (auto &func : this->functions_list_) {
-        module_ir += func->print();
-        module_ir += "\n";
-    }
     return module_ir;
 }
 void Module::breakCheck(){

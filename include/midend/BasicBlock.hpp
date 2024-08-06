@@ -69,7 +69,6 @@ public:
 
     BasicBlock *copyBB();
 
-    virtual std::string print() override;
 
 
     //后端遍历

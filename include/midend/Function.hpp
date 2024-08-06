@@ -47,7 +47,6 @@ public:
     void setInstrName();
 
     std::string printGra();
-    std::string print();
 
     //后端遍历
     virtual void accept(IRVisitor &visitor) final;
@@ -82,7 +81,6 @@ public:
       return arg_no_;
     }
 
-    virtual std::string print() override;
 
 private:
     Function *parent_;

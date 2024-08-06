@@ -120,8 +120,8 @@ Modify BrToSelect::runOnFunc(Function*func){
             rhs=cmp->getOperand(1);
         }
         if(lhs!=true_val||rhs!=false_val){
-            std::cout<<true_val->print()<<std::endl;
-            std::cout<<lhs->print()<<std::endl;
+            // std::cout<<true_val->print()<<std::endl;
+            // std::cout<<lhs->print()<<std::endl;
             continue;
         }
         iter=bbs.begin();

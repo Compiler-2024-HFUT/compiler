@@ -254,7 +254,6 @@ public:
     static BinaryInst *createLsl64(Value *v1, Value *v2, BasicBlock *bb);
     static BinaryInst *createLsr64(Value *v1, Value *v2, BasicBlock *bb);
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final {
         return new BinaryInst(getType(), getInstrType(), getOperand(0), getOperand(1), bb);
@@ -289,7 +288,6 @@ public:
 
     void negation();
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final {
         return new CmpInst(getType(), cmp_op_, getOperand(0), getOperand(1), bb);
@@ -314,7 +312,6 @@ class FCmpInst : public Instruction {
 
     void negation();
 
-    virtual std::string print() override;
     Instruction *copyInst(BasicBlock *bb) override final {
         return new FCmpInst(getType(), cmp_op_, getOperand(0), getOperand(1), bb);
     }
@@ -336,7 +333,6 @@ public:
     
     FunctionType *getFunctionType() const { return static_cast<FunctionType *>(getOperand(0)->getType()); }
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         std::vector<Value *> args;
@@ -365,7 +361,6 @@ public:
     bool isCondBr() const { return getNumOperands() == 3; }
     // bool is_extend_cond_br() const { return get_num_operands() == 3 || get_num_operands() == 4; }
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         if (getNumOperands() == 1){
@@ -400,7 +395,6 @@ public:
 
     Type * getRetType() const { return getOperand(0)->getType(); }
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         if (isVoidRet()){
@@ -424,7 +418,6 @@ public:
     static GetElementPtrInst *createGep(Value *ptr, std::vector<Value *> idxs, BasicBlock *bb);
     Type *getElementType() const { return element_ty_; }
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         std::vector<Value *> idxs;
@@ -452,7 +445,6 @@ public:
     Value *getRVal() { return this->getOperand(0); }
     Value *getLVal() { return this->getOperand(1); }
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         return new StoreInst(getOperand(0),getOperand(1),bb);
@@ -472,7 +464,6 @@ public:
 
     Value *getLVal() { return this->getOperand(0); }
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         return new MemsetInst(getOperand(0),bb);
@@ -493,7 +484,6 @@ public:
 
     Type *getLoadType() const { return static_cast<PointerType *>(getOperand(0)->getType())->getElementType(); }
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         return new LoadInst(getType(),getOperand(0),bb);
@@ -513,7 +503,6 @@ public:
 
     Type *getAllocaType() const { return alloca_ty_; }
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         return new AllocaInst(alloca_ty_,bb);
@@ -535,7 +524,6 @@ public:
 
     Type *getDestType() const { return getType(); }
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         return new ZextInst( getOperand(0),getDestType(),bb);
@@ -556,7 +544,6 @@ public:
 
     Type *getDestType() const { return getType(); }
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         return new SiToFpInst( getOperand(0), getDestType(), bb);
@@ -576,7 +563,6 @@ public:
 
     Type *getDestType() const { return getType(); }
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         return new FpToSiInst( getOperand(0), getDestType(), bb);
@@ -617,7 +603,6 @@ public:
         }
     }
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         auto new_inst = createPhi(getType(), bb);
@@ -645,7 +630,6 @@ public:
 
     bool isCmpBr() const;
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         auto new_inst = new CmpBrInst(cmp_op_,getOperand(0),getOperand(1),bb);
@@ -674,7 +658,6 @@ public:
 
     bool isFCmpBr() const;
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         auto new_inst = new FCmpBrInst(cmp_op_,getOperand(0),getOperand(1),bb);
@@ -703,7 +686,6 @@ public:
 
     Type *getLoadType() const;
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         auto new_inst = new LoadOffsetInst(getType(), getOperand(0), bb);
@@ -731,7 +713,6 @@ public:
     Value *getLVal() { return this->getOperand(1); }
     Value *getOffset() { return this->getOperand(2); }
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         auto new_inst = new StoreOffsetInst(getOperand(0), getOperand(1), bb);
@@ -758,7 +739,6 @@ public:
     __attribute__((always_inline)) Value *getTrue() const { return getOperand(1); }
     __attribute__((always_inline)) Value *getFalse() const { return getOperand(2); }
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         return  new SelectInst(this->getType(),getOperand(0),getOperand(1), getOperand(2), bb);

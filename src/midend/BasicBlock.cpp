@@ -116,35 +116,6 @@ void BasicBlock::eraseFromParent() {
     this->getParent()->removeBasicBlock(this); 
 }
 
-std::string BasicBlock::print() {
-    std::string bb_ir;
-    bb_ir += this->getName();
-    bb_ir += ":";
-    //// print prebb
-    if (!this->getPreBasicBlocks().empty()) {
-        bb_ir += "                                                ; preds = ";
-    }
-    for (auto bb : this->getPreBasicBlocks()) {
-        if (bb != *this->getPreBasicBlocks().begin())
-            bb_ir += ", ";
-        bb_ir += "%"+bb->getName();
-    }
-
-    //// print prebb
-    if (!this->getParent()) {
-        bb_ir += "\n";
-        bb_ir += "; Error: Block without parent!";
-    }
-    bb_ir += "\n";
-    for (auto &instr : this->getInstructions()) {
-        bb_ir += "  ";
-        bb_ir += instr->print();
-        bb_ir += "\n";
-    }
-
-    return bb_ir;
-}
-
 // 复制完后的BB无法直接使用，以下内容需要进一步替换：
 // 1. PreBB、SuccBB仍是原来的BB的PreBB、SuccBB
 // 2. phi指令、跳转指令br、cmpbr、fcmpbr的目标

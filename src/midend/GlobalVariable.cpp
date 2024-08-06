@@ -15,9 +15,3 @@ GlobalVariable *GlobalVariable::create(std::string name, Module *m, Type *ty,
                                        Constant *init = nullptr) {
   return new GlobalVariable(name, m, PointerType::get(ty), is_const, init);
 }
-
-std::string GlobalVariable::print() {
-    return    
-        "@" + this->getName()+ " = "+ (this->isConst() ? "constant " : "global ")+ 
-        this->getType()->getPointerElementType()->print()+ " "+ this->getInit()->print()+ "\n";
-}

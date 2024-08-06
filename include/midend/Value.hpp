@@ -61,7 +61,7 @@ public:
 
     __attribute__((always_inline))  bool useOne(){return use_list_.size()==1;}
     __attribute__((always_inline))  bool useEmpty(){return use_list_.empty();}    
-    virtual std::string print() = 0;
+    std::string print(){return "";}
 
 private:
     Type *type_;

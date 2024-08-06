@@ -44,7 +44,6 @@ public:
     static int &getValue(ConstantInt *const_val) { return const_val->val_; }
     int getValue() { return val_; }
 
-    virtual std::string print() override;
     virtual ~ConstantInt(){}
 
 private:
@@ -62,7 +61,6 @@ public:
 
     float &getValue() { return val_; }
     
-    virtual std::string print() override;
     virtual ~ConstantFP(){}
 
 private:
@@ -77,7 +75,6 @@ class ConstantZero : public Constant {
 public:
     static ConstantZero *get(Type *ty);
     
-    virtual std::string print() override;
 private:
     ConstantZero(Type *ty) : Constant(ty, "", 0) {}
 };
@@ -97,7 +94,6 @@ public:
 
     unsigned getSizeOfArray() { return array_size; }
 
-    virtual std::string print() override;
 private:
     ConstantArray(ArrayType *ty, const std::map<int, Value *>&vals, unsigned int size);
 

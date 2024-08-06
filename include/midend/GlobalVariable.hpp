@@ -17,8 +17,6 @@ public:
 
     bool isZeroInitializer() { return dynamic_cast<ConstantZero*>(init_val_) != nullptr; }
     
-    std::string print();
-
 private:
     GlobalVariable(std::string name, Module *m, Type *ty, bool is_const, Constant *init = nullptr);
 

@@ -54,8 +54,6 @@ public:
 
     int getSize();
 
-    std::string print();
-
 private:
     TypeID tid_;
 };

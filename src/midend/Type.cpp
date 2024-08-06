@@ -74,42 +74,6 @@ int Type::getSize() {
     return 0;
 }
 
-std::string Type::print() {
-    std::string type_ir;
-    switch (this->getTypeId()) {
-        case VoidTyID: type_ir += "void"; break;
-        case LabelTyID: type_ir += "label"; break;
-        case IntegerTyID:
-            type_ir += "i";
-            type_ir += std::to_string(static_cast<IntegerType *>(this)->getNumBits());
-            break;
-        case FunctionTyID:
-            type_ir += static_cast<FunctionType *>(this)->getReturnType()->print();
-            type_ir += " (";
-            for (int i = 0; i < static_cast<FunctionType *>(this)->getNumOfArgs(); i++) {
-                if (i)
-                    type_ir += ", ";
-                type_ir += static_cast<FunctionType *>(this)->getParamType(i)->print();
-            }
-            type_ir += ")";
-            break;
-        case PointerTyID:
-            type_ir += this->getPointerElementType()->print();
-            type_ir += "*";
-            break;
-        case ArrayTyID:
-            type_ir += "[";
-            type_ir += std::to_string(static_cast<ArrayType *>(this)->getNumOfElements());
-            type_ir += " x ";
-            type_ir += static_cast<ArrayType *>(this)->getElementType()->print();
-            type_ir += "]";
-            break;
-        case FloatTyID: type_ir += "float"; break;
-    default: break;
-    }
-    return type_ir;
-}
-
 //& IntegerType 
 
 IntegerType *IntegerType::get(unsigned num_bits) {

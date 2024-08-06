@@ -158,7 +158,7 @@ int Compiler::run(){
     else
         buildDefault(pm);
     pm.run();
-    m->print();
+    m->setPrintName();
 
     std::fstream out_file(out_name,std::ios::out|std::ios::trunc);
     if(is_out_llvm){
