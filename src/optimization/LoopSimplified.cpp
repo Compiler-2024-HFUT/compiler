@@ -128,7 +128,10 @@ BB *LoopSimplified::insertPreheader(Loop *loop) {
         preds.push_back(pre);
     }
 
-    preheader = splitBlockByPreBB(header, preds);
+    if(preds.size() == 1)
+        preheader = preds[0];
+    else
+        preheader = splitBlockByPreBB(header, preds);
     return preheader;
 }
 
