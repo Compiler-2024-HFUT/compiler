@@ -31,9 +31,11 @@
 #include "analysis/LoopInfo.hpp"
 #include "analysis/LoopInvariant.hpp"
 #include "analysis/Dataflow.hpp"
+#include "analysis/SCEV.hpp"
 
 #include "optimization/LoopSimplified.hpp"
 #include "optimization/LICM.hpp"
+#include "optimization/LoopUnroll.hpp"
 
 #include "optimization/BreakGEP.hpp"
 #include "optimization/CombineJJ.hpp"
@@ -51,6 +53,7 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addInfo<LiveVar>();
     pm.addInfo<LoopInfo>();
     pm.addInfo<LoopInvariant>();
+    pm.addInfo<SCEV>();
 
     pm.addPass<DeadStoreEli>();    
     pm.addPass<CombinBB>();
@@ -61,6 +64,10 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<InstrCombine>();
     pm.addPass<InstrResolve>();
     pm.addPass<DCE>();
+
+    pm.addPass<LoopSimplified>();
+    pm.addPass<LICM>();
+    pm.addPass<LoopUnroll>();
 
     pm.addPass<FuncInline>();
     pm.addPass<CombinBB>();
@@ -76,13 +83,9 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<CombinBB>();
     pm.addPass<BreakGEP>();
 
-
     pm.addPass<BreakGEP>();
     pm.addPass<DCE>();
     pm.addPass<ValNumbering>();
-
-    pm.addPass<LoopSimplified>();
-    pm.addPass<LICM>();
 
     pm.addPass<CombinBB>();
     pm.addPass<VRE>();

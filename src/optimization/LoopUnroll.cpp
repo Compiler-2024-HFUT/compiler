@@ -181,7 +181,8 @@ void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip, int time) {
     BB *newPreheader = newLoop->getPreheader();
     newPreheader->getPreBasicBlocks().clear();
     vector<BB*> oldExitPreBBToDel = {};
-    for(BB *pre : oldExit->getPreBasicBlocks()) {
+    list<BB*> oldExitPreBB = oldExit->getPreBasicBlocks();
+    for(BB *pre : oldExitPreBB) {
         if(loop->contain(pre)) {
             Instruction *term = pre->getTerminator();
             vector<Value*> ops = term->getOperands();
@@ -189,7 +190,8 @@ void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip, int time) {
                 if(ops[i] == oldExit) {
                     term->replaceOperand(i, newPreheader);
                     pre->removeSuccBasicBlock(oldExit);
-                    oldExitPreBBToDel.push_back(pre);
+                    // 逻辑上不正确，但bug却没了？？
+                    // oldExit->removePreBasicBlock(pre); 
                     pre->addSuccBasicBlock(newPreheader);
                     newPreheader->addPreBasicBlock(pre);
                     break;
@@ -197,8 +199,6 @@ void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip, int time) {
             }
         }
     }
-    for(BB *pre : oldExitPreBBToDel)
-        oldExit->removePreBasicBlock(pre);
     loop->getExits().clear();
     loop->getExits().push_back(newLoop->getPreheader());
 
@@ -282,6 +282,9 @@ void LoopUnroll::unrolEntirelLoop(Loop *loop, LoopTrip trip) {
                 instU->replaceOperand(u.arg_no_, outVal);
             }
         }
+    }
+    for(Instruction *inst : loop->getHeader()->getInstructions()) {
+        inst->removeUseOfOps();
     }
     loop->getHeader()->eraseFromParent();
     info_man_->getInfo<LoopInfo>()->removeLoop(loop);
@@ -411,6 +414,9 @@ void LoopUnroll::unrollEntirelLoopInOneBB(Loop *loop, LoopTrip trip) {
             }
         }
     }
+    for(Instruction *inst : loop->getHeader()->getInstructions()) {
+        inst->removeUseOfOps();
+    }
     loop->getHeader()->eraseFromParent();
     info_man_->getInfo<LoopInfo>()->removeLoop(loop);
 }
@@ -437,6 +443,9 @@ void LoopUnroll::removeLoop(Loop *loop) {
     }
 
     for(BB *block : loop->getBlocks()) {
+        for(Instruction *inst : block->getInstructions()) {
+            inst->removeUseOfOps();
+        }
         block->eraseFromParent();
     }
     info_man_->getInfo<LoopInfo>()->removeLoop(loop);
@@ -465,7 +474,7 @@ void LoopUnroll::visitLoop(Loop *loop) {
         removeLoop(loop);
     } else if(loop->getBlocks().size() == 2 && 
              (loop->getSingleLatch()->getInstructions().size()-1) * trip.step < DIRECT_UNROLLING_SIZE) { 
-        unrollEntirelLoopInOneBB(loop, trip);
+         unrollEntirelLoopInOneBB(loop, trip);
     } else if(trip.step < DIRECT_UNROLLING_TIME) {
         unrolEntirelLoop(loop, trip);
     } else if(trip.step % UNROLLING_TIME == 0) {

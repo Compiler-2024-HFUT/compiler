@@ -42,9 +42,9 @@
 using std::vector;
 
 // Magic Num，后期考虑时间、空间局部性进行修改
-#define UNROLLING_TIME          5     // 循环展开次数
-#define DIRECT_UNROLLING_TIME   100
-#define DIRECT_UNROLLING_SIZE   10000     // 去除循环结构后的最大指令数
+#define UNROLLING_TIME          8     // 循环展开次数
+#define DIRECT_UNROLLING_TIME   64
+#define DIRECT_UNROLLING_SIZE   1024     // 去除循环结构后的最大指令数
 
 class LoopUnroll : public FunctionPass{
     void visitLoop(Loop *loop);
