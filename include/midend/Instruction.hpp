@@ -759,8 +759,6 @@ public:
 
     // Type *getSelectType() const{return getType();}
 
-    virtual std::string print() override;
-
     Instruction *copyInst(BasicBlock *bb) override final{
         return  new LoadImmInst(this->getType(),getOperand(0),bb);
     }
