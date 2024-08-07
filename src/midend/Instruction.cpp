@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <string>
 
 #include "midend/BasicBlock.hpp"
 #include "midend/Function.hpp"
@@ -979,9 +980,7 @@ LoadImmInst* LoadImmInst::createLoadImm(Type*type,Value *cons, BasicBlock *bb){
     return new LoadImmInst(type,cons,bb);
 }
 std::string LoadImmInst::print() {
-    std::string instr_ir;
-    instr_ir += "%";
-    instr_ir += this->getName();
-    instr_ir += " = ";
+    static int num=0;
+    std::string instr_ir="%"+getName()+"= " +(this->getType()->isIntegerType()?"add i32 ":"fadd float ")+"0 ,"+printAsOp(getOperand(0));
     return instr_ir;
 }
