@@ -5,22 +5,11 @@ void AsmGen::visit(Module &node){
     for(auto global_var: asm_unit->getModuleOfAsmUnit()->getGlobalVariables()){
         global_variable_labels_table[global_var] = new Label(global_var->getName());
     }
-    auto reg_alloc = new RegAllocDriver(asm_unit->getModuleOfAsmUnit());
-    PassManager pm{asm_unit->getModuleOfAsmUnit()};
-    pm.addInfo<LiveVar>();
-    pm.addInfo<CIDBB>();
-    pm.addInfo<CLND>();
-    auto lv = pm.getInfo<LiveVar>();
-    lv->analyse();
-    auto cidbb = pm.getInfo<CIDBB>();
-    cidbb->analyse();
-    auto clnd = pm.getInfo<CLND>();
-    clnd->analyse();
-    reg_alloc->compute_reg_alloc(lv, cidbb);
+
     for(auto func:asm_unit->getModuleOfAsmUnit()->getFunctions()){
         if(!func->isDeclaration()){
-        ival2interval = reg_alloc->get_ireg_alloc_in_func(func);
-        fval2interval = reg_alloc->get_freg_alloc_in_func(func);
+        ival2interval = ivalue_interval_map[func];
+        fval2interval = fvalue_interval_map[func];
         asm_unit->addSubroutine(func);
         subroutine = asm_unit->getSubroutine();
         func->accept(*this);
@@ -30,8 +19,112 @@ void AsmGen::visit(Module &node){
 
 void AsmGen::visit(Function &node){
     auto func = &node;
-    
+   ::std::vector<int> reg_iid_s={};
+   ::std::vector<int> reg_fid_s={};
+   //call表，用于存储上一个call，以便保存上一个call的返回寄存器
+   ::std::vector<Instruction*> call_table ={};
+   int iarg_num = func->getIArgs().size();
+   auto iarg_vector = func->getIArgs();
+   int farg_num = func->getFArgs().size();
+   auto farg_vector = func->getFArgs();
+   for(int p = 0; p<iarg_num; p++){
+    auto check = ival2interval.find(iarg_vector[p]);
+    if(check!=ival2interval.end())
+        reg_iid_s.push_back(ival2interval[iarg_vector[p]]->reg);
+   }
 
+   for(int p = 0; p<farg_num; p++){
+    auto check = fval2interval.find(farg_vector[p]);
+    if(check!=fval2interval.end())
+        reg_fid_s.push_back(fval2interval[farg_vector[p]]->reg);
+   }
+
+  
+
+
+   for(auto bb: func->getBasicBlocks()){
+       for(auto inst: bb->getInstructions()){
+           if(inst->isCall()){
+            if(call_table.size()>0){
+                auto pre_call_inst = call_table.back();
+                auto callee_func = dynamic_cast<Function*>(pre_call_inst->getOperand(0));
+                if(!callee_func->getReturnType()->isVoidType()){
+                    if(callee_func->getReturnType()->isFloatType()){
+                        if(fval2interval.find(pre_call_inst)!=fval2interval.end() && fval2interval[pre_call_inst]){
+                            int freg = fval2interval[pre_call_inst]->reg;
+                            reg_fid_s.push_back(freg);
+                        }
+                    }
+                    else{
+                        if(ival2interval.find(pre_call_inst)!=ival2interval.end() && ival2interval[pre_call_inst]){
+                             int ireg = ival2interval[pre_call_inst]->reg;
+                            reg_iid_s.push_back(ireg);
+                        }
+                    }
+                }
+            } 
+                //caller传参
+                ::std::vector<Value*> iargs;
+                ::std::vector<Value*> fargs;
+                ::std::vector<int> para_reg_iids ={};
+                ::std::vector<int> para_reg_fids ={};   
+                for(auto arg: inst->getOperands()) {
+                    if(dynamic_cast<Function*>(arg))
+                        continue;
+                    if(!arg->getType()->isFloatType()) 
+                        iargs.push_back(arg);
+                    if(arg->getType()->isFloatType()) 
+                        fargs.push_back(arg);
+                }
+                int caller_iarg_num = iargs.size();
+                int caller_farg_num = fargs.size();
+
+                for(int i=0; i<caller_iarg_num; i++){
+                    auto check = ival2interval.find(iargs[i]);
+                    if(check!=ival2interval.end()){
+                        para_reg_iids.push_back(ival2interval[iargs[i]]->reg);
+                    }
+                }
+
+                for(int i=0; i<caller_farg_num; i++){
+                    auto check = fval2interval.find(fargs[i]);
+                    if(check!=fval2interval.end()){
+                        para_reg_fids.push_back(fval2interval[fargs[i]]->reg);
+                    }
+                }
+
+
+
+               call_define_ireg_map[inst] = reg_iid_s;
+               call_define_freg_map[inst] = reg_fid_s;
+
+               call_define_ireg_map[inst].insert(call_define_ireg_map[inst].end(), para_reg_iids.begin(), para_reg_iids.end());
+               call_define_freg_map[inst].insert(call_define_freg_map[inst].end(), para_reg_fids.begin(), para_reg_fids.end());
+               call_table.push_back(inst);
+           }
+        else if(inst->isGep()){
+            auto base = inst->getOperand(0);
+            auto global_base = dynamic_cast<GlobalVariable*>(base);
+            auto alloca_base = dynamic_cast<AllocaInst*>(base);
+            auto arg_base = dynamic_cast<Argument*>(base);
+             if(!global_base && !alloca_base) {
+                auto rs = dynamic_cast<GReg*>( getAllocaReg(base));
+                 reg_iid_s.push_back(rs->getID());
+             } 
+             reg_iid_s.push_back(dynamic_cast<GReg*>( getAllocaReg(inst))->getID());
+        }
+           else{
+               auto reg = getAllocaReg(inst);
+               if(dynamic_cast<FReg*>(reg)){
+                   reg_fid_s.push_back(dynamic_cast<FReg*>(reg)->getID());
+               }
+               else if(dynamic_cast<GReg*>(reg)){
+                   reg_iid_s.push_back(dynamic_cast<GReg*>(reg)->getID());
+               }
+           }
+       }
+   }
+    
 
 
     //& record stack info and used tmp regs for inst gen
@@ -89,7 +182,7 @@ void AsmGen::visit(Function &node){
     int iargs_size = 0;
     int fargs_size = 0;
 
-
+    
     used_iregs_pair.first.clear();
     used_iregs_pair.second.clear();
     used_fregs_pair.first.clear();
@@ -126,26 +219,30 @@ void AsmGen::visit(Function &node){
     for(auto iter: ival2interval) {
         Value *val_iter = iter.first;
         Interval *interval_iter = iter.second;
-        if(interval_iter->reg_id >= 0) {
-            auto iter = callee_saved_iregs.find(interval_iter->reg_id);
+        if(interval_iter){
+        if(interval_iter->reg >= 0) {
+            auto iter = callee_saved_iregs.find(interval_iter->reg);
             if(iter != callee_saved_iregs.end()) {
-                used_iregs_pair.second.insert(interval_iter->reg_id);
+                used_iregs_pair.second.insert(interval_iter->reg);
             } else {
-                used_iregs_pair.first.insert(interval_iter->reg_id);
+                used_iregs_pair.first.insert(interval_iter->reg);
             }
+        }
         }
     }
 
     for(auto iter: fval2interval) {
         Value *val_iter = iter.first;
         Interval *interval_iter = iter.second;
-        if(interval_iter->reg_id >= 0) {
-            auto iter = callee_saved_fregs.find(interval_iter->reg_id);
+        if(interval_iter){
+        if(interval_iter->reg >= 0) {
+            auto iter = callee_saved_fregs.find(interval_iter->reg);
             if(iter != callee_saved_fregs.end()) {
-                used_fregs_pair.second.insert(interval_iter->reg_id);
+                used_fregs_pair.second.insert(interval_iter->reg);
             } else {
-                used_fregs_pair.first.insert(interval_iter->reg_id);
+                used_fregs_pair.first.insert(interval_iter->reg);
             }
+        }
         }
     }
 
@@ -160,7 +257,8 @@ void AsmGen::visit(Function &node){
     for(auto iter: ival2interval) {
         Value *val_iter = iter.first;
         Interval *interval_iter = iter.second;
-        if(interval_iter->reg_id < 0) {
+         if(interval_iter){
+        if(interval_iter->reg < 0) {
             auto arg = dynamic_cast<Argument*>(val_iter);
             if(arg && val2stack[static_cast<Value*>(arg)] != nullptr) 
                 continue;
@@ -168,12 +266,14 @@ void AsmGen::visit(Function &node){
             total_size += ((size_of_val_type + 7) / 8) * 8;
             val2stack[val_iter] = new IRIA(static_cast<int>(RISCV::GPR::s0), -total_size);
         }
+         }
     }
 
     for(auto iter: fval2interval) {
         Value *val_iter = iter.first;
         Interval *interval_iter = iter.second;
-        if(interval_iter->reg_id < 0) {
+         if(interval_iter){
+        if(interval_iter->reg < 0) {
             auto arg = dynamic_cast<Argument*>(val_iter);
             if(arg && val2stack[static_cast<Value*>(arg)] != nullptr) 
                 continue;
@@ -181,6 +281,7 @@ void AsmGen::visit(Function &node){
             total_size += ((size_of_val_type + 7) / 8) * 8;
             val2stack[val_iter] = new IRIA(static_cast<int>(RISCV::GPR::s0), -total_size);
         }
+         }
     }
 
     //& handle alloc inst
@@ -301,21 +402,30 @@ void AsmGen::visit(BasicBlock &node){
 
             if(!is_void_call) {
                 if(is_float_call && fval2interval.find(call_inst) != fval2interval.end()) {
-                    call_inst_reg = fval2interval[call_inst]->reg_id;
+                    call_inst_reg = fval2interval[call_inst]->reg;
                 } else if(ival2interval.find(call_inst) != ival2interval.end()) {
-                    call_inst_reg = ival2interval[call_inst]->reg_id;
+                    call_inst_reg = ival2interval[call_inst]->reg;
                 }
             }
 
             for(auto ireg: used_iregs_pair.first) {
                 if(is_int_call && ireg == call_inst_reg)
                     continue;
-                caller_save_iregs.push_back(ireg);
+               if(::std::find(call_define_ireg_map[inst].begin(), call_define_ireg_map[inst].end(), ireg) != call_define_ireg_map[inst].end()){
+                 //   ::std::cout<<"ireg："<<ireg<<::std::endl;
+                   caller_save_iregs.push_back(ireg);
+                }
+                
             }
+
             for(auto freg: used_fregs_pair.first) {
                 if(is_float_call && freg == call_inst_reg)
                     continue;
-                caller_save_fregs.push_back(freg);
+               if(::std::find(call_define_freg_map[inst].begin(), call_define_freg_map[inst].end(), freg) != call_define_freg_map[inst].end()){
+                 //   ::std::cout<<"freg："<<freg<<::std::endl;
+                    caller_save_fregs.push_back(freg);
+                }
+
             }
             for(auto reg: caller_save_iregs) {
                 caller_saved_regs_stack_offset -= 8;
@@ -411,12 +521,12 @@ void AsmGen::visit(BasicBlock &node){
                     continue;
                 }
                 if(opr->getType()->isFloatType()) {
-                    if(fval2interval[opr]->reg_id >= 0) {
-                        inst_freg_id_set.insert(fval2interval[opr]->reg_id);
+                    if(fval2interval[opr]->reg >= 0) {
+                        inst_freg_id_set.insert(fval2interval[opr]->reg);
                     } 
                 } else {
-                    if(ival2interval[opr]->reg_id >= 0) {
-                        inst_ireg_id_set.insert(ival2interval[opr]->reg_id);
+                    if(ival2interval[opr]->reg >= 0) {
+                        inst_ireg_id_set.insert(ival2interval[opr]->reg);
                     } 
                 }
             }
@@ -425,15 +535,15 @@ void AsmGen::visit(BasicBlock &node){
             if(!inst->isVoid() && !dynamic_cast<AllocaInst*>(inst)) {
                 if(inst->getType()->isFloatType()) {
                     auto reg_interval = fval2interval[inst];
-                    if(reg_interval->reg_id < 0) {
+                    if(reg_interval->reg < 0) {
                         if(!cur_tmp_fregs.empty()) {
-                            reg_interval->reg_id = *cur_tmp_fregs.begin();
-                            cur_tmp_fregs.erase(reg_interval->reg_id);
-                            used_tmp_fregs.insert(reg_interval->reg_id);
+                            reg_interval->reg = *cur_tmp_fregs.begin();
+                            cur_tmp_fregs.erase(reg_interval->reg);
+                            used_tmp_fregs.insert(reg_interval->reg);
                         } else {
-                            for(auto freg: all_available_freg_ids) {
+                            for(auto freg: all_alloca_fprs) {
                                 if(inst_freg_id_set.find(freg) == inst_freg_id_set.end()) {
-                                    reg_interval->reg_id = freg;
+                                    reg_interval->reg = freg;
                                     fstore_list.insert(freg);
                                     break;
                                 }
@@ -442,20 +552,20 @@ void AsmGen::visit(BasicBlock &node){
                         use_tmp_regs_interval.insert(reg_interval);
                         to_store_fvals.insert(inst);
                     } 
-                    inst_freg_id_set.insert(reg_interval->reg_id);
-                    if(reg_interval->reg_id < 0) {}
+                    inst_freg_id_set.insert(reg_interval->reg);
+                    if(reg_interval->reg < 0) {}
                      //   LOG(ERROR) << "在为指令生成代码时分配临时寄存器出现异常";
                 } else {
                     auto reg_interval = ival2interval[inst];
-                    if(reg_interval->reg_id < 0) {
+                    if(reg_interval->reg < 0) {
                         if(!cur_tmp_iregs.empty()) {
-                            reg_interval->reg_id = *cur_tmp_iregs.begin();
-                            cur_tmp_iregs.erase(reg_interval->reg_id);
-                            used_tmp_iregs.insert(reg_interval->reg_id);
+                            reg_interval->reg = *cur_tmp_iregs.begin();
+                            cur_tmp_iregs.erase(reg_interval->reg);
+                            used_tmp_iregs.insert(reg_interval->reg);
                         } else {
-                            for(auto ireg: all_available_ireg_ids) {
+                            for(auto ireg: all_alloca_gprs) {
                                 if(inst_ireg_id_set.find(ireg) == inst_ireg_id_set.end()) {
-                                    reg_interval->reg_id = ireg;
+                                    reg_interval->reg = ireg;
                                     istore_list.insert(ireg);
                                     break;
                                 }
@@ -464,8 +574,8 @@ void AsmGen::visit(BasicBlock &node){
                         use_tmp_regs_interval.insert(reg_interval);
                         to_store_ivals.insert(inst);
                     } 
-                    inst_ireg_id_set.insert(reg_interval->reg_id);
-                    if(reg_interval->reg_id < 0) {}
+                    inst_ireg_id_set.insert(reg_interval->reg);
+                    if(reg_interval->reg < 0) {}
                      //   LOG(ERROR) << "在为指令生成代码时分配临时寄存器出现异常";
                 }
             }
@@ -481,16 +591,16 @@ void AsmGen::visit(BasicBlock &node){
 
                 if(opr->getType()->isFloatType()) {
                     auto reg_interval = fval2interval[opr];
-                    if(reg_interval->reg_id < 0) {
+                    if(reg_interval->reg < 0) {
                         if(!cur_tmp_fregs.empty()) {
-                            reg_interval->reg_id = *cur_tmp_fregs.begin();
-                            cur_tmp_fregs.erase(reg_interval->reg_id);
-                            used_tmp_fregs.insert(reg_interval->reg_id);
-                            inst_freg_id_set.insert(reg_interval->reg_id);
+                            reg_interval->reg = *cur_tmp_fregs.begin();
+                            cur_tmp_fregs.erase(reg_interval->reg);
+                            used_tmp_fregs.insert(reg_interval->reg);
+                            inst_freg_id_set.insert(reg_interval->reg);
                         } else {
-                            for(auto freg: all_available_freg_ids) {
+                            for(auto freg: all_alloca_fprs) {
                                 if(inst_freg_id_set.find(freg) == inst_freg_id_set.end()) {
-                                    reg_interval->reg_id = freg;
+                                    reg_interval->reg = freg;
                                     fstore_list.insert(freg);
                                     inst_freg_id_set.insert(freg);
                                     break;
@@ -500,20 +610,20 @@ void AsmGen::visit(BasicBlock &node){
                         to_ld_fval_set.insert(opr);
                         use_tmp_regs_interval.insert(reg_interval);
                     } 
-                    if(reg_interval->reg_id < 0) {}
+                    if(reg_interval->reg < 0) {}
                        // LOG(ERROR) << "在为指令生成代码时分配临时寄存器出现异常";
                 } else {
                     auto reg_interval = ival2interval[opr];
-                    if(reg_interval->reg_id < 0) {
+                    if(reg_interval->reg < 0) {
                         if(!cur_tmp_iregs.empty()) {
-                            reg_interval->reg_id = *cur_tmp_iregs.begin();
-                            cur_tmp_iregs.erase(reg_interval->reg_id);
-                            used_tmp_iregs.insert(reg_interval->reg_id);
-                            inst_ireg_id_set.insert(reg_interval->reg_id);
+                            reg_interval->reg = *cur_tmp_iregs.begin();
+                            cur_tmp_iregs.erase(reg_interval->reg);
+                            used_tmp_iregs.insert(reg_interval->reg);
+                            inst_ireg_id_set.insert(reg_interval->reg);
                         } else {
-                            for(auto ireg: all_available_ireg_ids) {
+                            for(auto ireg: all_alloca_gprs) {
                                 if(inst_ireg_id_set.find(ireg) == inst_ireg_id_set.end()) {
-                                    reg_interval->reg_id = ireg;
+                                    reg_interval->reg = ireg;
                                     istore_list.insert(ireg);
                                     inst_ireg_id_set.insert(ireg);
                                     break;
@@ -523,7 +633,7 @@ void AsmGen::visit(BasicBlock &node){
                         to_ld_ival_set.insert(opr);
                         use_tmp_regs_interval.insert(reg_interval);
                     } 
-                    if(reg_interval->reg_id < 0) {}
+                    if(reg_interval->reg < 0) {}
                       //  LOG(ERROR) << "在为指令生成代码时分配临时寄存器出现异常";
                 }
             }
@@ -570,12 +680,12 @@ void AsmGen::visit(BasicBlock &node){
             //& load the vals on stack
             for(auto fval: to_ld_fval_set) {
                 IRIA *reg_base = val2stack[fval];
-                to_ld_fregs.push_back(std::make_pair(new FRA(fval2interval[fval]->reg_id), reg_base));
+                to_ld_fregs.push_back(std::make_pair(new FRA(fval2interval[fval]->reg), reg_base));
             }
 
             for(auto ival: to_ld_ival_set) {
                 IRIA *reg_base = val2stack[ival];
-                to_ld_iregs.push_back(std::make_pair(new IRA(ival2interval[ival]->reg_id), reg_base));
+                to_ld_iregs.push_back(std::make_pair(new IRA(ival2interval[ival]->reg), reg_base));
             }
 
             if(! to_ld_iregs.empty() || !to_store_iregs.empty())
@@ -595,20 +705,20 @@ void AsmGen::visit(BasicBlock &node){
              if(!to_store_ivals.empty()) {
                  for(auto ival: to_store_ivals) {
                      IRIA *regbase = val2stack[ival];
-                     to_store_iregs__.push_back(std::make_pair(new IRA(ival2interval[ival]->reg_id), regbase));
+                     to_store_iregs__.push_back(std::make_pair(new IRA(ival2interval[ival]->reg), regbase));
                  }   
                  to_store_ivals.clear();
              } 
              if(!to_store_fvals.empty()) {
                  for(auto fval: to_store_fvals) {
                      IRIA *regbase = val2stack[fval];
-                     to_store_fregs__.push_back(std::make_pair(new FRA(fval2interval[fval]->reg_id), regbase));
+                     to_store_fregs__.push_back(std::make_pair(new FRA(fval2interval[fval]->reg), regbase));
                  }
                  to_store_fvals.clear();
              }
              
              for(auto inter: use_tmp_regs_interval) {
-                 inter->reg_id = -1;
+                 inter->reg = -1;
              }
              
              to_store_ivals.clear();
@@ -674,7 +784,7 @@ void AsmGen::visit(CallInst &node){
         if(target_func->getReturnType()->isFloatType()) {
             if(fval2interval.find(inst) != fval2interval.end()) {
                 auto frs = new FReg(static_cast<int>(RISCV::FPR::fa0));
-                if(fval2interval[inst]->reg_id >= 0) {
+                if(fval2interval[inst]->reg >= 0) {
                     auto rd = new FRA(static_cast<int>(dynamic_cast<FReg*>( getAllocaReg(inst))->getID()) );
                     sequence->createCallerSaveResult(frs, rd);
                 } else {
@@ -684,7 +794,7 @@ void AsmGen::visit(CallInst &node){
         } else {
             if(ival2interval.find(inst) != ival2interval.end()) {
                 auto irs = new GReg(static_cast<int>(RISCV::GPR::a0));
-                if(ival2interval[inst]->reg_id >= 0) {
+                if(ival2interval[inst]->reg >= 0) {
                     auto rd = new IRA(static_cast<int>(dynamic_cast<GReg*>( getAllocaReg(inst))->getID()) );
                     sequence->createCallerSaveResult(irs, rd);
                 } else {
@@ -711,7 +821,7 @@ void AsmGen::visit(ReturnInst &node){
                 sequence->createCalleeSaveResult(frs, dst);
             }   
             else {
-                if(fval2interval[ret_val]->reg_id >= 0) {
+                if(fval2interval[ret_val]->reg >= 0) {
                     auto dst_reg = getAllocaReg(ret_val);
                     sequence->createCalleeSaveResult(frs, dst_reg);
                 } else {
@@ -727,7 +837,7 @@ void AsmGen::visit(ReturnInst &node){
                 auto dst = new IConst(iconst_ret_val->getValue());
                 sequence->createCalleeSaveResult(irs, dst);
             } else {
-                if(ival2interval[ret_val]->reg_id >= 0) {
+                if(ival2interval[ret_val]->reg >= 0) {
                     auto dst_reg = dynamic_cast<GReg*>(getAllocaReg(ret_val)); 
                     sequence->createCalleeSaveResult(irs, dst_reg);
                     
@@ -1157,11 +1267,11 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::callee_iargs_move(Fun
 
         while(true) {
             if(ival2interval.find(iargs_vector[i]) != ival2interval.end()) {
-                int target_reg_id = ival2interval[iargs_vector[i]]->reg_id;
+                int target_reg_id = ival2interval[iargs_vector[i]]->reg;
                 if(is_args_moved[i]) {
                     for(auto riter = iargs_dependency_chain.rbegin(); riter != iargs_dependency_chain.rend(); riter++) {
                         auto iarg = riter->first;
-                        to_move_locs.push_back(std::make_pair(new IRA(ival2interval[iarg]->reg_id), new IRA(arg_reg_base + riter->second)));
+                        to_move_locs.push_back(std::make_pair(new IRA(ival2interval[iarg]->reg), new IRA(arg_reg_base + riter->second)));
                         is_args_moved[riter->second] = true;
                     }
                     iargs_dependency_chain.clear();
@@ -1174,7 +1284,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::callee_iargs_move(Fun
                     if(!iargs_dependency_chain.empty()) {
                         for(auto riter = iargs_dependency_chain.rbegin(); riter != iargs_dependency_chain.rend(); riter++) {
                             auto iarg = riter->first;
-                            to_move_locs.push_back(std::make_pair(new IRA(ival2interval[iarg]->reg_id), new IRA(arg_reg_base + riter->second)));
+                            to_move_locs.push_back(std::make_pair(new IRA(ival2interval[iarg]->reg), new IRA(arg_reg_base + riter->second)));
                             is_args_moved[riter->second] = true;
                         }
                         iargs_dependency_chain.clear();
@@ -1189,7 +1299,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::callee_iargs_move(Fun
                     if(!iargs_dependency_chain.empty()) {
                         for(auto riter = iargs_dependency_chain.rbegin(); riter != iargs_dependency_chain.rend(); riter++) {
                             auto iarg = riter->first;
-                            to_move_locs.push_back(std::make_pair(new IRA(ival2interval[iarg]->reg_id), new IRA(arg_reg_base + riter->second)));
+                            to_move_locs.push_back(std::make_pair(new IRA(ival2interval[iarg]->reg), new IRA(arg_reg_base + riter->second)));
                             is_args_moved[riter->second] = true;
                         }
                         iargs_dependency_chain.clear();
@@ -1205,10 +1315,10 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::callee_iargs_move(Fun
                             if(riter->first == iargs_dependency_chain.rbegin()->first)
                                 continue;
                             auto iarg = riter->first;
-                            to_move_locs.push_back(std::make_pair(new IRA(ival2interval[iarg]->reg_id), new IRA(arg_reg_base + riter->second)));
+                            to_move_locs.push_back(std::make_pair(new IRA(ival2interval[iarg]->reg), new IRA(arg_reg_base + riter->second)));
                             is_args_moved[riter->second] = true;
                         }
-                        to_move_locs.push_back(std::make_pair(new IRA(ival2interval[iargs_dependency_chain.rbegin()->first]->reg_id), new IRA(static_cast<int>(RISCV::GPR::s1))));
+                        to_move_locs.push_back(std::make_pair(new IRA(ival2interval[iargs_dependency_chain.rbegin()->first]->reg), new IRA(static_cast<int>(RISCV::GPR::s1))));
                         is_args_moved[iargs_dependency_chain.rbegin()->second] = true;
                         iargs_dependency_chain.clear();
                         break;
@@ -1219,7 +1329,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::callee_iargs_move(Fun
                 if(!iargs_dependency_chain.empty()) {
                     for(auto riter = iargs_dependency_chain.rbegin(); riter != iargs_dependency_chain.rend(); riter++) {
                         auto iarg = riter->first;
-                        to_move_locs.push_back(std::make_pair(new IRA(ival2interval[iarg]->reg_id), new IRA(arg_reg_base + riter->second)));
+                        to_move_locs.push_back(std::make_pair(new IRA(ival2interval[iarg]->reg), new IRA(arg_reg_base + riter->second)));
                         is_args_moved[riter->second] = true;
                     }
                     iargs_dependency_chain.clear();
@@ -1232,7 +1342,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::callee_iargs_move(Fun
     //& solved the other(if have) int or ptr arguments
     for(int i = first_iargs_num; i < iargs_vector.size(); i++) {
         if(ival2interval.find(iargs_vector[i]) != ival2interval.end()) {
-            int target_reg_id = ival2interval[iargs_vector[i]]->reg_id;
+            int target_reg_id = ival2interval[iargs_vector[i]]->reg;
             if(target_reg_id < 0) {
                 continue;
             } else {
@@ -1276,11 +1386,11 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::callee_fargs_move(Fun
 
         while(true) {
             if(fval2interval.find(fargs_vector[i]) != fval2interval.end()) {
-                int target_reg_id = fval2interval[fargs_vector[i]]->reg_id;
+                int target_reg_id = fval2interval[fargs_vector[i]]->reg;
                 if(is_args_moved[i]) {
                     for(auto riter = fargs_dependency_chain.rbegin(); riter != fargs_dependency_chain.rend(); riter++) {
                         auto farg = riter->first;
-                        to_move_locs.push_back(std::make_pair(new FRA(fval2interval[farg]->reg_id), new FRA(arg_reg_base + riter->second)));
+                        to_move_locs.push_back(std::make_pair(new FRA(fval2interval[farg]->reg), new FRA(arg_reg_base + riter->second)));
                         is_args_moved[riter->second] = true;
                     }
                     fargs_dependency_chain.clear();
@@ -1293,7 +1403,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::callee_fargs_move(Fun
                     if(!fargs_dependency_chain.empty()) {
                         for(auto riter = fargs_dependency_chain.rbegin(); riter != fargs_dependency_chain.rend(); riter++) {
                             auto farg = riter->first;
-                            to_move_locs.push_back(std::make_pair(new FRA(fval2interval[farg]->reg_id), new FRA(arg_reg_base + riter->second)));
+                            to_move_locs.push_back(std::make_pair(new FRA(fval2interval[farg]->reg), new FRA(arg_reg_base + riter->second)));
                             is_args_moved[riter->second] = true;
                         }
                         fargs_dependency_chain.clear();
@@ -1309,7 +1419,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::callee_fargs_move(Fun
                     if(!fargs_dependency_chain.empty()) {
                         for(auto riter = fargs_dependency_chain.rbegin(); riter != fargs_dependency_chain.rend(); riter++) {
                             auto farg = riter->first;
-                            to_move_locs.push_back(std::make_pair(new FRA(fval2interval[farg]->reg_id), new FRA(arg_reg_base + riter->second)));
+                            to_move_locs.push_back(std::make_pair(new FRA(fval2interval[farg]->reg), new FRA(arg_reg_base + riter->second)));
                             target = riter->second;
                             is_args_moved[riter->second] = true;
                         }
@@ -1326,10 +1436,10 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::callee_fargs_move(Fun
                             if(riter->first == fargs_dependency_chain.rbegin()->first)
                                 continue;
                             auto farg = riter->first;
-                            to_move_locs.push_back(std::make_pair(new FRA(fval2interval[farg]->reg_id), new FRA(arg_reg_base + riter->second)));
+                            to_move_locs.push_back(std::make_pair(new FRA(fval2interval[farg]->reg), new FRA(arg_reg_base + riter->second)));
                             is_args_moved[riter->second] = true;
                         }
-                        to_move_locs.push_back(std::make_pair(new FRA(fval2interval[fargs_dependency_chain.rbegin()->first]->reg_id), new FRA(static_cast<int>(RISCV::FPR::fs1))));
+                        to_move_locs.push_back(std::make_pair(new FRA(fval2interval[fargs_dependency_chain.rbegin()->first]->reg), new FRA(static_cast<int>(RISCV::FPR::fs1))));
                         is_args_moved[fargs_dependency_chain.rbegin()->second] = true;
                         fargs_dependency_chain.clear();
                         break;
@@ -1340,7 +1450,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::callee_fargs_move(Fun
                 if(!fargs_dependency_chain.empty()) {
                     for(auto riter = fargs_dependency_chain.rbegin(); riter != fargs_dependency_chain.rend(); riter++) {
                         auto farg = riter->first;
-                        to_move_locs.push_back(std::make_pair(new FRA(fval2interval[farg]->reg_id), new FRA(arg_reg_base + riter->second)));
+                        to_move_locs.push_back(std::make_pair(new FRA(fval2interval[farg]->reg), new FRA(arg_reg_base + riter->second)));
                         is_args_moved[riter->second] = true;
                     }
                     fargs_dependency_chain.clear();
@@ -1353,7 +1463,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::callee_fargs_move(Fun
     //& solved the other(if have) float arguments
     for(int i = first_fargs_num; i < fargs_vector.size(); i++) {
         if(fval2interval.find(fargs_vector[i]) != fval2interval.end()) {
-            int target_reg_id = fval2interval[fargs_vector[i]]->reg_id;
+            int target_reg_id = fval2interval[fargs_vector[i]]->reg;
             if(target_reg_id < 0) {
                 continue;
             } else {
@@ -1388,7 +1498,7 @@ void AsmGen::ld_tmp_regs_for_inst(Instruction *inst) {
             continue;
         }
         if(opr->getType()->isFloatType()) {
-            int opr_reg = fval2interval[opr]->reg_id;
+            int opr_reg = fval2interval[opr]->reg;
             if(opr_reg >= 0) {
                 if(cur_tmp_fregs.find(opr_reg) != cur_tmp_fregs.end()) {
                     to_ld_tmp_fregs_set.insert(opr_reg);
@@ -1396,7 +1506,7 @@ void AsmGen::ld_tmp_regs_for_inst(Instruction *inst) {
                 }
             } 
         } else {
-            int opr_reg = ival2interval[opr]->reg_id;
+            int opr_reg = ival2interval[opr]->reg;
             if(opr_reg >= 0) {
                 if(cur_tmp_iregs.find(opr_reg) != cur_tmp_iregs.end()) {
                     to_ld_tmp_iregs_set.insert(opr_reg);
@@ -1408,14 +1518,14 @@ void AsmGen::ld_tmp_regs_for_inst(Instruction *inst) {
 
     if(!inst->isVoid()) {
         if(inst->getType()->isFloatType()) {
-            int inst_reg_id = fval2interval[inst]->reg_id;
+            int inst_reg_id = fval2interval[inst]->reg;
             if(inst_reg_id >= 0) {
                 if(cur_tmp_fregs.find(inst_reg_id) != cur_tmp_fregs.end()) {
                     to_del_tmp_fregs_set.insert(inst_reg_id);
                 }
             }
         } else {
-            int inst_reg_id = ival2interval[inst]->reg_id;
+            int inst_reg_id = ival2interval[inst]->reg;
             if(inst_reg_id >= 0) {
                 if(cur_tmp_iregs.find(inst_reg_id) != cur_tmp_iregs.end()) {
                     to_del_tmp_iregs_set.insert(inst_reg_id);
@@ -1483,7 +1593,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::caller_fargs_move(Cal
     for(int i = 0; i < num_of_fargs; i++) {
         is_args_moved[i] = false;
         if(fval2interval.find(fargs[i]) != fval2interval.end()) {
-            int reg_id = fval2interval[fargs[i]]->reg_id;
+            int reg_id = fval2interval[fargs[i]]->reg;
             if(reg_id >= 0) {
                 if(reg2fargnos.find(reg_id) == reg2fargnos.end()) {
                     reg2fargnos.insert({reg_id, {i}});
@@ -1500,7 +1610,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::caller_fargs_move(Cal
     for(int i = fargs.size() - 1; i >= num_of_fargs; i--) {
         caller_trans_args_stack_offset -= reg_size;
         if(fval2interval.find(fargs[i]) != fval2interval.end()) {
-            auto reg_id = fval2interval[fargs[i]]->reg_id;
+            auto reg_id = fval2interval[fargs[i]]->reg;
             if(reg_id >= 0) {
                 to_move_locs.push_back(std::make_pair(new IRIA(static_cast<int>(RISCV::GPR::sp), extra_stack_offset + caller_trans_args_stack_offset), new FRA(reg_id)));
             } else {
@@ -1574,12 +1684,12 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::caller_fargs_move(Cal
                             }
                         }
                         if(is_single_circle) {
-                            to_move_locs.push_back(std::make_pair(new FRA(static_cast<int>(RISCV::FPR::fs1)), new FRA(fval2interval[reg_dependency_chain.rbegin()->first]->reg_id)));
+                            to_move_locs.push_back(std::make_pair(new FRA(static_cast<int>(RISCV::FPR::fs1)), new FRA(fval2interval[reg_dependency_chain.rbegin()->first]->reg)));
                             for(auto riter= reg_dependency_chain.rbegin(); riter != reg_dependency_chain.rend(); riter++) {
                                 if(riter->first == reg_dependency_chain.rbegin()->first)
                                     continue;
                                 int arg_no = riter->second;
-                                int src_reg_id = fval2interval[riter->first]->reg_id;
+                                int src_reg_id = fval2interval[riter->first]->reg;
                                 to_move_locs.push_back(std::make_pair(new FRA(arg_no+arg_reg_base), new FRA(src_reg_id)));
                                 is_args_moved[arg_no] = true;        
                                 reg2fargnos[src_reg_id].erase(arg_no);
@@ -1588,7 +1698,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::caller_fargs_move(Cal
                             }
                             to_move_locs.push_back(std::make_pair(new FRA(reg_dependency_chain.rbegin()->second + arg_reg_base), new FRA(static_cast<int>(RISCV::FPR::fs1))));
                             int arg_no = reg_dependency_chain.rbegin()->second;
-                            int src_reg_id = fval2interval[reg_dependency_chain.rbegin()->first]->reg_id;
+                            int src_reg_id = fval2interval[reg_dependency_chain.rbegin()->first]->reg;
                             is_args_moved[arg_no] = true; 
                             reg2fargnos[src_reg_id].erase(arg_no);
                             if(reg2fargnos[src_reg_id].empty())
@@ -1605,7 +1715,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::caller_fargs_move(Cal
                     is_args_moved[i] = true;
                     break;
                 } else {
-                    int src_reg_id = fval2interval[fargs[i]]->reg_id;
+                    int src_reg_id = fval2interval[fargs[i]]->reg;
                     if(src_reg_id < 0) {
                         IRIA *regbase = val2stack[fargs[i]];
                         to_move_locs.push_back(std::make_pair(new FRA(i + arg_reg_base), regbase));
@@ -1627,7 +1737,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::caller_fargs_move(Cal
                                     is_args_moved[fargno] = true;
                                     break;
                                 } else {
-                                    int src_reg_id = fval2interval[farg]->reg_id;
+                                    int src_reg_id = fval2interval[farg]->reg;
                                     if(src_reg_id < 0) {
                                         IRIA *regbase = val2stack[farg];
                                         to_move_locs.push_back(std::make_pair(new FRA(fargno + arg_reg_base), regbase));
@@ -1681,7 +1791,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::caller_iargs_move(Cal
     for(int i = 0; i < num_of_iargs; i++) {
         is_args_moved[i] = false;
         if(ival2interval.find(iargs[i]) != ival2interval.end()) {
-            int reg_id = ival2interval[iargs[i]]->reg_id;
+            int reg_id = ival2interval[iargs[i]]->reg;
             if(reg_id >= 0) {
                 if(reg2iargnos.find(reg_id) == reg2iargnos.end()) {
                     reg2iargnos.insert({reg_id, {i}});
@@ -1698,7 +1808,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::caller_iargs_move(Cal
     for(int i = iargs.size() - 1; i >= num_of_iargs; i--) {
         caller_trans_args_stack_offset -= reg_size;
         if(ival2interval.find(iargs[i]) != ival2interval.end()) {
-            auto reg_id = ival2interval[iargs[i]]->reg_id;
+            auto reg_id = ival2interval[iargs[i]]->reg;
             if(reg_id >= 0) {
                 to_move_locs.push_back(std::make_pair(new IRIA(static_cast<int>(RISCV::GPR::sp), extra_stack_offset + caller_trans_args_stack_offset), new IRA(reg_id)));
             } else {
@@ -1772,12 +1882,12 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::caller_iargs_move(Cal
                             }
                         }
                         if(is_single_circle) {
-                            to_move_locs.push_back(std::make_pair(new IRA(static_cast<int>(RISCV::GPR::s1)), new IRA(ival2interval[reg_dependency_chain.rbegin()->first]->reg_id)));
+                            to_move_locs.push_back(std::make_pair(new IRA(static_cast<int>(RISCV::GPR::s1)), new IRA(ival2interval[reg_dependency_chain.rbegin()->first]->reg)));
                             for(auto riter= reg_dependency_chain.rbegin(); riter != reg_dependency_chain.rend(); riter++) {
                                 if(riter->first == reg_dependency_chain.rbegin()->first)
                                     continue;
                                 int arg_no = riter->second;
-                                int src_reg_id = ival2interval[riter->first]->reg_id;
+                                int src_reg_id = ival2interval[riter->first]->reg;
                                 to_move_locs.push_back(std::make_pair(new IRA(arg_no+arg_reg_base), new IRA(src_reg_id)));
                                 is_args_moved[arg_no] = true;        
                                 reg2iargnos[src_reg_id].erase(arg_no);
@@ -1786,7 +1896,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::caller_iargs_move(Cal
                             }
                             to_move_locs.push_back(std::make_pair(new IRA(reg_dependency_chain.rbegin()->second + arg_reg_base), new IRA(static_cast<int>(RISCV::GPR::s1))));
                             int arg_no = reg_dependency_chain.rbegin()->second;
-                            int src_reg_id = ival2interval[reg_dependency_chain.rbegin()->first]->reg_id;
+                            int src_reg_id = ival2interval[reg_dependency_chain.rbegin()->first]->reg;
                             is_args_moved[arg_no] = true; 
                             reg2iargnos[src_reg_id].erase(arg_no);
                             if(reg2iargnos[src_reg_id].empty())
@@ -1802,7 +1912,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::caller_iargs_move(Cal
                     is_args_moved[i] = true;
                     break;
                 } else {
-                    int src_reg_id = ival2interval[iargs[i]]->reg_id;
+                    int src_reg_id = ival2interval[iargs[i]]->reg;
                     if(src_reg_id < 0) {
                         IRIA *regbase = val2stack[iargs[i]];
                         to_move_locs.push_back(std::make_pair(new IRA(i+arg_reg_base), regbase));
@@ -1823,7 +1933,7 @@ std::vector<std::pair<AddressMode*, AddressMode*>> AsmGen::caller_iargs_move(Cal
                                     is_args_moved[iargno] = true;
                                     break;
                                 } else {
-                                    int src_reg_id = ival2interval[iarg]->reg_id;
+                                    int src_reg_id = ival2interval[iarg]->reg;
                                     if(src_reg_id < 0) {
                                         IRIA *regbase = val2stack[iarg];
                                         to_move_locs.push_back(std::make_pair(new IRA(iargno+arg_reg_base), regbase));
@@ -2114,13 +2224,13 @@ Val* AsmGen::getAllocaReg(Value *value) {
     if(value->getType()->isFloatType()) {
         auto iter = fval2interval.find(value);
         if(iter != fval2interval.end()) {
-            int reg_id = static_cast<int>( iter->second->reg_id);
+            int reg_id = static_cast<int>( iter->second->reg);
             return new FReg(reg_id);
         } 
     } else {
         auto iter = ival2interval.find(value);
         if(iter != ival2interval.end()) {
-            int reg_id = static_cast<int>( iter->second->reg_id);
+            int reg_id = static_cast<int>( iter->second->reg);
             return new GReg(reg_id);
         }
     }
@@ -2264,7 +2374,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
             }
             Value *lst_val = nullptr;
             if(inst->getType()->isFloatType()) {
-                int target_reg_id = fval2interval[inst]->reg_id;
+                int target_reg_id = fval2interval[inst]->reg;
                 AddressMode *target_loc_ptr = nullptr;
                 if(target_reg_id >= 0) {
                     if(freg2loc.find(target_reg_id) == freg2loc.end()) 
@@ -2284,7 +2394,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             phi_fsrcs.push_back(src);
                             phi_ftargets.push_back(target_loc_ptr);
                         } else {
-                            int src_reg_id = fval2interval[lst_val]->reg_id;
+                            int src_reg_id = fval2interval[lst_val]->reg;
                             if(src_reg_id >= 0) {
                                 if(freg2loc.find(src_reg_id) == freg2loc.end())
                                     freg2loc.insert({src_reg_id, new FRA(src_reg_id)});
@@ -2304,7 +2414,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                     }
                 }
             } else {
-                int target_reg_id = ival2interval[inst]->reg_id;
+                int target_reg_id = ival2interval[inst]->reg;
                 AddressMode *target_loc_ptr = nullptr;
                 if(target_reg_id >= 0) {
                     if(ireg2loc.find(target_reg_id) == ireg2loc.end()) 
@@ -2324,7 +2434,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             phi_isrcs.push_back(src);
                             phi_itargets.push_back(target_loc_ptr);
                         } else if(ival2interval.find(lst_val)!=ival2interval.end()){
-                            int src_reg_id = ival2interval[lst_val]->reg_id;
+                            int src_reg_id = ival2interval[lst_val]->reg;
                             if(src_reg_id >= 0) {
                                 if(ireg2loc.find(src_reg_id) == ireg2loc.end()) 
                                     ireg2loc.insert({src_reg_id, new IRA(src_reg_id)});
@@ -2390,7 +2500,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                         succ_br_inst = sequence->createFBeq(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
                         sequence->deleteInst();                
                     } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
+                        if(fval2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createFBeq(new FConst(const_cond1->getValue()), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2399,7 +2509,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
+                        if(fval2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createFBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2408,16 +2518,16 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                        if(fval2interval[cond1]->reg < 0 && fval2interval[cond2]->reg < 0) {
                             auto regbase1 = val2stack[cond1];
                             auto regbase2 = val2stack[cond2];
                             succ_br_inst = sequence->createFBeq(new Mem(regbase1->getOffset(), static_cast<int>(regbase1->getReg()) ), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
+                        } else if(fval2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createFBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
+                        } else if(fval2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createFBeq(getAllocaReg(cond1), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2436,7 +2546,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                         succ_br_inst = sequence->createFBge(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
                         sequence->deleteInst();                     
                     } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
+                        if(fval2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createFBge(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2445,7 +2555,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
+                        if(fval2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createFBge(new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2454,16 +2564,16 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                        if(fval2interval[cond1]->reg < 0 && fval2interval[cond2]->reg < 0) {
                             auto regbase1 = val2stack[cond1];
                             auto regbase2 = val2stack[cond2];
                             succ_br_inst = sequence->createFBge(new Mem(regbase1->getOffset(), static_cast<int>( regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
+                        } else if(fval2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createFBge(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
+                        } else if(fval2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createFBge(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2481,7 +2591,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                         succ_br_inst = sequence->createFBgt(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
                         sequence->deleteInst();                     
                     } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
+                        if(fval2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createFBgt(new FConst(const_cond1->getValue()), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2490,7 +2600,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
+                        if(fval2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createFBgt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2499,16 +2609,16 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                        if(fval2interval[cond1]->reg < 0 && fval2interval[cond2]->reg < 0) {
                             auto regbase1 = val2stack[cond1];
                             auto regbase2 = val2stack[cond2];
                             succ_br_inst = sequence->createFBgt(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
+                        } else if(fval2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createFBgt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
+                        } else if(fval2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createFBgt(getAllocaReg(cond1), new Mem(regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2527,7 +2637,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                         succ_br_inst = sequence->createFBle(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
                         sequence->deleteInst();                     
                     } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
+                        if(fval2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createFBle(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2536,7 +2646,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
+                        if(fval2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createFBle(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2545,16 +2655,16 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                        if(fval2interval[cond1]->reg < 0 && fval2interval[cond2]->reg < 0) {
                             auto regbase1 = val2stack[cond1];
                             auto regbase2 = val2stack[cond2];
                             succ_br_inst = sequence->createFBle(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
+                        } else if(fval2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createFBle(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
+                        } else if(fval2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createFBle(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2573,7 +2683,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                         succ_br_inst = sequence->createFBlt(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
                         sequence->deleteInst();                     
                     } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
+                        if(fval2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createFBlt(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2582,7 +2692,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
+                        if(fval2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createFBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2591,16 +2701,16 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                        if(fval2interval[cond1]->reg < 0 && fval2interval[cond2]->reg < 0) {
                             auto regbase1 = val2stack[cond1];
                             auto regbase2 = val2stack[cond2];
                             succ_br_inst = sequence->createFBlt(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
+                        } else if(fval2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createFBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
+                        } else if(fval2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createFBlt(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2619,7 +2729,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                         succ_br_inst = sequence->createFBne(new FConst(const_cond1->getValue()), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
                         sequence->deleteInst();                     
                     } else if(const_cond1) {
-                        if(fval2interval[cond2]->reg_id < 0) {
+                        if(fval2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createFBne(new FConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2628,7 +2738,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else if(const_cond2) {
-                        if(fval2interval[cond1]->reg_id < 0) {
+                        if(fval2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createFBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new FConst(const_cond2->getValue()), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2637,16 +2747,16 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else {
-                        if(fval2interval[cond1]->reg_id < 0 && fval2interval[cond2]->reg_id < 0) {
+                        if(fval2interval[cond1]->reg < 0 && fval2interval[cond2]->reg < 0) {
                             auto regbase1 = val2stack[cond1];
                             auto regbase2 = val2stack[cond2];
                             succ_br_inst = sequence->createFBne(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(fval2interval[cond1]->reg_id < 0) {
+                        } else if(fval2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createFBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(fval2interval[cond2]->reg_id < 0) {
+                        } else if(fval2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createFBne(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2680,7 +2790,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                         succ_br_inst = sequence->createBeq(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
                         sequence->deleteInst();                  
                     } else if(const_cond1) {
-                        if(ival2interval[cond2]->reg_id < 0) {
+                        if(ival2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createBeq(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2689,7 +2799,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else if(const_cond2) {
-                        if(ival2interval[cond1]->reg_id < 0) {
+                        if(ival2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2698,16 +2808,16 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else {
-                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
+                        if(ival2interval[cond1]->reg < 0 && ival2interval[cond2]->reg < 0) {
                             auto regbase1 = val2stack[cond1];
                             auto regbase2 = val2stack[cond2];
                             succ_br_inst = sequence->createBeq(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(ival2interval[cond1]->reg_id < 0) {
+                        } else if(ival2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createBeq(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(ival2interval[cond2]->reg_id < 0) {
+                        } else if(ival2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createBeq(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2726,7 +2836,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                         succ_br_inst = sequence->createBge(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
                         sequence->deleteInst();                  
                     } else if(const_cond1) {
-                        if(ival2interval[cond2]->reg_id < 0) {
+                        if(ival2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createBge(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2735,7 +2845,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else if(const_cond2) {
-                        if(ival2interval[cond1]->reg_id < 0) {
+                        if(ival2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createBge(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2744,16 +2854,16 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else {
-                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
+                        if(ival2interval[cond1]->reg < 0 && ival2interval[cond2]->reg < 0) {
                             auto regbase1 = val2stack[cond1];
                             auto regbase2 = val2stack[cond2];
                             succ_br_inst = sequence->createBge(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(ival2interval[cond1]->reg_id < 0) {
+                        } else if(ival2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createBge(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(ival2interval[cond2]->reg_id < 0) {
+                        } else if(ival2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createBge(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2779,7 +2889,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                         succ_br_inst = sequence->createBlt(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
                         sequence->deleteInst();                  
                     } else if(const_cond1) {
-                        if(ival2interval[cond2]->reg_id < 0) {
+                        if(ival2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createBlt(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2788,7 +2898,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else if(const_cond2) {
-                        if(ival2interval[cond1]->reg_id < 0) {
+                        if(ival2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2797,16 +2907,16 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else {
-                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
+                        if(ival2interval[cond1]->reg < 0 && ival2interval[cond2]->reg < 0) {
                             auto regbase1 = val2stack[cond1];
                             auto regbase2 = val2stack[cond2];
                             succ_br_inst = sequence->createBlt(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(ival2interval[cond1]->reg_id < 0) {
+                        } else if(ival2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createBlt(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(ival2interval[cond2]->reg_id < 0) {
+                        } else if(ival2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createBlt(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2825,7 +2935,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                         succ_br_inst = sequence->createBne(new IConst(const_cond1->getValue()), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
                         sequence->deleteInst();                  
                     } else if(const_cond1) {
-                        if(ival2interval[cond2]->reg_id < 0) {
+                        if(ival2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createBne(new IConst(const_cond1->getValue()), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2834,7 +2944,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else if(const_cond2) {
-                        if(ival2interval[cond1]->reg_id < 0) {
+                        if(ival2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new IConst(const_cond2->getValue()), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2843,16 +2953,16 @@ void AsmGen::phi_union(Instruction *br_inst) {
                             sequence->deleteInst();
                         }
                     } else {
-                        if(ival2interval[cond1]->reg_id < 0 && ival2interval[cond2]->reg_id < 0) {
+                        if(ival2interval[cond1]->reg < 0 && ival2interval[cond2]->reg < 0) {
                             auto regbase1 = val2stack[cond1];
                             auto regbase2 = val2stack[cond2];
                             succ_br_inst = sequence->createBne(new Mem( regbase1->getOffset(), static_cast<int>(regbase1->getReg())), new Mem( regbase2->getOffset(), static_cast<int>(regbase2->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(ival2interval[cond1]->reg_id < 0) {
+                        } else if(ival2interval[cond1]->reg < 0) {
                             auto regbase = val2stack[cond1];
                             succ_br_inst = sequence->createBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), getAllocaReg(cond2), bb2label[succ_bb]);
                             sequence->deleteInst();
-                        } else if(ival2interval[cond2]->reg_id < 0) {
+                        } else if(ival2interval[cond2]->reg < 0) {
                             auto regbase = val2stack[cond2];
                             succ_br_inst = sequence->createBne(getAllocaReg(cond1), new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), bb2label[succ_bb]);
                             sequence->deleteInst();
@@ -2882,7 +2992,7 @@ void AsmGen::phi_union(Instruction *br_inst) {
             if(const_cond) {
                 succ_br_inst = sequence->createBne(new IConst(const_cond->getValue()), new GReg(static_cast<int>(RISCV::GPR::zero)), bb2label[succ_bb]);
                 sequence->deleteInst();
-            } else if(ival2interval[cond]->reg_id < 0) {
+            } else if(ival2interval[cond]->reg < 0) {
                 auto regbase = val2stack[cond];
                 succ_br_inst = sequence->createBne(new Mem( regbase->getOffset(), static_cast<int>(regbase->getReg())), new GReg(static_cast<int>(RISCV::GPR::zero)), bb2label[succ_bb]);
                 sequence->deleteInst();

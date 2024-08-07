@@ -172,6 +172,17 @@ int Compiler::run(){
         out_file<<m->print()<<std::endl;
     }else{
         AsmGen asm_gen(m);
+        auto reg_alloc = new LSRA(m);
+        pm.addInfo<LiveVar>();
+        pm.addInfo<CIDBB>();
+        pm.addInfo<CLND>();
+        auto lv = pm.getInfo<LiveVar>();
+        lv->analyse();
+        auto cidbb = pm.getInfo<CIDBB>();
+        cidbb->analyse();
+        auto clnd = pm.getInfo<CLND>();
+        clnd->analyse();
+        reg_alloc->run(lv, cidbb, &asm_gen);
         m->accept(asm_gen);
         ::std::string asm_code = asm_gen.getAsmUnit()->print();
         out_file<<asm_code<<std::endl;
