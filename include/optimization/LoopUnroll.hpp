@@ -43,13 +43,13 @@ using std::vector;
 
 // Magic Num，后期考虑时间、空间局部性进行修改
 #define UNROLLING_TIME          5     // 循环展开次数
-#define DIRECT_UNROLLING_TIME   30
+#define DIRECT_UNROLLING_TIME   100
 #define DIRECT_UNROLLING_SIZE   10000     // 去除循环结构后的最大指令数
 
 class LoopUnroll : public FunctionPass{
     void visitLoop(Loop *loop);
-    void unrollCommonLoop(Loop *loop, LoopTrip trip);   // 情况1
-    void unrollPartialLoop(Loop *loop, LoopTrip trip);  // 情况2
+    void unrollCommonLoop(Loop *loop, LoopTrip trip, int time);   // 情况1
+    void unrollPartialLoop(Loop *loop, LoopTrip trip, int time);  // 情况2
     void unrolEntirelLoop(Loop *loop, LoopTrip trip);           // 情况3 
     void unrollEntirelLoopInOneBB(Loop *loop, LoopTrip trip);   // 情况3，但LoopBody仅有一个基本块
     

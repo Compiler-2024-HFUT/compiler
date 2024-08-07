@@ -6,7 +6,7 @@
 #include <list>
 using std::list;
 
-void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
+void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip, int time) {
     LOG_WARNING("Unrolling Common Loop")
     vector<BB*> blockToAdd = {};
 
@@ -47,7 +47,7 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
     map<BB*, BB*> newBBMap;
     map<Instruction*, Instruction*> newInstMap;
 
-    for(int i = 1; i < UNROLLING_TIME; i++) {
+    for(int i = 1; i < time; i++) {
         loop->copyBody(newEntry, newLatch, newExiting, newBBMap, newInstMap);
         entrys.push_back(newEntry);
         latchs.push_back(newLatch);
@@ -80,36 +80,37 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
                 blockToAdd.push_back(newBB);
         }
 
+        // 暂不考虑多exit（存在break）的情况
         // 用新复制的BB 替换掉 exit中phi指令原来的BB，包括相应的参数
         // 存在问题，exit及其succ中对firstIndval和firstIter没有替换！！
-        for(BB *exit : exits) {
-            for(Instruction *inst : exit->getInstructions()) {
-                if(!inst->isPhi())
-                    break;
-                
-                vector<Value*> &ops = inst->getOperands();
-                for(int j = 1; j < ops.size(); j += 2) {
-                    Instruction *valIn = dynamic_cast<Instruction*>(ops[i-1]);
-                    BB *preBB = dynamic_cast<BB*>(ops[j]);
-                    if(newBBMap.find(preBB) != newBBMap.end()) {
-                        ops[i-1]->removeUse(inst);
-                        ops[i]->removeUse(inst);
-                        
-                        ops[i] = newBBMap[preBB];
-                        if(valIn && newInstMap[valIn])
-                            ops[i-1] = newInstMap[valIn];
-                    }
-                }
-            }
-
-            for(BB *exitingBB : newExiting) {
-                exit->addPreBasicBlock(exitingBB);
-            }
-        }
+        // for(BB *exit : exits) {
+        //     for(Instruction *inst : exit->getInstructions()) {
+        //         if(!inst->isPhi())
+        //             break;
+        //         
+        //         vector<Value*> &ops = inst->getOperands();
+        //         for(int j = 1; j < ops.size(); j += 2) {
+        //             Instruction *valIn = dynamic_cast<Instruction*>(ops[i-1]);
+        //             BB *preBB = dynamic_cast<BB*>(ops[j]);
+        //             if(newBBMap.find(preBB) != newBBMap.end()) {
+        //                 ops[i-1]->removeUse(inst);
+        //                 ops[i]->removeUse(inst);
+        //                 
+        //                 ops[i] = newBBMap[preBB];
+        //                 if(valIn && newInstMap[valIn])
+        //                     ops[i-1] = newInstMap[valIn];
+        //             }
+        //         }
+        //     }
+        //     for(BB *exitingBB : newExiting) {
+        //         exit->addPreBasicBlock(exitingBB);
+        //     }
+        // }
     }
     loop->addBlocks(blockToAdd);
+    loop->setSingleLatch(newBBMap[latch]);
 
-    for(int i = 0; i < UNROLLING_TIME-1; i++) {
+    for(int i = 0; i < time-1; i++) {
         latchs[i]->removeSuccBasicBlock( header );
         latchs[i]->addSuccBasicBlock( entrys[i+1] );
         entrys[i+1]->removePreBasicBlock( header );
@@ -125,7 +126,7 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
 
     // 更新新BB中的归纳变量
     for(Instruction *phi : phiSet) {
-        for(int i = 1; i < UNROLLING_TIME; i++) {
+        for(int i = 1; i < time; i++) {
             Instruction *iterA = phiValIter[phi][i-1];
             Instruction *iterB = phiValIter[phi][i];
 
@@ -137,7 +138,6 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
             }
         }
     }
-    
 
     // 更新header里面的phi
     for(Instruction *inst : header->getInstructions()) {
@@ -154,16 +154,16 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip) {
     }
 }
 
-void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip) {
+void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip, int time) {
     LOG_WARNING("Unroll Partial Loop")
     Loop *newLoop = loop->copyLoop();
-    unrollCommonLoop(loop, trip);
+    unrollCommonLoop(loop, trip, time);
     
     // 更新原Loop
     // 目前仅考虑常数
     LoopCond *oldCond = loop->getConds()[0];
     
-    int mod = abs(UNROLLING_TIME * trip.iter);
+    int mod = abs(time * trip.iter);
     int newEnd = (trip.end / mod) * mod;
     if(trip.end > 0 && trip.iter < 0)
         newEnd += mod;
@@ -230,14 +230,66 @@ void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip) {
 }
 
 
-// 块内指令数(不包括br)小于DIRECT_UNROLLING_SIZE
+// 循环次数小于DIRECT_UNROLLING_TIME的循环
+// 删除header和loop
+//    preheader->header->start->...->end->exit
+// -> preheader->start->...->end->exit
 void LoopUnroll::unrolEntirelLoop(Loop *loop, LoopTrip trip) {
-    
-    return;
+    unrollCommonLoop(loop, trip, trip.step);
+
+    BB *blockStart;
+    BB *blockEnd = loop->getSingleLatch();
+    BB *preheader = loop->getPreheader();
+    BB *loopExit = loop->getExits()[0];
+    for(BB *bb : loop->getHeader()->getSuccBasicBlocks()) {
+        if(bb != loop->getExits()[0]) {
+            blockStart = bb;
+            break;
+        }
+    }
+
+    preheader->getTerminator()->replaceOperand(0, blockStart);
+    preheader->getSuccBasicBlocks().clear();
+    preheader->getSuccBasicBlocks().push_back(blockStart);
+    blockStart->getPreBasicBlocks().clear();
+    blockStart->getPreBasicBlocks().push_back(preheader);
+
+    blockEnd->getTerminator()->replaceOperand(0, loopExit);
+    blockEnd->getSuccBasicBlocks().clear();
+    blockEnd->getSuccBasicBlocks().push_back(loopExit);
+    loopExit->getPreBasicBlocks().clear();
+    loopExit->getPreBasicBlocks().push_back(blockEnd);
+
+    // 对phi指令进行拆分
+    for(Instruction *phiInst : loop->getHeader()->getInstructions()) {
+        if(!phiInst->isPhi())
+            break;
+        // use in loop
+        Value *inVal = phiInst->getOperand(0);
+        // use out of loop
+        Instruction *iterI = dynamic_cast<Instruction*>(phiInst->getOperand(2));
+        if(!iterI) continue;
+        Value *outVal = phiInst->getOperand(2);
+        
+        list<Use> useList = phiInst->getUseList();
+        for(Use u : useList) {
+            Instruction *instU = dynamic_cast<Instruction*>(u.val_);
+            if(!instU)  continue;
+            BB *parent = instU->getParent();
+            if(loop->contain(parent)) {
+                instU->replaceOperand(u.arg_no_, inVal);
+            } else {
+                instU->replaceOperand(u.arg_no_, outVal);
+            }
+        }
+    }
+    loop->getHeader()->eraseFromParent();
+    info_man_->getInfo<LoopInfo>()->removeLoop(loop);
 }
 
 // 只合并单块(必为latch、唯一入口为header、terminator是无条件跳转)
 void LoopUnroll::unrollEntirelLoopInOneBB(Loop *loop, LoopTrip trip) {
+    LOG_WARNING("Unroll Entirel Loop In One BB")
     BB *loopBlock = loop->getSingleLatch();
     // todo: remove vector
     umap<Instruction*, vector<Instruction*> > iterValMap = {};
@@ -361,12 +413,33 @@ void LoopUnroll::unrollEntirelLoopInOneBB(Loop *loop, LoopTrip trip) {
     }
     loop->getHeader()->eraseFromParent();
     info_man_->getInfo<LoopInfo>()->removeLoop(loop);
-
-    return;
 }
 
+// 删除loop
+//    preheader->loopBlocks->exit
+// -> preheader->exit
 void LoopUnroll::removeLoop(Loop *loop) {
-    return;
+    BB *preheader = loop->getPreheader();
+    BB *loopExit = loop->getExits()[0];
+
+    preheader->getTerminator()->replaceOperand(0, loopExit);
+    preheader->getSuccBasicBlocks().clear();
+    preheader->getSuccBasicBlocks().push_back(loopExit);
+    loopExit->getPreBasicBlocks().clear();
+    loopExit->getPreBasicBlocks().push_back(preheader);
+
+    // 对phi指令进行拆分
+    for(Instruction *phiInst : loop->getHeader()->getInstructions()) {
+        if(!phiInst->isPhi())
+            break;
+        Value *inVal = phiInst->getOperand(0);
+        phiInst->replaceAllUseWith(inVal);
+    }
+
+    for(BB *block : loop->getBlocks()) {
+        block->eraseFromParent();
+    }
+    info_man_->getInfo<LoopInfo>()->removeLoop(loop);
 }
 
 void LoopUnroll::visitLoop(Loop *loop) {
@@ -390,15 +463,15 @@ void LoopUnroll::visitLoop(Loop *loop) {
         return;
     } else if(trip.step == 0) {
         removeLoop(loop);
-        return;
-    // } else if(trip.step < DIRECT_UNROLLING_TIME) {
-    //     unrolEntirelLoop(loop, trip);
-    } else if(loop->getBlocks().size() == 2 && (loop->getSingleLatch()->getInstructions().size()-1)*trip.step < DIRECT_UNROLLING_SIZE) { 
+    } else if(loop->getBlocks().size() == 2 && 
+             (loop->getSingleLatch()->getInstructions().size()-1) * trip.step < DIRECT_UNROLLING_SIZE) { 
         unrollEntirelLoopInOneBB(loop, trip);
+    } else if(trip.step < DIRECT_UNROLLING_TIME) {
+        unrolEntirelLoop(loop, trip);
     } else if(trip.step % UNROLLING_TIME == 0) {
-        unrollCommonLoop(loop, trip);
+        unrollCommonLoop(loop, trip, UNROLLING_TIME);
     } else {
-        unrollPartialLoop(loop, trip);
+        unrollPartialLoop(loop, trip, UNROLLING_TIME);
     }
 }
 
