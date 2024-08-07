@@ -2,129 +2,197 @@
 
 
 void AsmGen::visit(Module &node){ 
+    //加载全局变量到全局变量表
     for(auto global_var: asm_unit->getModuleOfAsmUnit()->getGlobalVariables()){
         global_variable_labels_table[global_var] = new Label(global_var->getName());
     }
-
+    //开始对汇编单元中的函数进行操作
     for(auto func:asm_unit->getModuleOfAsmUnit()->getFunctions()){
         if(!func->isDeclaration()){
-        ival2interval = ivalue_interval_map[func];
-        fval2interval = fvalue_interval_map[func];
-        asm_unit->addSubroutine(func);
-        subroutine = asm_unit->getSubroutine();
-        func->accept(*this);
+            ival2interval = ivalue_interval_map[func];
+            fval2interval = fvalue_interval_map[func];
+            asm_unit->addSubroutine(func);
+            subroutine = asm_unit->getSubroutine();
+            func->accept(*this);
         }
     }
 }
 
 void AsmGen::visit(Function &node){
     auto func = &node;
-   ::std::vector<int> reg_iid_s={};
-   ::std::vector<int> reg_fid_s={};
-   //call表，用于存储上一个call，以便保存上一个call的返回寄存器
-   ::std::vector<Instruction*> call_table ={};
-   int iarg_num = func->getIArgs().size();
-   auto iarg_vector = func->getIArgs();
-   int farg_num = func->getFArgs().size();
-   auto farg_vector = func->getFArgs();
-   for(int p = 0; p<iarg_num; p++){
-    auto check = ival2interval.find(iarg_vector[p]);
-    if(check!=ival2interval.end())
-        reg_iid_s.push_back(ival2interval[iarg_vector[p]]->reg);
-   }
+    save_offset = 0;
+    total_size = 0;
+    iargs_size = 0;
+    fargs_size = 0;
 
-   for(int p = 0; p<farg_num; p++){
-    auto check = fval2interval.find(farg_vector[p]);
-    if(check!=fval2interval.end())
-        reg_fid_s.push_back(fval2interval[farg_vector[p]]->reg);
-   }
-
-  
+    val2stack.clear();
+    //确定本函数用到的caller与callee寄存器，用于保存现场
+    total_size =  setCallerAndCalleeRegs();
 
 
-   for(auto bb: func->getBasicBlocks()){
-       for(auto inst: bb->getInstructions()){
-           if(inst->isCall()){
-            if(call_table.size()>0){
-                auto pre_call_inst = call_table.back();
-                auto callee_func = dynamic_cast<Function*>(pre_call_inst->getOperand(0));
-                if(!callee_func->getReturnType()->isVoidType()){
-                    if(callee_func->getReturnType()->isFloatType()){
-                        if(fval2interval.find(pre_call_inst)!=fval2interval.end() && fval2interval[pre_call_inst]){
-                            int freg = fval2interval[pre_call_inst]->reg;
-                            reg_fid_s.push_back(freg);
-                        }
-                    }
-                    else{
-                        if(ival2interval.find(pre_call_inst)!=ival2interval.end() && ival2interval[pre_call_inst]){
-                             int ireg = ival2interval[pre_call_inst]->reg;
-                            reg_iid_s.push_back(ireg);
-                        }
-                    }
-                }
-            } 
-                //caller传参
-                ::std::vector<Value*> iargs;
-                ::std::vector<Value*> fargs;
-                ::std::vector<int> para_reg_iids ={};
-                ::std::vector<int> para_reg_fids ={};   
-                for(auto arg: inst->getOperands()) {
-                    if(dynamic_cast<Function*>(arg))
-                        continue;
-                    if(!arg->getType()->isFloatType()) 
-                        iargs.push_back(arg);
-                    if(arg->getType()->isFloatType()) 
-                        fargs.push_back(arg);
-                }
-                int caller_iarg_num = iargs.size();
-                int caller_farg_num = fargs.size();
+    //******************************选择某call指令前使用到的寄存器，以便与后面的保存现场和恢复现场配合，减少访存指令******************************
+    ::std::vector<int> reg_iid_s={};
+    ::std::vector<int> reg_fid_s={};
 
-                for(int i=0; i<caller_iarg_num; i++){
-                    auto check = ival2interval.find(iargs[i]);
-                    if(check!=ival2interval.end()){
-                        para_reg_iids.push_back(ival2interval[iargs[i]]->reg);
-                    }
-                }
+    //call表，用于存储上一个call，以便保存上一个call的返回寄存器
+    ::std::vector<Instruction*> call_table ={};
 
-                for(int i=0; i<caller_farg_num; i++){
-                    auto check = fval2interval.find(fargs[i]);
-                    if(check!=fval2interval.end()){
-                        para_reg_fids.push_back(fval2interval[fargs[i]]->reg);
-                    }
-                }
-
-
-
-               call_define_ireg_map[inst] = reg_iid_s;
-               call_define_freg_map[inst] = reg_fid_s;
-
-               call_define_ireg_map[inst].insert(call_define_ireg_map[inst].end(), para_reg_iids.begin(), para_reg_iids.end());
-               call_define_freg_map[inst].insert(call_define_freg_map[inst].end(), para_reg_fids.begin(), para_reg_fids.end());
-               call_table.push_back(inst);
-           }
-        else if(inst->isGep()){
-            auto base = inst->getOperand(0);
-            auto global_base = dynamic_cast<GlobalVariable*>(base);
-            auto alloca_base = dynamic_cast<AllocaInst*>(base);
-            auto arg_base = dynamic_cast<Argument*>(base);
-             if(!global_base && !alloca_base) {
-                auto rs = dynamic_cast<GReg*>( getAllocaReg(base));
-                 reg_iid_s.push_back(rs->getID());
+    //记录用于传递参数的寄存器
+    int iarg_num = func->getIArgs().size();
+    auto iarg_vector = func->getIArgs();
+    int farg_num = func->getFArgs().size();
+    auto farg_vector = func->getFArgs();
+    for(int p = 0; p<iarg_num; p++){
+     auto check = ival2interval.find(iarg_vector[p]);
+     if(check!=ival2interval.end())
+         reg_iid_s.push_back(ival2interval[iarg_vector[p]]->reg);
+    }
+ 
+    for(int p = 0; p<farg_num; p++){
+     auto check = fval2interval.find(farg_vector[p]);
+     if(check!=fval2interval.end())
+         reg_fid_s.push_back(fval2interval[farg_vector[p]]->reg);
+    }
+ 
+    //记录上条call指令传递结果的寄存器、gep指令的mov的目的寄存器以及该call指令前面指令的目的寄存器
+    for(auto bb: func->getBasicBlocks()){
+        for(auto inst: bb->getInstructions()){
+            if(inst->isCall()){
+             if(call_table.size()>0){
+                 auto pre_call_inst = call_table.back();
+                 auto callee_func = dynamic_cast<Function*>(pre_call_inst->getOperand(0));
+                 if(!callee_func->getReturnType()->isVoidType()){
+                     if(callee_func->getReturnType()->isFloatType()){
+                         if(fval2interval.find(pre_call_inst)!=fval2interval.end() && fval2interval[pre_call_inst]){
+                             int freg = fval2interval[pre_call_inst]->reg;
+                             reg_fid_s.push_back(freg);
+                         }
+                     }
+                     else{
+                         if(ival2interval.find(pre_call_inst)!=ival2interval.end() && ival2interval[pre_call_inst]){
+                              int ireg = ival2interval[pre_call_inst]->reg;
+                             reg_iid_s.push_back(ireg);
+                         }
+                     }
+                 }
              } 
-             reg_iid_s.push_back(dynamic_cast<GReg*>( getAllocaReg(inst))->getID());
+                 //caller传参
+                 ::std::vector<Value*> iargs;
+                 ::std::vector<Value*> fargs;
+                 ::std::vector<int> para_reg_iids ={};
+                 ::std::vector<int> para_reg_fids ={};   
+                 for(auto arg: inst->getOperands()) {
+                     if(dynamic_cast<Function*>(arg))
+                         continue;
+                     if(!arg->getType()->isFloatType()) 
+                         iargs.push_back(arg);
+                     if(arg->getType()->isFloatType()) 
+                         fargs.push_back(arg);
+                 }
+                 int caller_iarg_num = iargs.size();
+                 int caller_farg_num = fargs.size();
+ 
+                 for(int i=0; i<caller_iarg_num; i++){
+                     auto check = ival2interval.find(iargs[i]);
+                     if(check!=ival2interval.end()){
+                         para_reg_iids.push_back(ival2interval[iargs[i]]->reg);
+                     }
+                 }
+ 
+                 for(int i=0; i<caller_farg_num; i++){
+                     auto check = fval2interval.find(fargs[i]);
+                     if(check!=fval2interval.end()){
+                         para_reg_fids.push_back(fval2interval[fargs[i]]->reg);
+                     }
+                 }
+ 
+ 
+ 
+                call_define_ireg_map[inst] = reg_iid_s;
+                call_define_freg_map[inst] = reg_fid_s;
+ 
+                call_define_ireg_map[inst].insert(call_define_ireg_map[inst].end(), para_reg_iids.begin(), para_reg_iids.end());
+                call_define_freg_map[inst].insert(call_define_freg_map[inst].end(), para_reg_fids.begin(), para_reg_fids.end());
+                call_table.push_back(inst);
+            }
+         else if(inst->isGep()){
+             auto base = inst->getOperand(0);
+             auto global_base = dynamic_cast<GlobalVariable*>(base);
+             auto alloca_base = dynamic_cast<AllocaInst*>(base);
+             auto arg_base = dynamic_cast<Argument*>(base);
+              if(!global_base && !alloca_base) {
+                if(base->getType()->isFloatType()){
+                    auto f_interval = fval2interval.find(base);
+                    if(f_interval!=fval2interval.end()){
+                        int freg_id_inst = static_cast<int>(f_interval->second->reg);
+                        if(freg_id_inst >-1 && freg_id_inst <32)
+                            reg_fid_s.push_back(freg_id_inst);
+                    }
+                }
+                else{
+                    auto i_interval = ival2interval.find(base);
+                    if(i_interval!=ival2interval.end()){
+                        int ireg_id_inst = static_cast<int>(i_interval->second->reg);
+                        if(ireg_id_inst >-1 && ireg_id_inst <32)
+                            reg_iid_s.push_back(ireg_id_inst);
+                    }
+                }
+              } 
+              //reg_iid_s.push_back(dynamic_cast<GReg*>( getAllocaReg(inst))->getID());
+                if(inst->getType()->isFloatType()){
+                    auto f_interval = fval2interval.find(inst);
+                    if(f_interval!=fval2interval.end()){
+                        int freg_id_inst = static_cast<int>(f_interval->second->reg);
+                        if(freg_id_inst >-1 && freg_id_inst <32)
+                            reg_fid_s.push_back(freg_id_inst);
+                    }
+                }
+                else{
+                    auto i_interval = ival2interval.find(inst);
+                    if(i_interval!=ival2interval.end()){
+                        int ireg_id_inst = static_cast<int>(i_interval->second->reg);
+                        if(ireg_id_inst >-1 && ireg_id_inst <32)
+                            reg_iid_s.push_back(ireg_id_inst);
+                    }
+                }
+         }
+            else{
+                
+              //  auto reg = getAllocaReg(inst);
+              //  if(dynamic_cast<FReg*>(reg)){
+              //      reg_fid_s.push_back(dynamic_cast<FReg*>(reg)->getID());
+              //  }
+              //  else if(dynamic_cast<GReg*>(reg)){
+              //      reg_iid_s.push_back(dynamic_cast<GReg*>(reg)->getID());
+              //  }
+                if(inst->getType()->isFloatType()){
+                    auto f_interval = fval2interval.find(inst);
+                    if(f_interval!=fval2interval.end()){
+                        int freg_id_inst = static_cast<int>(f_interval->second->reg);
+                        if(freg_id_inst >-1 && freg_id_inst <32)
+                            reg_fid_s.push_back(freg_id_inst);
+                    }
+                }
+                else{
+                    auto i_interval = ival2interval.find(inst);
+                    if(i_interval!=ival2interval.end()){
+                        int ireg_id_inst = static_cast<int>(i_interval->second->reg);
+                        if(ireg_id_inst >-1 && ireg_id_inst <32)
+                            reg_iid_s.push_back(ireg_id_inst);
+                    }
+                }
+
+            }
         }
-           else{
-               auto reg = getAllocaReg(inst);
-               if(dynamic_cast<FReg*>(reg)){
-                   reg_fid_s.push_back(dynamic_cast<FReg*>(reg)->getID());
-               }
-               else if(dynamic_cast<GReg*>(reg)){
-                   reg_iid_s.push_back(dynamic_cast<GReg*>(reg)->getID());
-               }
-           }
-       }
-   }
-    
+    }
+    //******************************选择某call指令前使用到的寄存器，以便与后面的保存现场和恢复现场配合，减少访存指令******************************
+
+    //为函数的参数分配内存空间
+    if(func->getIArgs().size() > 8) 
+        iargs_size+=allocateMemForIArgs();
+
+    if(func->getFArgs().size() > 8) 
+        fargs_size+=allocateMemForFArgs();
 
 
     //& record stack info and used tmp regs for inst gen
@@ -139,162 +207,148 @@ void AsmGen::visit(Function &node){
     free_locs_for_tmp_regs_saved.clear();
 
     //*************************线性化BB并标号***************************
-        BasicBlock *ret_bb;
-    Label* new_label;
-    std::string label_str;
+    //线性化：bb的顺序遵从：入口bb、过程bb、返回bb
+ //      BasicBlock *ret_bb;
+ //  Label* new_label;
+ //  ::std::string label_str;
 
-    bb2label.clear();
-    linear_bbs.clear();
-    bool fff = false;
-    std::list<BasicBlock*> linear_bbs_of_func = func->getBasicBlocks();
-    int mp = 0;
-    for(auto bb: linear_bbs_of_func) {
-        if(bb == func->getEntryBlock() && bb->getTerminator()->isRet()) {
-            label_str = "";
-            bb2label.insert({bb, new Label(label_str)});
-            linear_bbs.push_back(bb);
-            fff = true;
-            break;
-        } else if(bb == func->getEntryBlock()) {
-            label_str = func->getName() + "_" + "entry";
-            bb2label.insert({bb, new Label(label_str)});
-        } else if(bb != func->getEntryBlock() && !bb->getTerminator()->isRet()) {
-            label_str = func->getName() + "_" + ::std::to_string(mp++);
-            new_label = new Label(label_str);
-            bb2label.insert({bb, new_label});
-        } else {
-            ret_bb = bb;
-            continue;
+ //  bb2label.clear();
+ //  linear_bbs.clear();
+ //  bool fff = false;
+ //  std::list<BasicBlock*> linear_bbs_of_func = func->getBasicBlocks();
+ //  int mp = 0;
+ //  for(auto bb: linear_bbs_of_func) {
+ //      if(bb == func->getEntryBlock() && bb->getTerminator()->isRet()) {
+ //          label_str = "";
+ //          bb2label.insert({bb, new Label(label_str)});
+ //          linear_bbs.push_back(bb);
+ //          fff = true;
+ //          break;
+ //      } else if(bb == func->getEntryBlock()) {
+ //          label_str = func->getName() + "_" + "entry";
+ //          bb2label.insert({bb, new Label(label_str)});
+ //      } else if(bb != func->getEntryBlock() && !bb->getTerminator()->isRet()) {
+ //          label_str = func->getName() + "_" + ::std::to_string(mp++);
+ //          new_label = new Label(label_str);
+ //          bb2label.insert({bb, new_label});
+ //      } else {
+ //          ret_bb = bb;
+ //          continue;
+ //      }
+ //      linear_bbs.push_back(bb);
+ //  }
+ //  if(!fff){
+ //  label_str = func->getName() + "_" + "ret";
+ //  new_label = new Label(label_str);
+ //  bb2label.insert({ret_bb, new_label});
+ //  linear_bbs.push_back(ret_bb);
+ //  }
+
+   bb2label.clear();
+   linear_bbs.clear();
+    ret_bb = nullptr;
+    bool finish = false;
+    int index = 0;
+    ::std::string bb_label_name;
+    Label* bb_label;
+    for(auto bb: func->getBasicBlocks()){
+        if(bb==func->getEntryBlock()){
+            //空bb
+            if(bb->getTerminator()->isRet()){
+                bb_label_name = "";
+                bb_label = new Label(bb_label_name);
+                bb2label.insert({bb, bb_label});
+                linear_bbs.push_back(bb);
+                finish = true;
+                break;
+            }
+            else{
+                bb_label_name = func->getName() + "_" + "entry";
+            }
         }
+        else{
+            if(!bb->getTerminator()->isRet()){
+                bb_label_name = func->getName() + "_" + ::std::to_string(index++);
+            }
+            else{
+                ret_bb = bb;
+                continue;
+            }
+        }
+        bb_label = new Label(bb_label_name);
+        bb2label.insert({bb, bb_label});
         linear_bbs.push_back(bb);
     }
-    if(!fff){
-    label_str = func->getName() + "_" + "ret";
-    new_label = new Label(label_str);
-    bb2label.insert({ret_bb, new_label});
-    linear_bbs.push_back(ret_bb);
+
+    if(!finish){
+        bb_label_name = func->getName() + "_" + "ret";
+        bb_label = new Label(bb_label_name);
+        bb2label.insert({ret_bb, bb_label});
+        linear_bbs.push_back(ret_bb);
     }
+
     //*************************线性化BB并标号***************************
 
 
     //*************************栈空间的开辟***************************
-    int total_size = 0;
-    int iargs_size = 0;
-    int fargs_size = 0;
 
-    
-    used_iregs_pair.first.clear();
-    used_iregs_pair.second.clear();
-    used_fregs_pair.first.clear();
-    used_fregs_pair.second.clear();
 
-    val2stack.clear();
+    //为函数的参数列表中超过8个的参数分配内存空间
+//  if(func->getIArgs().size() > 8) {
+//     iargs_size+=allocateMemForIArgs();
+//  //          int i = 0;
+//  //   for(auto arg: func->getIArgs()) {
+//  //       if(i >= 8) {
+//  //           int size_of_arg_type = arg->getType()->getSize();
+//  //           val2stack[static_cast<Value*>(arg)] = new IRIA(static_cast<int>(RISCV::GPR::s0), iargs_size);
+//  //           iargs_size += align_8(size_of_arg_type);
+//  //       }
+//  //       i++;
+//  //   }
+//
+//
+//
+//// for(int i=8; i<subroutine->getFuncOfSubroutine()->getIArgs().size(); i++){
+////     auto ipara = subroutine->getFuncOfSubroutine()->getIArgs()[i];
+////     val2stack[static_cast<Value*>(ipara)] = new IRIA(static_cast<int>(RISCV::GPR::s0), iargs_size);
+////     iargs_size += align_8(ipara->getType()->getSize());
+//// }
+//
+//  }
 
-    //! val2stack记录了通过栈传递给callee的参数,在callee中可能被分配到栈上(此时记录无用但不影响正确性)，也可能被分配到寄存器中
-    if(func->getIArgs().size() > 8) {
-        int i = 0;
-        for(auto arg: func->getIArgs()) {
-            if(i >= 8) {
-                int size_of_arg_type = arg->getType()->getSize();
-                val2stack[static_cast<Value*>(arg)] = new IRIA(static_cast<int>(RISCV::GPR::s0), iargs_size);
-                iargs_size += ((size_of_arg_type + 7) / 8) * 8;
-            }
-            i++;
-        }
-    }
+ //  if(func->getFArgs().size() > 8) {
+ //      fargs_size+=allocateMemForFArgs();
+ // //             int i = 0;
+ // //     for(auto arg: func->getFArgs()) {
+ // //         if(i >= 8) {
+ // //             int size_of_arg_type = arg->getType()->getSize();
+ // //             val2stack[static_cast<Value*>(arg)] = new IRIA(static_cast<int>(RISCV::GPR::s0), iargs_size + fargs_size);
+ // //             fargs_size +=  align_8(size_of_arg_type);
+ // //         } 
+ // //         i++;
+ // //     }
 
-    if(func->getFArgs().size() > 8) {
-        int i = 0;
-        for(auto arg: func->getFArgs()) {
-            if(i >= 8) {
-                int size_of_arg_type = arg->getType()->getSize();
-                val2stack[static_cast<Value*>(arg)] = new IRIA(static_cast<int>(RISCV::GPR::s0), iargs_size + fargs_size);
-                fargs_size += ((size_of_arg_type + 7) / 8) * 8;
-            } 
-            i++;
-        }
-    }
+ ////     for(int i=8; i<subroutine->getFuncOfSubroutine()->getFArgs().size(); i++){
+ ////      auto fpara = subroutine->getFuncOfSubroutine()->getFArgs()[i];
+ ////      val2stack[static_cast<Value*>(fpara)] = new IRIA(static_cast<int>(RISCV::GPR::s0), iargs_size+fargs_size);
+ ////      fargs_size += align_8(fpara->getType()->getSize());
+ ////  }
+ //  }
 
-    //& build reg -> values map or val -> stack map
-    for(auto iter: ival2interval) {
-        Value *val_iter = iter.first;
-        Interval *interval_iter = iter.second;
-        if(interval_iter){
-        if(interval_iter->reg >= 0) {
-            auto iter = callee_saved_iregs.find(interval_iter->reg);
-            if(iter != callee_saved_iregs.end()) {
-                used_iregs_pair.second.insert(interval_iter->reg);
-            } else {
-                used_iregs_pair.first.insert(interval_iter->reg);
-            }
-        }
-        }
-    }
 
-    for(auto iter: fval2interval) {
-        Value *val_iter = iter.first;
-        Interval *interval_iter = iter.second;
-        if(interval_iter){
-        if(interval_iter->reg >= 0) {
-            auto iter = callee_saved_fregs.find(interval_iter->reg);
-            if(iter != callee_saved_fregs.end()) {
-                used_fregs_pair.second.insert(interval_iter->reg);
-            } else {
-                used_fregs_pair.first.insert(interval_iter->reg);
-            }
-        }
-        }
-    }
+    //为栈上指针分配内存空间
+    total_size += allocateMemForIPointer();
+    total_size += allocateMemForFPointer();
 
-    //& 总是保存fp,ra,s1寄存器
-    used_iregs_pair.second.insert(static_cast<int>(RISCV::GPR::ra));
-    used_iregs_pair.second.insert(static_cast<int>(RISCV::GPR::s0));
 
-    total_size += reg_size * (used_iregs_pair.second.size() + used_fregs_pair.second.size());
 
-    //& 为栈上的指针参数分配空间
 
-    for(auto iter: ival2interval) {
-        Value *val_iter = iter.first;
-        Interval *interval_iter = iter.second;
-         if(interval_iter){
-        if(interval_iter->reg < 0) {
-            auto arg = dynamic_cast<Argument*>(val_iter);
-            if(arg && val2stack[static_cast<Value*>(arg)] != nullptr) 
-                continue;
-            int size_of_val_type = val_iter->getType()->getSize();
-            total_size += ((size_of_val_type + 7) / 8) * 8;
-            val2stack[val_iter] = new IRIA(static_cast<int>(RISCV::GPR::s0), -total_size);
-        }
-         }
-    }
+    //为alloca指令分配内存空间
+    total_size += allocateMemForAlloca();
 
-    for(auto iter: fval2interval) {
-        Value *val_iter = iter.first;
-        Interval *interval_iter = iter.second;
-         if(interval_iter){
-        if(interval_iter->reg < 0) {
-            auto arg = dynamic_cast<Argument*>(val_iter);
-            if(arg && val2stack[static_cast<Value*>(arg)] != nullptr) 
-                continue;
-            int size_of_val_type = val_iter->getType()->getSize();
-            total_size += ((size_of_val_type + 7) / 8) * 8;
-            val2stack[val_iter] = new IRIA(static_cast<int>(RISCV::GPR::s0), -total_size);
-        }
-         }
-    }
 
-    //& handle alloc inst
-    for(auto &inst: func->getEntryBlock()->getInstructions()) {
-        auto alloc = dynamic_cast<AllocaInst*>(inst);
-        if(!alloc)
-            continue;
-        int size_of_alloc_type = alloc->getAllocaType()->getSize();
-        total_size += ((size_of_alloc_type + 3) / 4) * 4;
-        val2stack[static_cast<Value*>(alloc)] = new IRIA(static_cast<int>(RISCV::GPR::s0), -total_size);
-    }
-
-    int stack_size = ((total_size + 7) / 8) * 8;
+    //对齐地址
+    int stack_size = align_8(total_size);
     //*************************栈空间的开辟***************************
 
     subroutine->addSequence(subroutine->getFuncOfSubroutine()->getEntryBlock(), bb2label[subroutine->getFuncOfSubroutine()->getEntryBlock()]);
@@ -302,28 +356,30 @@ void AsmGen::visit(Function &node){
 
  
     //*************************被调用函数的栈帧初始化***************************
-    int cur_offset = 0;
+ //   int cur_offset = 0;
+//
+ //   std::vector<std::pair<IRA*, IRIA*>> to_save_iregs;
+ //   std::vector<std::pair<FRA*, IRIA*>> to_save_fregs;
+//
+ //   if(!used_iregs_pair.second.empty()) {
+ //       for(auto iter = used_iregs_pair.second.begin(); iter != used_iregs_pair.second.end(); iter++) {
+ //           cur_offset -= reg_size;
+ //           to_save_iregs.push_back(std::make_pair(new IRA(*iter), new IRIA(static_cast<int>(RISCV::GPR::sp), cur_offset)));
+ //       }
+ //   }
+ //   if(!used_fregs_pair.second.empty()) {
+ //       for(auto iter = used_fregs_pair.second.begin(); iter != used_fregs_pair.second.end(); iter++) {
+ //           cur_offset -= reg_size;
+ //           to_save_fregs.push_back(std::make_pair(new FRA(*iter), new IRIA(static_cast<int>(RISCV::GPR::sp), cur_offset)));
+ //       }
+ //   }
+    auto callee_save_iregs = getCalleeSaveIRegs();
+    auto callee_save_fregs = getCalleeSaveFRegs();
 
-    std::vector<std::pair<IRA*, IRIA*>> to_save_iregs;
-    std::vector<std::pair<FRA*, IRIA*>> to_save_fregs;
-
-    if(!used_iregs_pair.second.empty()) {
-        for(auto iter = used_iregs_pair.second.begin(); iter != used_iregs_pair.second.end(); iter++) {
-            cur_offset -= reg_size;
-            to_save_iregs.push_back(std::make_pair(new IRA(*iter), new IRIA(static_cast<int>(RISCV::GPR::sp), cur_offset)));
-        }
-    }
-    if(!used_fregs_pair.second.empty()) {
-        for(auto iter = used_fregs_pair.second.begin(); iter != used_fregs_pair.second.end(); iter++) {
-            cur_offset -= reg_size;
-            to_save_fregs.push_back(std::make_pair(new FRA(*iter), new IRIA(static_cast<int>(RISCV::GPR::sp), cur_offset)));
-        }
-    }
-
-    if(!to_save_iregs.empty())
-        sequence->createCalleeSaveRegs(to_save_iregs);
-    if(!to_save_fregs.empty())
-        sequence->createCalleeSaveRegs(to_save_fregs);
+    if(!callee_save_iregs.empty())
+        sequence->createCalleeSaveRegs(callee_save_iregs);
+    if(!callee_save_fregs.empty())
+        sequence->createCalleeSaveRegs(callee_save_fregs);
     sequence->createCalleeStackFrameInitialize(stack_size);
     //*************************被调用函数的栈帧初始化***************************
 
@@ -349,18 +405,18 @@ void AsmGen::visit(Function &node){
     sequence->createCalleeStackFrameClear(stack_size);
     
     int num_of_all_restore_regs = used_iregs_pair.second.size() + used_fregs_pair.second.size();
-    cur_offset = - reg_size * num_of_all_restore_regs;
+    save_offset = - reg_size * num_of_all_restore_regs;
     if(!used_fregs_pair.second.empty()) {
         for(auto iter = used_fregs_pair.second.rbegin(); iter != used_fregs_pair.second.rend(); iter++) {
-            to_load_fregs.push_back(std::make_pair(new FRA(*iter), new IRIA(static_cast<int>(RISCV::GPR::sp), cur_offset)));
-            cur_offset += reg_size; 
+            to_load_fregs.push_back(std::make_pair(new FRA(*iter), new IRIA(static_cast<int>(RISCV::GPR::sp), save_offset)));
+            save_offset += reg_size; 
         }
     }
     
     if(!used_iregs_pair.second.empty()) {
         for(auto iter = used_iregs_pair.second.rbegin(); iter != used_iregs_pair.second.rend(); iter++) {
-            to_load_iregs.push_back(std::make_pair(new IRA(*iter), new IRIA(static_cast<int>(RISCV::GPR::sp), cur_offset)));
-            cur_offset += reg_size; 
+            to_load_iregs.push_back(std::make_pair(new IRA(*iter), new IRIA(static_cast<int>(RISCV::GPR::sp), save_offset)));
+            save_offset += reg_size; 
         }
     }
     sequence->createCalleeRestoreRegs(to_load_iregs);
@@ -3049,4 +3105,218 @@ void AsmGen::phi_union(Instruction *br_inst) {
                 sequence->appendInst(fail_br_inst);
         }
     }
+}
+
+int AsmGen::setCallerAndCalleeRegs(){
+    used_iregs_pair.first.clear();
+    used_iregs_pair.second.clear();
+    used_fregs_pair.first.clear();
+    used_fregs_pair.second.clear();
+    //& build reg -> values map or val -> stack map
+ //  for(auto iter: ival2interval) {
+ //      Interval *interval_iter = iter.second;
+ //      if(interval_iter){
+ //      if(interval_iter->reg >= 0) {
+ //          auto iter = ::std::find(icallee.begin(), icallee.end(), interval_iter->reg);
+ //          if(iter != icallee.end()) {
+ //              used_iregs_pair.second.push_back(interval_iter->reg);
+ //          } else {
+ //              used_iregs_pair.first.push_back(interval_iter->reg);
+ //          }
+ //      }
+ //      }
+ //  }
+
+ //  for(auto iter: fval2interval) {
+ //      Value *val_iter = iter.first;
+ //      Interval *interval_iter = iter.second;
+ //      if(interval_iter){
+ //      if(interval_iter->reg >= 0) {
+ //          auto iter = ::std::find(fcallee.begin(), fcallee.end(), interval_iter->reg);
+ //          if(iter != fcallee.end()) {
+ //              used_fregs_pair.second.push_back(interval_iter->reg);
+ //          } else {
+ //              used_fregs_pair.first.push_back(interval_iter->reg);
+ //          }
+ //      }
+ //      }
+ //  }
+
+   ::std::vector<int> all_iregs = {};
+   ::std::vector<int> all_fregs = {};
+   for(auto i: ival2interval)
+       if(i.second && i.second->reg>-1)    
+           all_iregs.push_back(i.second->reg);
+
+   for(auto f: fval2interval)
+       if(f.second && f.second->reg>-1)    
+           all_fregs.push_back(f.second->reg);
+   
+   ::std::sort(all_iregs.begin(), all_iregs.end());
+   ::std::sort(all_fregs.begin(), all_fregs.end());
+
+   ::std::set_intersection(all_iregs.begin(), all_iregs.end(),
+                           icallee.begin(), icallee.end(),
+                           ::std::back_inserter(used_iregs_pair.second));
+
+   ::std::set_intersection(all_fregs.begin(), all_fregs.end(),
+                           fcallee.begin(), fcallee.end(),
+                           ::std::back_inserter(used_fregs_pair.second));
+
+   ::std::set_difference(all_iregs.begin(), all_iregs.end(),
+                         used_iregs_pair.second.begin(), used_iregs_pair.second.end(),
+                         ::std::back_inserter(used_iregs_pair.first));
+
+   ::std::set_difference(all_fregs.begin(), all_fregs.end(),
+                         used_fregs_pair.second.begin(), used_fregs_pair.second.end(),
+                         ::std::back_inserter(used_fregs_pair.first));
+
+
+    
+
+    //& 总是保存fp,ra,s1寄存器
+    used_iregs_pair.second.push_back(static_cast<int>(RISCV::GPR::ra));
+    used_iregs_pair.second.push_back(static_cast<int>(RISCV::GPR::s0));
+
+    ::std::sort(used_iregs_pair.first.begin(), used_iregs_pair.first.end());
+    ::std::sort(used_iregs_pair.second.begin(), used_iregs_pair.second.end());
+    ::std::sort(used_fregs_pair.first.begin(), used_fregs_pair.first.end());
+    ::std::sort(used_fregs_pair.second.begin(), used_fregs_pair.second.end());
+
+    auto last_i_f = ::std::unique(used_iregs_pair.first.begin(), used_iregs_pair.first.end());
+    auto last_i_s = ::std::unique(used_iregs_pair.second.begin(), used_iregs_pair.second.end());
+    auto last_f_f = ::std::unique(used_fregs_pair.first.begin(), used_fregs_pair.first.end());
+    auto last_f_s = ::std::unique(used_fregs_pair.second.begin(), used_fregs_pair.second.end());
+
+    used_iregs_pair.first.erase(last_i_f, used_iregs_pair.first.end());
+    used_iregs_pair.second.erase(last_i_s, used_iregs_pair.second.end());
+    used_fregs_pair.first.erase(last_f_f, used_fregs_pair.first.end());
+    used_fregs_pair.second.erase(last_f_s, used_fregs_pair.second.end());
+    
+    return reg_size * (used_iregs_pair.second.size() + used_fregs_pair.second.size());
+
+}
+
+
+int AsmGen::allocateMemForIArgs(){
+    //! val2stack记录了通过栈传递给callee的参数,在callee中可能被分配到栈上(此时记录无用但不影响正确性)，也可能被分配到寄存器中
+    int iparas_size = 0;
+    for(int i=8; i<subroutine->getFuncOfSubroutine()->getIArgs().size(); i++){
+        auto ipara = subroutine->getFuncOfSubroutine()->getIArgs()[i];
+        val2stack[static_cast<Value*>(ipara)] = new IRIA(static_cast<int>(RISCV::GPR::s0), iparas_size);
+        iparas_size += align_8(ipara->getType()->getSize());
+    }
+    return iparas_size;
+}
+
+int AsmGen::allocateMemForFArgs(){
+    int fparas_size = 0;
+    for(int i=8; i<subroutine->getFuncOfSubroutine()->getFArgs().size(); i++){
+        auto fpara = subroutine->getFuncOfSubroutine()->getFArgs()[i];
+        val2stack[static_cast<Value*>(fpara)] = new IRIA(static_cast<int>(RISCV::GPR::s0), fparas_size+iargs_size);
+        fparas_size += align_8(fpara->getType()->getSize());
+    }
+    return fparas_size;
+}
+
+int AsmGen::allocateMemForIPointer(){
+
+    //& 为栈上的指针参数分配空间
+
+ //   for(auto iter: ival2interval) {
+ //       Value *val_iter = iter.first;
+ //       Interval *interval_iter = iter.second;
+ //        if(interval_iter){
+ //       if(interval_iter->reg < 0) {
+ //           auto arg = dynamic_cast<Argument*>(val_iter);
+ //           if(arg && val2stack[static_cast<Value*>(arg)] != nullptr) 
+ //               continue;
+ //           int size_of_val_type = val_iter->getType()->getSize();
+ //           total_size += ((size_of_val_type + 7) / 8) * 8;
+ //           val2stack[val_iter] = new IRIA(static_cast<int>(RISCV::GPR::s0), -total_size);
+ //       }
+ //        }
+ //   }
+
+    int isize_record = 0;
+    for(auto i:ival2interval){
+        if(i.second && i.second->reg<=-1 && (!dynamic_cast<Argument*>(i.first) || val2stack[static_cast<Value*>(dynamic_cast<Argument*>(i.first))] == nullptr)){
+            isize_record+=align_8(i.first->getType()->getSize());
+            val2stack[i.first] = new IRIA(static_cast<int>(RISCV::GPR::s0), -(total_size+isize_record));
+        }
+    }
+    return isize_record;
+
+}
+
+int AsmGen::allocateMemForFPointer(){
+
+ //   for(auto iter: fval2interval) {
+ //       Value *val_iter = iter.first;
+ //       Interval *interval_iter = iter.second;
+ //        if(interval_iter){
+ //       if(interval_iter->reg < 0) {
+ //           auto arg = dynamic_cast<Argument*>(val_iter);
+ //           if(arg && val2stack[static_cast<Value*>(arg)] != nullptr) 
+ //               continue;
+ //           int size_of_val_type = val_iter->getType()->getSize();
+ //           total_size += ((size_of_val_type + 7) / 8) * 8;
+ //           val2stack[val_iter] = new IRIA(static_cast<int>(RISCV::GPR::s0), -total_size);
+ //       }
+ //        }
+ //   }
+
+    int fsize_record = 0;
+    for(auto f:fval2interval){
+        if(f.second && f.second->reg<=-1 && (!dynamic_cast<Argument*>(f.first) || val2stack[static_cast<Value*>(dynamic_cast<Argument*>(f.first))] == nullptr)){
+            fsize_record+=align_8(f.first->getType()->getSize());
+            val2stack[f.first] = new IRIA(static_cast<int>(RISCV::GPR::s0), -(total_size+fsize_record));
+        }
+    }
+    return fsize_record;
+}
+
+int AsmGen::allocateMemForAlloca(){
+    //& handle alloc inst
+    int alloca_size = 0;
+    for(auto &inst: subroutine->getFuncOfSubroutine()->getEntryBlock()->getInstructions()) {
+        if(dynamic_cast<AllocaInst*>(inst)){
+            alloca_size+=align_4(dynamic_cast<AllocaInst*>(inst)->getAllocaType()->getSize());
+            val2stack[static_cast<Value*>(dynamic_cast<AllocaInst*>(inst))] = new IRIA(static_cast<int>(RISCV::GPR::s0), -(total_size+alloca_size));
+        }
+    }
+
+    return alloca_size;
+}
+
+std::vector<std::pair<IRA*, IRIA*>> AsmGen::getCalleeSaveIRegs(){
+   //if(!used_iregs_pair.second.empty()) {
+   //    for(auto iter ) {
+   //        cur_offset -= reg_size;
+   //        to_save_iregs.push_back(std::make_pair(new IRA(*iter), new IRIA(static_cast<int>(RISCV::GPR::sp), cur_offset)));
+   //    }
+   //}
+    std::vector<std::pair<IRA*, IRIA*>> iregs;
+    int index = 0;
+    for(auto ireg: used_iregs_pair.second){        
+        iregs.push_back(std::make_pair(new IRA(ireg), new IRIA(static_cast<int>(RISCV::GPR::sp), save_offset+reg_size*(--index))));
+    }
+    save_offset+=reg_size*index;
+    return iregs;
+}
+
+std::vector<std::pair<FRA*, IRIA*>> AsmGen::getCalleeSaveFRegs(){
+   //if(!used_fregs_pair.second.empty()) {
+   //    for(auto iter = used_fregs_pair.second.begin(); iter != used_fregs_pair.second.end(); iter++) {
+   //        cur_offset -= reg_size;
+   //        to_save_fregs.push_back(std::make_pair(new FRA(*iter), new IRIA(static_cast<int>(RISCV::GPR::sp), cur_offset)));
+   //    }
+   //}
+    std::vector<std::pair<FRA*, IRIA*>> fregs;
+    int index = 0;
+    for(auto freg: used_fregs_pair.second){        
+        fregs.push_back(std::make_pair(new FRA(freg), new IRIA(static_cast<int>(RISCV::GPR::sp), save_offset+reg_size*(--index))));
+    }
+    save_offset+=reg_size*index;
+    return fregs;
 }

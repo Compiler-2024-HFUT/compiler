@@ -34,6 +34,13 @@ fcmbrinst
 loadoffsetinst
 storeoffsetinst
 */
+
+//以8字节为对齐
+#define align_8(address) ((address+7)/8)*8
+
+//以4字节为对齐
+#define align_4(address) ((address+3)/4)*4
+
 extern::std::vector<int> all_alloca_gprs;
 
 extern::std::vector<int> all_alloca_fprs;
@@ -174,13 +181,13 @@ class AsmGen : public IRVisitor{
         std::map<BasicBlock*, Label *> bb2label; 
 
         //& function info statistic
-        std::pair<std::set<int>, std::set<int>> used_iregs_pair; 
-        std::pair<std::set<int>, std::set<int>> used_fregs_pair; 
+        std::pair<std::vector<int>, std::vector<int>> used_iregs_pair; 
+        std::pair<std::vector<int>, std::vector<int>> used_fregs_pair; 
         
         //& stack alloc 
         ::std::map<Value*, IRIA*> val2stack;
 
-        const std::set<int> callee_saved_iregs = {
+        ::std::vector<int> icallee = {
             static_cast<int>(RISCV::GPR::s0),
             static_cast<int>(RISCV::GPR::s2),
             static_cast<int>(RISCV::GPR::s3),
@@ -194,7 +201,7 @@ class AsmGen : public IRVisitor{
             static_cast<int>(RISCV::GPR::s11)
         };
 
-        const std::set<int> callee_saved_fregs = {
+        ::std::vector<int> fcallee = {
             static_cast<int>(RISCV::FPR::fs2),
             static_cast<int>(RISCV::FPR::fs3),
             static_cast<int>(RISCV::FPR::fs4),
@@ -215,6 +222,11 @@ class AsmGen : public IRVisitor{
 
         const int arg_reg_base = 10;  //~ reg_a0 or reg_fa0
 
+        int total_size;
+        int iargs_size;
+        int fargs_size;
+
+        int save_offset;
 
 
         //& args move for callee or caller
@@ -223,6 +235,18 @@ class AsmGen : public IRVisitor{
         std::vector<std::pair<AddressMode*, AddressMode*>> caller_iargs_move(CallInst *call);
         std::vector<std::pair<AddressMode*, AddressMode*>> caller_fargs_move(CallInst *call);
 
+        int setCallerAndCalleeRegs();
+
+        int allocateMemForIArgs();
+        int allocateMemForFArgs();
+
+        int allocateMemForIPointer();
+        int allocateMemForFPointer();
+
+        int allocateMemForAlloca();
+
+        std::vector<std::pair<IRA*, IRIA*>> getCalleeSaveIRegs();
+        std::vector<std::pair<FRA*, IRIA*>> getCalleeSaveFRegs();
         //& temporary use regs for inst(all ops need to be loaded to regs for risc arch)
         void ld_tmp_regs_for_inst(Instruction *inst);
  
@@ -256,6 +280,8 @@ class AsmGen : public IRVisitor{
     //收集call指令前定义寄存器的信息
     ::std::map<Instruction* , ::std::vector<int>> call_define_ireg_map;
     ::std::map<Instruction* , ::std::vector<int>> call_define_freg_map;
+
+    BasicBlock *ret_bb;
 
 friend class LSRA;
     
