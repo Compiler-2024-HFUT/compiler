@@ -14,7 +14,7 @@ struct Expr{
         ZEXT,SITOFP,FPTOSI,
         AND,OR,XOR,
         ASR,SHL,LSR,ASR64,SHL64,LSR64,
-        GEP,
+        GEP,LOADIMM,
     }op_;
     uint32_t lhs,rhs,third;
     Type* type_;
@@ -57,6 +57,7 @@ public:
     // Expr creatExpr(CmpInst* ins);
     // Expr creatExpr(FCmpInst* ins);
     Expr creatExpr(GetElementPtrInst* ins);
+    Expr creatExpr(LoadImmInst* ins);
     ::std::vector<Value*>& getNumVal(uint32_t num){
         return  number_value[num];
     }
