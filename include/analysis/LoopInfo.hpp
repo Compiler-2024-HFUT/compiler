@@ -15,6 +15,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <algorithm>
+using std::find;
 using std::cout;
 using std::endl;
 using std::string;
@@ -258,6 +260,11 @@ public:
         return loops[func]; 
     }
 
+    void removeLoop(Loop *loop) {
+        Function *func = loop->getFunction();
+        auto pos = find(loops[func].begin(), loops[func].end(), loop);
+        loops[func].erase(pos);
+    }
 };
 
 #endif

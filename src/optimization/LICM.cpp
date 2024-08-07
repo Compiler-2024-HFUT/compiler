@@ -48,7 +48,7 @@ void LICM::visitLoop(Loop *loop) {
 
         // inv's block dominates all  ( loop exits where inv is live-out )
         bool isInvBBDomAllExits = true;
-        uset<BB*> invDoms = dom->getDomSet(inv->getParent());
+        uset<BB*> &invDoms = dom->getDomSet(inv->getParent());
         for(BB *e : loop->getExits()) {
             const pair< set<Value*>, set<Value*> > &liveOutOfExit = lv->getLiveVarOut(e);
             if(inv->getType()->isFloatType() && liveOutOfExit.second.count(inv)

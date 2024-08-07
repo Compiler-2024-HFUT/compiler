@@ -213,41 +213,155 @@ void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip) {
             break;
         phiMap.insert({dynamic_cast<PhiInst*>(*iterO), dynamic_cast<PhiInst*>(*iterN)});
     }
-    
+
     for(auto [oldPhi, newPhi] : phiMap) {
-        for(BB *bb : loop->getFunction()->getBasicBlocks()) {
-            if(loop->contain(bb) || newLoop->contain(bb))
+        list<Use> useList = oldPhi->getUseList();
+        for(Use u : useList) {
+            if(!dynamic_cast<Instruction*>(u.val_))
                 continue;
-            for(Instruction *inst : bb->getInstructions()){
-                vector<Value*> ops = inst->getOperands();
-                for(int i = 0; i < ops.size(); i++) {
-                    if(ops[i] == oldPhi) {
-                        inst->replaceOperand(i, newPhi);
+            
+            Instruction *useInst = dynamic_cast<Instruction*>(u.val_);
+            BB *useBB = useInst->getParent();
+            if(!loop->contain(useBB) && !newLoop->contain(useBB)) {
+                useInst->replaceOperand(u.arg_no_, newPhi);
+            }
+        }
+    }
+}
+
+
+// 块内指令数(不包括br)小于DIRECT_UNROLLING_SIZE
+void LoopUnroll::unrolEntirelLoop(Loop *loop, LoopTrip trip) {
+    
+    return;
+}
+
+// 只合并单块(必为latch、唯一入口为header、terminator是无条件跳转)
+void LoopUnroll::unrollEntirelLoopInOneBB(Loop *loop, LoopTrip trip) {
+    BB *loopBlock = loop->getSingleLatch();
+    // todo: remove vector
+    umap<Instruction*, vector<Instruction*> > iterValMap = {};
+    umap<Instruction*, Instruction*> instMap = {};
+    vector<Instruction*> delIters = {};
+
+    for(Instruction *inst : loop->getHeader()->getInstructions()) {
+        if(!inst->isPhi())
+            break;
+        
+        // 仅用于计数比较，完全展开时可将其删除
+        if(inst->getUseList().size() == 2) {
+            Instruction *phiIter1 = dynamic_cast<Instruction*>(inst->getUseList().front().val_);
+            Instruction *phiIter2 = dynamic_cast<Instruction*>(inst->getUseList().back().val_);
+            if(phiIter1 && phiIter2) {
+                if(( phiIter1->isAdd() || phiIter1->isSub() ) && phiIter2->isCmp()) {
+                    // 迭代的指令也只用于更新phi
+                    if(phiIter1->getUseList().size() == 1 && phiIter1->getUseList().front().val_ == inst) {
+                        delIters.push_back(phiIter1);
+                        continue;
+                    }
+                } else if(( phiIter2->isAdd() || phiIter2->isSub() ) && phiIter1->isCmp()) {
+                    if(phiIter2->getUseList().size() == 1 && phiIter2->getUseList().front().val_ == inst) {
+                        delIters.push_back(phiIter2);
+                        continue;
+                    }
+                }
+            }
+        }
+        
+        if(inst->getNumOperands() == 4 && inst->getOperand(3) == loop->getSingleLatch()) {
+            Instruction *iter = dynamic_cast<Instruction*>(inst->getOperand(2));
+            iterValMap.insert({iter, {inst, iter}});
+        }
+    }
+    
+    list<Instruction*> &blockInsts = loopBlock->getInstructions();
+    Instruction *bodyTerm = blockInsts.back();
+    blockInsts.pop_back();
+
+    list<Instruction*> instsToCopy = list<Instruction*>(blockInsts.begin(), blockInsts.end());
+    for(Instruction *instToDel : delIters) {
+        blockInsts.remove(instToDel);
+        instsToCopy.remove(instToDel);
+    }
+
+    for(int i = 1; i < trip.step; i++) {
+        instMap.clear();
+        for(Instruction *copyInst : instsToCopy) {
+            Instruction *newInst = copyInst->copyInst(loopBlock);
+            instMap[copyInst] = newInst;
+            
+            vector<Value*> &copyOps = newInst->getOperands(); 
+            for(int j = 0; j < copyOps.size(); j++) {
+                Instruction *opI = dynamic_cast<Instruction*>(copyOps[j]);
+                if(opI && instMap.count(opI))
+                    newInst->replaceOperand(j, instMap[opI]);
+            }
+
+            // 无迭代变量，不更新
+            if(iterValMap.size() == 0)
+                continue;
+
+            // new iter
+            if(iterValMap.count(copyInst))
+                iterValMap[copyInst].push_back(newInst);
+
+            // 对于出现的phi，替换为对应的迭代变量
+            vector<Value*> &iterOps = newInst->getOperands();
+            for(auto [fIter, iters] : iterValMap){
+                for(int j = 0; j < iterOps.size(); j++) {
+                    if(iterOps[j] == iters[0]) {
+                        newInst->replaceOperand(j, iters[i]);
                     }
                 }
             }
         }
     }
 
-    // phi的use好像有问题
-    // for(auto [oldPhi, newPhi] : phiMap) {
-    //     for(Use u : oldPhi->getUseList()) {
-    //         if(!dynamic_cast<Instruction*>(u.val_))
-    //             continue;
-    //         
-    //         Instruction *useInst = dynamic_cast<Instruction*>(u.val_);
-    //         BB *useBB = useInst->getParent();
-    //         if(!loop->contain(useBB) && !newLoop->contain(useBB)) {
-    //             useInst->replaceOperand(u.arg_no_, newPhi);
-    //         }
-    //     }
-    // }
-}
+    // 删除header和loop
+    //    preheader->header->loopBlock->exit
+    // -> preheader->loopBlock->exit
+    BB *preheader = loop->getPreheader();
+    BB *loopExit = loop->getExits()[0];
 
-// 只合并单块(必为latch、唯一入口为header、terminator是无条件跳转)
-// 且块内指令数(不包括br)小于DIRECT_UNROLLING_SIZE
-void LoopUnroll::unrolEntirelLoop(Loop *loop, LoopTrip trip) {
-    
+    preheader->getTerminator()->replaceOperand(0, loopBlock);
+    preheader->getSuccBasicBlocks().clear();
+    preheader->getSuccBasicBlocks().push_back(loopBlock);
+    loopBlock->getPreBasicBlocks().clear();
+    loopBlock->getPreBasicBlocks().push_back(preheader);
+
+    blockInsts.push_back(bodyTerm);
+    loopBlock->getTerminator()->replaceOperand(0, loopExit);
+    loopBlock->getSuccBasicBlocks().clear();
+    loopBlock->getSuccBasicBlocks().push_back(loopExit);
+    loopExit->getPreBasicBlocks().clear();
+    loopExit->getPreBasicBlocks().push_back(loopBlock);
+
+    // 对phi指令进行拆分
+    for(Instruction *phiInst : loop->getHeader()->getInstructions()) {
+        if(!phiInst->isPhi())
+            break;
+        // use in loop
+        Value *inVal = phiInst->getOperand(0);
+        // use out of loop
+        Instruction *iterI = dynamic_cast<Instruction*>(phiInst->getOperand(2));
+        if(!iterI || !iterValMap.count(iterI)) continue;
+        Value *outVal = iterValMap[iterI][trip.step];
+        
+        list<Use> useList = phiInst->getUseList();
+        for(Use u : useList) {
+            Instruction *instU = dynamic_cast<Instruction*>(u.val_);
+            if(!instU)  continue;
+            BB *parent = instU->getParent();
+            if(loop->contain(parent)) {
+                instU->replaceOperand(u.arg_no_, inVal);
+            } else {
+                instU->replaceOperand(u.arg_no_, outVal);
+            }
+        }
+    }
+    loop->getHeader()->eraseFromParent();
+    info_man_->getInfo<LoopInfo>()->removeLoop(loop);
+
     return;
 }
 
@@ -258,6 +372,10 @@ void LoopUnroll::removeLoop(Loop *loop) {
 void LoopUnroll::visitLoop(Loop *loop) {
     if(UNROLLING_TIME == 1)
         return;
+
+    // for(Loop *inner : loop->getInners()) {
+    //     visitLoop(inner);
+    // }
 
     SCEV *scev = info_man_->getInfo<SCEV>();
     LoopTrip trip = loop->computeTrip(scev);
@@ -274,16 +392,14 @@ void LoopUnroll::visitLoop(Loop *loop) {
         removeLoop(loop);
         return;
     // } else if(trip.step < DIRECT_UNROLLING_TIME) {
-    //     unrollCommonLoop(loop, trip);
+    //     unrolEntirelLoop(loop, trip);
+    } else if(loop->getBlocks().size() == 2 && (loop->getSingleLatch()->getInstructions().size()-1)*trip.step < DIRECT_UNROLLING_SIZE) { 
+        unrollEntirelLoopInOneBB(loop, trip);
     } else if(trip.step % UNROLLING_TIME == 0) {
         unrollCommonLoop(loop, trip);
     } else {
         unrollPartialLoop(loop, trip);
     }
-
-    // for(Loop *inner : loop->getInners()) {
-    //     visitLoop(inner);
-    // }
 }
 
 void LoopUnroll::runOnFunc(Function* func) {
