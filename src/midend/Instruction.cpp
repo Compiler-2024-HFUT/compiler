@@ -972,3 +972,16 @@ std::string SelectInst::print() {
     return instr_ir;
 }
 
+LoadImmInst::LoadImmInst(Type*type,Value *cons, BasicBlock *bb): Instruction(type, Instruction::OpID::loadimm, 1, bb) {
+    setOperand(0,cons);
+}
+LoadImmInst* LoadImmInst::createLoadImm(Type*type,Value *cons, BasicBlock *bb){
+    return new LoadImmInst(type,cons,bb);
+}
+std::string LoadImmInst::print() {
+    std::string instr_ir;
+    instr_ir += "%";
+    instr_ir += this->getName();
+    instr_ir += " = ";
+    return instr_ir;
+}
