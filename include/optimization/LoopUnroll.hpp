@@ -1,4 +1,6 @@
 /*
+    After LICM
+
     循环形式限制：
         a. 仅单条件（可求LoopCond、LoopTrip）
         b. 可求SCEV，也即要满足求解SCEV的循环格式
@@ -40,17 +42,17 @@
 using std::vector;
 
 // Magic Num，后期考虑时间、空间局部性进行修改
-#define UNROLLING_TIME          3       // 循环展开次数
-#define DIRECT_UNROLLING_TIME   30
-#define DIRECT_UNROLLING_SIZE   100     // 去除循环结构后的最大指令数
+#define UNROLLING_TIME          8     // 循环展开次数
+#define DIRECT_UNROLLING_TIME   64
+#define DIRECT_UNROLLING_SIZE   1024     // 去除循环结构后的最大指令数
 
 class LoopUnroll : public FunctionPass{
     void visitLoop(Loop *loop);
-    void unrollCommonLoop(Loop *loop, LoopTrip trip);   // 情况1
-    void unrollPartialLoop(Loop *loop, LoopTrip trip);  // 情况2
-    void unrolEntirelLoop(Loop *loop, LoopTrip trip);   // 情况3 
+    void unrollCommonLoop(Loop *loop, LoopTrip trip, int time);   // 情况1
+    void unrollPartialLoop(Loop *loop, LoopTrip trip, int time);  // 情况2
+    void unrolEntirelLoop(Loop *loop, LoopTrip trip);           // 情况3 
+    void unrollEntirelLoopInOneBB(Loop *loop, LoopTrip trip);   // 情况3，但LoopBody仅有一个基本块
     
-    // ？？
     // 循环消除，对于迭代次数为0的循环，可以将其删除
     void removeLoop(Loop *loop);
 public:

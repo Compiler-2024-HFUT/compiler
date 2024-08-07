@@ -1,4 +1,5 @@
 #include <array>
+#include <string>
 
 #include "midend/BasicBlock.hpp"
 #include "midend/Function.hpp"
@@ -565,4 +566,30 @@ SelectInst::SelectInst(Type*type,Value *cond, Value *true_val, Value *false_val,
 }
 SelectInst* SelectInst::createSelect(Type*type,Value *cond, Value *true_val, Value *false_val, BasicBlock *bb){
     return new SelectInst(type,cond, true_val, false_val,bb);
+}
+std::string SelectInst::print() {
+    std::string instr_ir;
+    instr_ir += "%";
+    instr_ir += this->getName();
+    instr_ir += " = ";
+    instr_ir += OpID2String(this->getInstrType());
+    instr_ir += " ";
+    instr_ir += printAsOpWithType(this->getOperand(0));
+    instr_ir += ", ";
+    instr_ir += printAsOpWithType(this->getOperand(1));
+    instr_ir += ", ";
+    instr_ir += printAsOpWithType(this->getOperand(2));
+    return instr_ir;
+}
+
+LoadImmInst::LoadImmInst(Type*type,Value *cons, BasicBlock *bb): Instruction(type, Instruction::OpID::loadimm, 1, bb) {
+    setOperand(0,cons);
+}
+LoadImmInst* LoadImmInst::createLoadImm(Type*type,Value *cons, BasicBlock *bb){
+    return new LoadImmInst(type,cons,bb);
+}
+std::string LoadImmInst::print() {
+    static int num=0;
+    std::string instr_ir="%"+getName()+"= " +(this->getType()->isIntegerType()?"add i32 ":"fadd float ")+"0 ,"+printAsOp(getOperand(0));
+    return instr_ir;
 }

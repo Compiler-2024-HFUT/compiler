@@ -62,6 +62,7 @@ public:
       loadoffset,
       storeoffset,
       select,
+      loadimm,
     };
 
 public:
@@ -116,7 +117,7 @@ public:
         case OpID::loadoffset: return "loadoffset"; break;
         case OpID::storeoffset: return "storeoffset"; break;
         case OpID::select:return "select"; break;
-
+        case OpID::loadimm:return "loadimm"; break;
         default: return ""; break; 
       }
     }
@@ -208,6 +209,7 @@ public:
     bool isWriteMem(){return isStore() || isStoreOffset(); }
 
     bool isSelect(){return op_id_==OpID::select;}
+    bool isLoadImm(){return op_id_==OpID::loadimm;}
 
     // void setId(int id) { id_ = id; }
     // int getId() { return id_; }
@@ -748,6 +750,25 @@ public:
 
 private:
     SelectInst(Type*type,Value *cond, Value *true_val, Value *false_val, BasicBlock *bb);
+};
+
+class LoadImmInst: public Instruction {
+
+public:
+    static LoadImmInst *createLoadImm(Type*type,Value *cons, BasicBlock *bb);
+
+    // Type *getSelectType() const{return getType();}
+
+    virtual std::string print() override;
+
+    Instruction *copyInst(BasicBlock *bb) override final{
+        return  new LoadImmInst(this->getType(),getOperand(0),bb);
+    }
+
+    virtual void accept(IRVisitor &visitor) final{}
+
+private:
+    LoadImmInst(Type*type,Value*cons,  BasicBlock *bb);
 };
 
 #endif

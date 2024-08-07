@@ -1,9 +1,10 @@
 #include "analysis/LoopInvariant.hpp"
+#include "midend/GlobalVariable.hpp"
 
 bool LoopInvariant::isValueInvariant(Loop *loop, Value *val) {
     if(dynamic_cast<Instruction*>(val))
         return isInstInvariant(loop, dynamic_cast<Instruction*>(val));
-    else if(dynamic_cast<Constant*>(val) || dynamic_cast<Argument*>(val)||dynamic_cast<GlobalVariable*>(val))
+    else if(dynamic_cast<Constant*>(val) || dynamic_cast<Argument*>(val) || dynamic_cast<GlobalVariable*>(val))
         return true;
     else    
         return false;
@@ -21,12 +22,12 @@ bool LoopInvariant::isInstInvariant(Loop *loop, Instruction *inst) {
     if(!loop->contain(inst->getParent()))
         return true;
 
-    if(inst->isAlloca()) {
+    if(inst->isAlloca() || inst->isLoadImm()) {
     // is this right? 
         return true;
-    } else if(inst->isVoid() || inst->isPhi()) {
+    } else if(inst->isVoid() || inst->isPhi() || inst->isLoadOffset()) {
         return false;
-    } else if (inst->isCmp() || inst->isFCmp()) {
+    } else if (inst->isCmp() || inst->isFCmp() || inst->isSelect()) {
         return false;
     } else if (inst->isLoad()) {    
         Type *opType = inst->getOperand(0)->getType();

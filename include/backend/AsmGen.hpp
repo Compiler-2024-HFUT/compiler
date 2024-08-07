@@ -4,9 +4,11 @@
 
 #include "midend/IRVisitor.hpp"
 #include "Asm.hpp"
-#include "RegAlloc.hpp"
+#include "LSRA.hpp"
 
 #include <variant>
+#include <vector>
+#include <map>
 /*需要访问的中端数据结构如下：
 module
 function
@@ -32,7 +34,9 @@ fcmbrinst
 loadoffsetinst
 storeoffsetinst
 */
+extern::std::vector<int> all_alloca_gprs;
 
+extern::std::vector<int> all_alloca_fprs;
 class AsmGen : public IRVisitor{
     public:
         AsmGen(Module* module):b_inst_gen_map{
@@ -149,6 +153,9 @@ class AsmGen : public IRVisitor{
         std::map<Value*, Interval*> ival2interval;
         std::map<Value*, Interval*> fval2interval;
 
+        std::map<Function*, map<Value*, Interval*>> ivalue_interval_map;
+        std::map<Function*, map<Value*, Interval*>> fvalue_interval_map;
+
         int cur_tmp_reg_saved_stack_offset = 0;
         int caller_saved_regs_stack_offset = 0;
         int caller_trans_args_stack_offset = 0;
@@ -246,7 +253,11 @@ class AsmGen : public IRVisitor{
         //& global variable label gen for function using these global variable
     std::map<GlobalVariable*, Label*> global_variable_labels_table;
 
+    //收集call指令前定义寄存器的信息
+    ::std::map<Instruction* , ::std::vector<int>> call_define_ireg_map;
+    ::std::map<Instruction* , ::std::vector<int>> call_define_freg_map;
 
+friend class LSRA;
     
 };
 

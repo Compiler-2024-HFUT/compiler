@@ -39,6 +39,8 @@ Expr::ExprOp Expr::instop2exprop(Instruction::OpID instrop){
         {Instruction::OpID::shl64,ExprOp::SHL64},
         {Instruction::OpID::lsr64,ExprOp::LSR64},
         {Instruction::OpID::getelementptr,ExprOp::GEP},
+        {Instruction::OpID::loadimm,ExprOp::LOADIMM},
+
     };
     auto iter=i_e.find(instrop);
     if(iter==i_e.end())
@@ -63,6 +65,8 @@ uint32_t ValueTable::getValueNum(Value*v){
             e=creatExpr(zext);
         }else if(auto gep=dynamic_cast<GetElementPtrInst*>(ins)){
             e=creatExpr(gep);
+        }else if(auto loadimm=dynamic_cast<LoadImmInst*>(ins)){
+            e=creatExpr(loadimm);
         }
         /*else if(auto cmp=dynamic_cast<CmpInst*>(ins)){
             e=creatExpr(cmp);
@@ -283,4 +287,7 @@ Expr ValueTable::creatExpr(GetElementPtrInst*ins){
     }else{
         return Expr(Expr::ExprOp::GEP,ins->getType(),getValueNum(ins->getOperand(0)),getValueNum(ins->getOperand(1)));
     }
+}
+Expr ValueTable::creatExpr(LoadImmInst*ins){
+    return Expr(Expr::LOADIMM,ins->getType(),getValueNum(ins->getOperand(0)));
 }

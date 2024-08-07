@@ -31,9 +31,11 @@
 #include "analysis/LoopInfo.hpp"
 #include "analysis/LoopInvariant.hpp"
 #include "analysis/Dataflow.hpp"
+#include "analysis/SCEV.hpp"
 
 #include "optimization/LoopSimplified.hpp"
 #include "optimization/LICM.hpp"
+#include "optimization/LoopUnroll.hpp"
 
 #include "optimization/BreakGEP.hpp"
 #include "optimization/CombineJJ.hpp"
@@ -51,6 +53,7 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addInfo<LiveVar>();
     pm.addInfo<LoopInfo>();
     pm.addInfo<LoopInvariant>();
+    pm.addInfo<SCEV>();
 
     pm.addPass<DeadStoreEli>();    
     pm.addPass<CombinBB>();
@@ -61,6 +64,10 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<InstrCombine>();
     pm.addPass<InstrResolve>();
     pm.addPass<DCE>();
+
+    pm.addPass<LoopSimplified>();
+    pm.addPass<LICM>();
+    pm.addPass<LoopUnroll>();
 
     pm.addPass<FuncInline>();
     pm.addPass<CombinBB>();
@@ -74,16 +81,15 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<ArrReduc>();
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
-
     pm.addPass<BreakGEP>();
+
     pm.addPass<DCE>();
     pm.addPass<ValNumbering>();
 
-    pm.addPass<LoopSimplified>();
-    pm.addPass<LICM>();
-
     pm.addPass<CombinBB>();
-    pm.addPass<VRE>();
+    // pm.addPass<VRE>();
+    pm.addPass<ValNumbering>();
+    pm.addPass<DCE>();
 
     lir(pm);
 
@@ -168,6 +174,17 @@ int Compiler::run(){
         out_file<<m->print()<<std::endl;
     }else{
         AsmGen asm_gen(m);
+        auto reg_alloc = new LSRA(m);
+        pm.addInfo<LiveVar>();
+        pm.addInfo<CIDBB>();
+        pm.addInfo<CLND>();
+        auto lv = pm.getInfo<LiveVar>();
+        lv->analyse();
+        auto cidbb = pm.getInfo<CIDBB>();
+        cidbb->analyse();
+        auto clnd = pm.getInfo<CLND>();
+        clnd->analyse();
+        reg_alloc->run(lv, cidbb, &asm_gen);
         m->accept(asm_gen);
         ::std::string asm_code = asm_gen.getAsmUnit()->print();
         out_file<<asm_code<<std::endl;
