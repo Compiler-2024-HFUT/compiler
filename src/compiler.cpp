@@ -83,12 +83,11 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<CombinBB>();
     pm.addPass<BreakGEP>();
 
-    pm.addPass<BreakGEP>();
     pm.addPass<DCE>();
     pm.addPass<ValNumbering>();
 
     pm.addPass<CombinBB>();
-    pm.addPass<VRE>();
+    // pm.addPass<VRE>();
     pm.addPass<ValNumbering>();
     pm.addPass<DCE>();
 
