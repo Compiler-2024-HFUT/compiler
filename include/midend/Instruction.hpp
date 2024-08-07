@@ -209,6 +209,7 @@ public:
     bool isWriteMem(){return isStore() || isStoreOffset(); }
 
     bool isSelect(){return op_id_==OpID::select;}
+    bool isLoadImm(){return op_id_==OpID::loadimm;}
 
     // void setId(int id) { id_ = id; }
     // int getId() { return id_; }

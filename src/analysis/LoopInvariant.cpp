@@ -22,12 +22,12 @@ bool LoopInvariant::isInstInvariant(Loop *loop, Instruction *inst) {
     if(!loop->contain(inst->getParent()))
         return true;
 
-    if(inst->isAlloca()) {
+    if(inst->isAlloca() || inst->isLoadImm()) {
     // is this right? 
         return true;
-    } else if(inst->isVoid() || inst->isPhi()) {
+    } else if(inst->isVoid() || inst->isPhi() || inst->isLoadOffset()) {
         return false;
-    } else if (inst->isCmp() || inst->isFCmp()) {
+    } else if (inst->isCmp() || inst->isFCmp() || inst->isSelect()) {
         return false;
     } else if (inst->isLoad()) {    
         Type *opType = inst->getOperand(0)->getType();
