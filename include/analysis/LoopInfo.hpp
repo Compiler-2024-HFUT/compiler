@@ -261,9 +261,29 @@ public:
     }
 
     void removeLoop(Loop *loop) {
+        std::function<void(Loop*, Loop*)> removeL = [&](Loop *outer, Loop *toDel) {
+            for(auto iterL = outer->getInners().begin(); iterL != outer->getInners().end(); iterL++) {
+                if(*iterL == toDel) {
+                    outer->getInners().erase(iterL);
+                    return;
+                }
+            }
+            
+            for(Loop *inner : outer->getInners()) {
+                removeL(inner, toDel);
+            }
+        };
+        
         Function *func = loop->getFunction();
         auto pos = find(loops[func].begin(), loops[func].end(), loop);
-        loops[func].erase(pos);
+        if(pos!= loops[func].end()) {
+            loops[func].erase(pos);
+            return;
+        }
+
+        // 删除的是子循环
+        for(Loop *l : loops[func])
+            removeL(loop->getOuter(), loop);
     }
 };
 
