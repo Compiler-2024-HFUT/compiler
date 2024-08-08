@@ -32,6 +32,7 @@
 
 #include "analysis/Info.hpp"
 #include "analysis/LoopInfo.hpp"
+#include "analysis/LoopInvariant.hpp"
 #include "midend/Value.hpp"
 #include "midend/Constant.hpp"
 #include "midend/Instruction.hpp"
@@ -48,7 +49,7 @@ using std::string;
 struct SCEVVal {
     Value *sval;
     vector<SCEVVal*> operands;
-    enum binType { Const, Phi, Add, Mul, Unk } op;
+    enum binType { Const, Inv, Add, Mul, Unk } op;
 
     void addAddVal(SCEVVal *val) {
         if(op!= binType::Add) LOG_ERROR("scev val isn't an add", 1)
@@ -57,9 +58,9 @@ struct SCEVVal {
 
     static SCEVVal *createUnkVal() { return new SCEVVal{nullptr, {}, binType::Unk}; }
     // 表示单独的数值，仅支持phi和整型常数
-    static SCEVVal *createPhiVal(Value *phi) { 
-        LOG_ERROR("Isn't a PhiInst", !dynamic_cast<PhiInst*>(phi)) 
-        return new SCEVVal{phi, {}, binType::Phi}; 
+    static SCEVVal *createInvVal(Value *inv) { 
+        LOG_ERROR("Create a void Val!", inv->getType()->isVoidType()) 
+        return new SCEVVal{inv, {}, binType::Inv}; 
     }
     static SCEVVal *createConVal(Value *con) { 
         LOG_ERROR("Isn't a ConstInt", !dynamic_cast<ConstantInt*>(con)) 
@@ -73,17 +74,17 @@ struct SCEVVal {
             int sum = lhsInt->getValue() + rhsInt->getValue();
             return createConVal(ConstantInt::get(sum));
         } else if(lhsInt) {
-            return new SCEVVal{nullptr, {createConVal(lhs), createPhiVal(rhs)}, binType::Add};
+            return new SCEVVal{nullptr, {createConVal(lhs), createInvVal(rhs)}, binType::Add};
         } else if(rhsInt) {
-            return new SCEVVal{nullptr, {createConVal(rhs), createPhiVal(lhs)}, binType::Add};
+            return new SCEVVal{nullptr, {createConVal(rhs), createInvVal(lhs)}, binType::Add};
         } else {
-            return new SCEVVal{nullptr, {createPhiVal(lhs), createPhiVal(rhs)}, binType::Add};
+            return new SCEVVal{nullptr, {createInvVal(lhs), createInvVal(rhs)}, binType::Add};
         }
     }
     static SCEVVal *createAddVal(vector<SCEVVal*> ops) {
         return new SCEVVal{nullptr, ops, binType::Add};
     }
-    // mul op.size() == 2, op[0] is a const, op[1] is a phi
+    // mul op.size() == 2, op[0] is a const, op[1] is an inv
     static SCEVVal *createMulVal(Value *lhs, Value *rhs) { 
         ConstantInt *lhsInt = dynamic_cast<ConstantInt*>(lhs);
         ConstantInt *rhsInt = dynamic_cast<ConstantInt*>(rhs);
@@ -92,14 +93,14 @@ struct SCEVVal {
             return createConVal(ConstantInt::get(prod));
         } else if(lhsInt) {
             if(lhsInt->getValue() == 1)
-                return createPhiVal(rhs);
+                return createInvVal(rhs);
             else
-                return new SCEVVal{nullptr, {createConVal(lhs), createPhiVal(rhs)}, binType::Mul};
+                return new SCEVVal{nullptr, {createConVal(lhs), createInvVal(rhs)}, binType::Mul};
         } else if(rhsInt) {
             if(rhsInt->getValue() == 1)
-                return createPhiVal(lhs);
+                return createInvVal(lhs);
             else
-                return new SCEVVal{nullptr, {createConVal(rhs), createPhiVal(lhs)}, binType::Mul};
+                return new SCEVVal{nullptr, {createConVal(rhs), createInvVal(lhs)}, binType::Mul};
         } else {
             return createUnkVal();
         }
@@ -109,13 +110,13 @@ struct SCEVVal {
     bool isMul() { return op == binType::Mul; }
     bool isUnk()  { return op == binType::Unk; }
     bool isConst()  { return op == binType::Const; }
-    bool isPhi()  { return op == binType::Phi; }
+    bool isInv()  { return op == binType::Inv; }
     
     SCEVVal *getNegate() {
         if(this->isConst()) {
             ConstantInt *negInt = ConstantInt::get(-dynamic_cast<ConstantInt*>(sval)->getValue());
             return createConVal(negInt);
-        } else if(this->isPhi()) {
+        } else if(this->isInv()) {
             return createMulVal(ConstantInt::get(-1), sval);
         } else if(this->isMul()) {  
             ConstantInt *negInt = ConstantInt::get(-dynamic_cast<ConstantInt*>(operands[0]->sval)->getValue());
@@ -139,9 +140,9 @@ struct SCEVVal {
     string print() {
         string str = "";
 
-        if(this->isPhi()) {
-            PhiInst *svalPhi = dynamic_cast<PhiInst*>(sval); 
-            str += STRING(svalPhi->getName());
+        if(this->isInv()) {
+            Value *svalInst = sval; 
+            str += STRING(svalInst->getName());
         } else if(this->isConst()) {
             ConstantInt *svalInt = dynamic_cast<ConstantInt*>(sval);        
             str += STRING_NUM(svalInt->getValue());
@@ -258,7 +259,7 @@ struct SCEVExpr {
 class SCEV: public FunctionInfo {
     umap<Loop*, umap<Value*, SCEVExpr*> > exprMapping;
     umap<Loop*, uset<PhiInst*> > loopPhis;
-    vector<Loop*> loops;
+    umap<Function*, vector<Loop*> > loops;
 
     void visitLoop(Loop *loop);                // 深度优先访问嵌套循环
     void visitBlock(BasicBlock *bb, Loop *loop);
@@ -268,6 +269,8 @@ public:
     virtual ~SCEV() { }
 
     SCEVExpr *getExpr(Value *v, Loop *loop) {            // 安全地获取v对应的SCEVExpr
+        LoopInvariant *inv = infoManager->getInfo<LoopInvariant>(); 
+
         if(exprMapping[loop].count(v)) {
             return exprMapping[loop][v]; 
         }  
@@ -276,8 +279,8 @@ public:
             exprMapping[loop][v] = SCEVExpr::createValue(val, loop);
             return exprMapping[loop][v];
         }
-        if(dynamic_cast<PhiInst*>(v)) {
-            SCEVVal *val = SCEVVal::createPhiVal(v);
+        if(inv->isInvariable(loop, v)) {
+            SCEVVal *val = SCEVVal::createInvVal(v);
             exprMapping[loop][v] = SCEVExpr::createValue(val, loop);
             return exprMapping[loop][v];
         }

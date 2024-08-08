@@ -446,15 +446,15 @@ void LoopUnroll::visitLoop(Loop *loop) {
     if(UNROLLING_TIME == 1)
         return;
 
-    // for(Loop *inner : loop->getInners()) {
-    //     visitLoop(inner);
-    // }
+    for(Loop *inner : loop->getInners()) {
+        visitLoop(inner);
+    }
 
     SCEV *scev = info_man_->getInfo<SCEV>();
     LoopTrip trip = loop->computeTrip(scev);
     LOG_WARNING(trip.print())
 
-    // 暂不考虑break和子循环
+    // 暂不考虑break和多重循环
     if(loop->getExits().size() > 1 || 
        loop->getInners().size() > 0)
         return;
@@ -478,9 +478,7 @@ void LoopUnroll::visitLoop(Loop *loop) {
 void LoopUnroll::runOnFunc(Function* func) {
     vector<Loop*> loops = info_man_->getInfo<LoopInfo>()->getLoops(func);
     for(Loop *loop : loops) {
-        // 暂不考虑多重循环
-        if(loop->getInners().size() == 0)
-            visitLoop(loop);
+        visitLoop(loop);
     }
 }
 

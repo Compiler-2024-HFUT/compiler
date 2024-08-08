@@ -22,11 +22,17 @@ class LoopInvariant : public FunctionInfo {
     void computeInvariants(Loop *loop);
 public:
     bool isInvariable(Loop *loop, Value *val) {
-        if(dynamic_cast<Constant*>(val))
+        if(dynamic_cast<Constant*>(val) || dynamic_cast<Argument*>(val) || dynamic_cast<GlobalVariable*>(val))
             return true;
         else if(dynamic_cast<Instruction*>(val)) {
-            list<Instruction*> &iiset = invariants[loop];
-            return ( find(iiset.begin(), iiset.end(), val ) != iiset.end() );
+            Loop *outer = loop;
+            while(outer) {
+                list<Instruction*> &iiset = invariants[loop];
+                if( find(iiset.begin(), iiset.end(), val ) != iiset.end() )
+                    return true;
+                outer = outer->getOuter();
+            }
+            return false;
         } else 
             return false;
     }
