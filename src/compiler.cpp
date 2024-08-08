@@ -14,6 +14,7 @@
 #include "optimization/CombinBB.hpp"
 #include "optimization/ConstBrEli.hpp"
 #include "optimization/DCE.hpp"
+#include "optimization/DFE.hpp"
 #include "optimization/DeadPHIEli.hpp"
 #include "optimization/DeadStoreEli.hpp"
 #include "optimization/G2L.hpp"
@@ -62,8 +63,12 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
     pm.addPass<InstrCombine>();
+    pm.addPass<SCCP>();
+    pm.addPass<CombinBB>();
+    pm.addPass<InstrCombine>();
     pm.addPass<InstrResolve>();
     pm.addPass<DCE>();
+    pm.addPass<DFE>();
 
     pm.addPass<LoopSimplified>();
     pm.addPass<LICM>();
