@@ -9,16 +9,16 @@
 #include "midend/Instruction.hpp"
 #include "PassManager.hpp"
 #include "midend/Module.hpp"
-class DFE : public ModulePass{
+class DFE : public Pass{
 private:
     FuncAnalyse *funanaly;
     // void init() override{
     //     funanaly=info_man_->getInfo<FuncAnalyse>();
     // }
 public:
-    DFE(Module *m,InfoManager*im) : ModulePass(m,im),funanaly(0){}
+    DFE(Module *m,InfoManager*im) : Pass(m,im),funanaly(0){}
     ~DFE(){};
-    Modify runOnModule(Module*module_) override;
+    Modify run() override;
 };
 
 #endif

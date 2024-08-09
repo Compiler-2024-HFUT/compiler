@@ -6,7 +6,7 @@
 #include "midend/GlobalVariable.hpp"
 #include "midend/Instruction.hpp"
 #include "midend/Module.hpp"
-Modify DFE::runOnModule(Module*module_){
+Modify DFE::run(){
     Modify ret{};
     funanaly=info_man_->getInfo<FuncAnalyse>();
     for(auto fun:module_->getFunctions()){

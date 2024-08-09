@@ -12,7 +12,7 @@ class SplitArr:public FunctionPass{
     std::vector<AllocaInst*> arr_set;
     std::set<Instruction*>erase;
 public:
-    auto replaceArray(Value *array,  std::vector<AllocaInst*>& new_array)->void;
+    void replaceArray(Value *array,  std::vector<AllocaInst*>& new_array);
     Modify runOnFunc(Function*func);
     bool canSpilt(Value*);
     bool spiltArray(AllocaInst*alloc);
