@@ -82,11 +82,11 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<InstrCombine>();
 
     //arrpass
-    // pm.addPass<MoveAlloca>();
+    pm.addPass<MoveAlloca>();
     pm.addPass<ValNumbering>();
     pm.addPass<CombinBB>();
     pm.addPass<ArrReduc>();
-    // pm.addPass<SplitArr>();
+    pm.addPass<SplitArr>();
     pm.addPass<Mem2Reg>();
     pm.addPass<DCE>();
     pm.addPass<SCCP>();
@@ -109,15 +109,15 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<BreakGEP>();
     pm.addPass<LoopSimplified>();
     pm.addPass<LICM>();
+
     pm.addPass<CombinBB>();
-    pm.addPass<SCCP>();
+    // pm.addPass<SCCP>();
     pm.addPass<InstrCombine>();
     pm.addPass<DCE>();
     pm.addPass<ValNumbering>();
 
     pm.addPass<CombinBB>();
     // pm.addPass<VRE>();
-    pm.addPass<ValNumbering>();
     pm.addPass<DCE>();
 
     lir(pm);
