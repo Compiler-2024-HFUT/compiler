@@ -13,7 +13,7 @@ Modify DFE::runOnModule(Module*module_){
         if(fun->isDeclaration())
             continue;
         auto se=funanaly->all_se_info.find(fun)->second;
-        if(!se.isWriteGlobal()&&!se.isWriteParamArray()&&!se.isPutVar()){
+        if(!se.isWriteGlobal()&&!se.isWriteParamArray()&&!se.isPutVar()&&!se.isGetVar()){
             auto ul=fun->getUseList();
             for(auto [u,i]:ul){
                 if(!u->useEmpty())
