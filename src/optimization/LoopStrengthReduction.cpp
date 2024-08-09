@@ -118,9 +118,9 @@ void LoopStrengthReduction::visitLoop(Loop *loop) {
             inst->getParent()->deleteInstr(inst);
     }
         
-    // for(Loop *inner : loop->getInners()) {
-    //     visitLoop(inner);
-    // }
+    for(Loop *inner : loop->getInners()) {
+        visitLoop(inner);
+    }
 }
 
 void LoopStrengthReduction::runOnFunc(Function* func) {
