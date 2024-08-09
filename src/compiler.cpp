@@ -43,6 +43,7 @@
 #include "optimization/CombineJJ.hpp"
 #include "optimization/MemInstOffset.hpp"
 #include "optimization/splitArr.hpp"
+#include "analysis/CLND.hpp"
 
 void usage(){
 	(void)fprintf(stderr, "%s\n%s\n",
