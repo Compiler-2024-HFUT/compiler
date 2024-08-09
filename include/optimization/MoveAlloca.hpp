@@ -7,7 +7,6 @@
 #include "optimization/PassManager.hpp"
 
 #include <vector>
-using ::std::vector;
 
 class MoveAlloca : public FunctionPass{
     private:
