@@ -14,6 +14,6 @@ public:
     GepOpt(Module*m,InfoManager*im):Pass(m, im){
         zero=ConstantInt::get(0);
     }
-    ~GepOpt(){}
+    ~GepOpt(){};
 };
 #endif

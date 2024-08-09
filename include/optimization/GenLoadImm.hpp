@@ -6,12 +6,7 @@
 #include "midend/Module.hpp"
 #include "optimization/PassManager.hpp"
 
-#include <vector>
-using ::std::vector;
-
 class GenLoadImm : public FunctionPass{
-    private:
-
     public:
         GenLoadImm(Module *m,InfoManager*im): FunctionPass(m,im){}
         ~GenLoadImm(){};
