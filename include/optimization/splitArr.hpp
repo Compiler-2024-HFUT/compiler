@@ -17,5 +17,6 @@ public:
     bool canSpilt(Value*);
     bool spiltArray(AllocaInst*alloc);
     using FunctionPass::FunctionPass;
+    ~SplitArr(){};
 };
 #endif
