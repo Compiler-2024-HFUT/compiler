@@ -1,4 +1,5 @@
 #include "optimization/LoopStrengthReduction.hpp"
+#include "analysis/Dominators.hpp"
 
 #include <list>
 #include <algorithm>
@@ -12,14 +13,12 @@ static list<BinaryInst*> getLinearExpr(BinaryInst *endInst) {
 
     // 深度优先遍历线性表达式
     std::function<void(Value *) > dfs = [&](Value *val) {
-        if(dynamic_cast<ConstantInt*>(val) || dynamic_cast<PhiInst*>(val))
+        BinaryInst *bi = dynamic_cast<BinaryInst*>(val);
+        if(!bi)
             return;
         
-        BinaryInst *bi = dynamic_cast<BinaryInst*>(val);
-        LOG_ERROR("bi is not a BinaryInst", !bi)
-        vector<Value*> &ops = bi->getOperands();
-        dfs(ops[0]);
-        dfs(ops[1]);
+        dfs(bi->getOperand(0));
+        dfs(bi->getOperand(1));
         linearExpr.push_back(bi);
     };
 
@@ -29,6 +28,7 @@ static list<BinaryInst*> getLinearExpr(BinaryInst *endInst) {
 
 void LoopStrengthReduction::visitLoop(Loop *loop) {
     SCEV *scev = info_man_->getInfo<SCEV>();
+    Dominators *dom = info_man_->getInfo<Dominators>();
     umap<Value*, SCEVExpr*> exprs = scev->getExprs(loop);
     BB *header = loop->getHeader();
     BB *latch = loop->getSingleLatch();
@@ -36,8 +36,36 @@ void LoopStrengthReduction::visitLoop(Loop *loop) {
     BB *bbToInsert = nullptr;
     LOG_ERROR("preheader or latch is null, need LoopSimplified",!preheader || !latch)
 
+    uset<BB*> domSet = {};
     uset<Instruction*> instToDel  = {};
     for(auto [v, expr] : exprs) {
+        BinaryInst *inst = dynamic_cast<BinaryInst*>(v);
+        if(!inst || !expr || expr->isUnknown()) 
+            continue;
+        bbToInsert = inst->getParent();
+        
+        domSet = dom->getDomSet(inst->getParent());
+        if(!domSet.count(latch))
+            continue;
+
+        // 获取inst的相关指令集合
+        list<BinaryInst*> linearExpr = getLinearExpr(inst);
+
+        // 如果表达式的结果为单值，直接替换
+        if(expr->isValue() && ( expr->getValue()->isConst() || expr->getValue()->isInv() ) ) {
+            if(inst != expr->getValue()->sval) {
+                inst->replaceAllUseWith(expr->getValue()->sval);
+                // delete later
+                for(BinaryInst *bi : linearExpr) {
+                    instToDel.insert(bi);
+                }
+            }
+        } else if(expr->isValue()) {
+            // todo later
+            continue;
+        }
+
+        // 如果不是迭代的表达式
         if(!expr->isAddRec() || expr->operands.size()!= 2)
             continue;
         
@@ -46,43 +74,37 @@ void LoopStrengthReduction::visitLoop(Loop *loop) {
         Use vUse = vUses.front();
         if(vUses.size() == 1 && (!scev->getExpr(vUse.val_, loop) || !scev->getExpr(vUse.val_, loop)->isUnknown()))
             continue;
-
-        BinaryInst *endInst = dynamic_cast<BinaryInst*>(v);
-        if(!endInst)
-            continue;
         
-        // 获取endInst的相关指令集合
-        list<BinaryInst*> linearExpr = getLinearExpr(endInst);
-        bbToInsert = endInst->getParent();
-        // 表达式只有1条，且为加减法、只乘1的乘法，跳过
+        // 表达式只有1条，且为加减法、只乘1的乘法，跳过，影响消除和外移
         if(linearExpr.size() == 1 && 
             (linearExpr.front()->isAdd() || linearExpr.front()->isSub() || 
                 (linearExpr.front()->isMul() && dynamic_cast<ConstantInt*>(linearExpr.front()->getOperand(1)) && dynamic_cast<ConstantInt*>(linearExpr.front()->getOperand(1))->getValue()==1)) )
             continue;
 
-        LOG_WARNING("\nlinearExpr:" + endInst->getName() + ":");
+        // log linearExpr
+        LOG_WARNING("linearExpr:" + inst->getName() + ":");
         for(auto bi : linearExpr) {
             LOG_WARNING(bi->print());
         }
         
-        // delete later
+        // 可识别的迭代关系式，之后删除
         for(BinaryInst *bi : linearExpr) {
             instToDel.insert(bi);
         }
 
         Value *phiIncomeVal1 = expr->operands[0]->val->transToValue(preheader);
         
-        PhiInst *newPhi = PhiInst::createPhi(endInst->getType(), header);
+        PhiInst *newPhi = PhiInst::createPhi(inst->getType(), header);
         header->addInstrAfterPhiInst(newPhi);
 
-        Value *phiIncomeVal2 = BinaryInst::createAdd(newPhi, expr->operands[1]->val->sval, bbToInsert);
-        bbToInsert->getInstructions().pop_back();
-        bbToInsert->addInstrAfterPhiInst(dynamic_cast<Instruction*>(phiIncomeVal2));
+        Value *phiIncomeVal2 = BinaryInst::createAdd(newPhi, expr->operands[1]->val->sval, latch);
+        latch->getInstructions().pop_back();
+        latch->addInstrBeforeTerminator(dynamic_cast<Instruction*>(phiIncomeVal2));
 
         newPhi->addPhiPairOperand(phiIncomeVal1, preheader);
         newPhi->addPhiPairOperand(phiIncomeVal2, latch);
         
-        endInst->replaceAllUseWith(phiIncomeVal2);
+        inst->replaceAllUseWith(newPhi);
     }
 
     for(auto inst : instToDel) {
@@ -92,7 +114,6 @@ void LoopStrengthReduction::visitLoop(Loop *loop) {
             if(instToDel.count(dynamic_cast<Instruction*>(u.val_)) == 0) 
                 del = false;
         }
-
         if(del)
             inst->getParent()->deleteInstr(inst);
     }

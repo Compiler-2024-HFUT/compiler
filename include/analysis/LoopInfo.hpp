@@ -73,11 +73,11 @@ struct LoopCond {
 class SCEV;
 struct SCEVExpr;
 struct LoopTrip {
-    int start;  // [start, end)
-    int end;
+    Value *start;  // [start, end)
+    Value *end;
     int iter;   // 每次迭代量
-    int step;   // 总步数，0 when loop never run, -1 when step can't get, -2 when dead loop
-    static LoopTrip createEmptyTrip(int n) { return {0, 0, 0, n}; } 
+    int step;   // 总步数，0 when loop never run, -1 when step can't get, -2 when dead loop, -3 dynamic loop
+    static LoopTrip createEmptyTrip(int n) { return {nullptr, nullptr, 0, n}; } 
     string print() {
         if(step == 0) {
             return "{ loop never run }\n";
@@ -86,7 +86,7 @@ struct LoopTrip {
         } else if (step == -2) {
             return "{ dead loop }\n";
         } else {
-            return "{ range: [" + STRING_NUM(start) + "," + STRING_NUM(end) + ")/], iter: "
+            return "{ range: [" + STRING(start->getName()) + "," + STRING(end->getName()) + ")/], iter: "
             +  STRING_NUM(iter) + ", total step: " + STRING_NUM(step) + " }\n";
         }
     }
@@ -261,9 +261,29 @@ public:
     }
 
     void removeLoop(Loop *loop) {
+        std::function<void(Loop*, Loop*)> removeL = [&](Loop *outer, Loop *toDel) {
+            for(auto iterL = outer->getInners().begin(); iterL != outer->getInners().end(); iterL++) {
+                if(*iterL == toDel) {
+                    outer->getInners().erase(iterL);
+                    return;
+                }
+            }
+            
+            for(Loop *inner : outer->getInners()) {
+                removeL(inner, toDel);
+            }
+        };
+        
         Function *func = loop->getFunction();
         auto pos = find(loops[func].begin(), loops[func].end(), loop);
-        loops[func].erase(pos);
+        if(pos!= loops[func].end()) {
+            loops[func].erase(pos);
+            return;
+        }
+
+        // 删除的是子循环
+        for(Loop *l : loops[func])
+            removeL(loop->getOuter(), loop);
     }
 };
 

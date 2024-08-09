@@ -2,6 +2,7 @@
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
 #include <bitset>
+#include <vector>
 
 FuncSEInfo::FuncSEInfo():info(0){}
 FuncSEInfo::FuncSEInfo(uint64_t i):info(i){}
@@ -46,8 +47,9 @@ void FuncAnalyse::analyseOnModule(Module*module_){
     for(auto f:module_->getFunctions()){
         if(f->isDeclaration())
             continue;
-        direct_se_info.insert({f,analyseSE(f)});
-        all_se_info.insert({f,analyseSE(f)});
+        auto se=analyseSE(f);
+        direct_se_info.insert({f,se});
+        all_se_info.insert({f,se});
     }
     changed=true;
     do{
@@ -134,8 +136,17 @@ FuncSEInfo FuncAnalyse::analyseSE(Function*func){
                 if(dynamic_cast<GlobalVariable*>(lval)!=nullptr){
                     ret.addWriteGlobal();
                 }else if(auto gep=dynamic_cast<GetElementPtrInst*>(lval)){
-                    if(dynamic_cast<Argument*>(gep->getOperand(0))){
-                        ret.addWriteParamArray();
+                    std::vector<GetElementPtrInst*>vals{gep};
+                    while(!vals.empty()){
+                        gep=vals.back();
+                        vals.pop_back();
+                        if(dynamic_cast<Argument*>(gep->getOperand(0))){
+                            ret.addWriteParamArray();
+                        }else  if(dynamic_cast<GlobalVariable*>(gep->getOperand(0))){
+                            ret.addWriteGlobal();
+                        }else if(auto recur_gep=dynamic_cast<GetElementPtrInst*>(gep->getOperand(0))){
+                            vals.push_back(recur_gep);
+                        }
                     }
                 }
             }else if(auto load =dynamic_cast<LoadInst*>(instr)){
@@ -143,8 +154,17 @@ FuncSEInfo FuncAnalyse::analyseSE(Function*func){
                 if(dynamic_cast<GlobalVariable*>(lval)!=nullptr){
                     ret.addLoadGlobal();
                 }else if(auto gep=dynamic_cast<GetElementPtrInst*>(lval)){
-                    if(dynamic_cast<Argument*>(gep->getOperand(0))){
-                        ret.addLoadParamArray();
+                    std::vector<GetElementPtrInst*>vals{gep};
+                    while(!vals.empty()){
+                        gep=vals.back();
+                        vals.pop_back();
+                        if(dynamic_cast<Argument*>(gep->getOperand(0))){
+                            ret.addLoadParamArray();
+                        }else  if(dynamic_cast<GlobalVariable*>(gep->getOperand(0))){
+                            ret.addLoadGlobal();
+                        }else if(auto recur_gep=dynamic_cast<GetElementPtrInst*>(gep->getOperand(0))){
+                            vals.push_back(recur_gep);
+                        }
                     }
                 }
             }
@@ -155,6 +175,8 @@ FuncSEInfo FuncAnalyse::analyseSE(Function*func){
 void FuncAnalyse::printInfo(){
     using std::cout,std::endl;
     for(auto f_call:this->call_info){
+        if(f_call.first->isDeclaration())
+            continue;
         cout<<f_call.first->getName()<<"   dicet call: "<<endl;
         for(auto dircall:f_call.second.direct_call){
         cout<<"\t"<<dircall->getName()<<endl;

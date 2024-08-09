@@ -162,12 +162,13 @@ void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip, int time) {
     // 更新原Loop
     // 目前仅考虑常数
     LoopCond *oldCond = loop->getConds()[0];
+    int tripEnd = dynamic_cast<ConstantInt*>(trip.end)->getValue();
     
     int mod = abs(time * trip.iter);
-    int newEnd = (trip.end / mod) * mod;
-    if(trip.end > 0 && trip.iter < 0)
+    int newEnd = (tripEnd / mod) * mod;
+    if(tripEnd > 0 && trip.iter < 0)
         newEnd += mod;
-    else if(trip.end < 0 && trip.iter > 0)
+    else if(tripEnd < 0 && trip.iter > 0)
         newEnd -= mod;
     
     if(oldCond->op == LoopCond::ge || oldCond->op == LoopCond::le)
@@ -235,6 +236,7 @@ void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip, int time) {
 //    preheader->header->start->...->end->exit
 // -> preheader->start->...->end->exit
 void LoopUnroll::unrolEntirelLoop(Loop *loop, LoopTrip trip) {
+    LOG_WARNING("Unroll Entire Loop")
     unrollCommonLoop(loop, trip, trip.step);
 
     BB *blockStart;
@@ -451,25 +453,95 @@ void LoopUnroll::removeLoop(Loop *loop) {
     info_man_->getInfo<LoopInfo>()->removeLoop(loop);
 }
 
+void LoopUnroll::unrollDynamicLoop(Loop *loop, LoopTrip trip, int time) {
+    LOG_WARNING("Unroll Dynamic Loop")
+    Loop *newLoop = loop->copyLoop();
+    unrollCommonLoop(loop, trip, time);
+    
+    // 更新原Loop
+    BB *header = loop->getHeader();
+    Instruction *bi = BinaryInst::createAdd(trip.start, ConstantInt::get(trip.iter * time), header);
+    header->getInstructions().pop_back();
+    header->addInstrAfterPhiInst(bi);
+
+    LoopCond *oldCond = loop->getConds()[0];
+    LoopCond *newCond = new LoopCond{bi, oldCond->op, trip.end};
+    loop->replaceCond(newCond);
+
+    // 插入新Loop
+    BB *oldExit = loop->getExits()[0];
+    BB *newPreheader = newLoop->getPreheader();
+    newPreheader->getPreBasicBlocks().clear();
+    vector<BB*> oldExitPreBBToDel = {};
+    list<BB*> oldExitPreBB = oldExit->getPreBasicBlocks();
+    for(BB *pre : oldExitPreBB) {
+        if(loop->contain(pre)) {
+            Instruction *term = pre->getTerminator();
+            vector<Value*> ops = term->getOperands();
+            for(int i = 0; i < ops.size(); i++) {
+                if(ops[i] == oldExit) {
+                    term->replaceOperand(i, newPreheader);
+                    pre->removeSuccBasicBlock(oldExit);
+                    // 逻辑上不正确，但bug却没了？？
+                    // oldExit->removePreBasicBlock(pre); 
+                    pre->addSuccBasicBlock(newPreheader);
+                    newPreheader->addPreBasicBlock(pre);
+                    break;
+                }
+            }
+        }
+    }
+    loop->getExits().clear();
+    loop->getExits().push_back(newLoop->getPreheader());
+
+    // 将循环外使用到的旧循环变量换为新循环变量
+    umap<PhiInst*, PhiInst*> phiMap = {};
+    list<Instruction*> instsO = loop->getHeader()->getInstructions();
+    list<Instruction*> instsN = newLoop->getHeader()->getInstructions();
+    auto iterO = instsO.begin();
+    auto iterN = instsN.begin();
+    for(; iterO != instsO.end(); iterO++, iterN++) {
+        if(!(*iterO)->isPhi())
+            break;
+        phiMap.insert({dynamic_cast<PhiInst*>(*iterO), dynamic_cast<PhiInst*>(*iterN)});
+    }
+
+    for(auto [oldPhi, newPhi] : phiMap) {
+        list<Use> useList = oldPhi->getUseList();
+        for(Use u : useList) {
+            if(!dynamic_cast<Instruction*>(u.val_))
+                continue;
+            
+            Instruction *useInst = dynamic_cast<Instruction*>(u.val_);
+            BB *useBB = useInst->getParent();
+            if(!loop->contain(useBB) && !newLoop->contain(useBB)) {
+                useInst->replaceOperand(u.arg_no_, newPhi);
+            }
+        }
+    }
+}
+
 void LoopUnroll::visitLoop(Loop *loop) {
     if(UNROLLING_TIME == 1)
         return;
 
-    // for(Loop *inner : loop->getInners()) {
-    //     visitLoop(inner);
-    // }
+    for(Loop *inner : loop->getInners()) {
+        visitLoop(inner);
+    }
 
     SCEV *scev = info_man_->getInfo<SCEV>();
     LoopTrip trip = loop->computeTrip(scev);
     LOG_WARNING(trip.print())
 
-    // 暂不考虑break和子循环
+    // 暂不考虑break和多重循环
     if(loop->getExits().size() > 1 || 
        loop->getInners().size() > 0)
         return;
 
-    if(trip.step < 0) {
+    if(trip.step == -1 || trip.step == -2) {
         return;
+    } else if(trip.step == -3) {
+        unrollDynamicLoop(loop, trip, UNROLLING_TIME);
     } else if(trip.step == 0) {
         removeLoop(loop);
     } else if(loop->getBlocks().size() == 2 && 
@@ -488,9 +560,7 @@ Modify LoopUnroll::runOnFunc(Function* func) {
     Modify mod{};
     vector<Loop*> loops = info_man_->getInfo<LoopInfo>()->getLoops(func);
     for(Loop *loop : loops) {
-        // 暂不考虑多重循环
-        if(loop->getInners().size() == 0)
-            visitLoop(loop);
+        visitLoop(loop);
     }
 
     mod.modify_bb = true;

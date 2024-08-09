@@ -8,7 +8,7 @@ static SCEVExpr *CRProd(SCEVExpr*, SCEVExpr*);
 
 // 返回endInst，也即Value的运算结果
 Value *SCEVVal::transToValue(BB *bb) {
-    if(this->isConst() || this->isPhi())
+    if(this->isConst() || this->isInv())
         return this->sval;
     
     Value *midValue;
@@ -37,11 +37,11 @@ SCEVVal *SCEVVal::addSCEVVal(SCEVVal *rhs)  {
     
     ConstantInt *lhsInt = dynamic_cast<ConstantInt*>(lhs->sval);
     ConstantInt *rhsInt = dynamic_cast<ConstantInt*>(rhs->sval);
-    PhiInst *lhsPhi = dynamic_cast<PhiInst*>(lhs->sval);
-    PhiInst *rhsPhi = dynamic_cast<PhiInst*>(rhs->sval);
+    Value *lhsInv = lhs->sval;
+    Value *rhsInv = rhs->sval;
 
     if( lhsInt && lhsInt->getValue() == 0 || rhsInt && rhsInt->getValue() == 0) {
-        if(lhs->isConst())
+        if(lhsInt && lhsInt->getValue() == 0)
             return rhs;
         else    
             return lhs;
@@ -49,16 +49,16 @@ SCEVVal *SCEVVal::addSCEVVal(SCEVVal *rhs)  {
 
     if(lhs->isConst() && rhs->isConst()) {
         return createConVal(ConstantInt::get(lhsInt->getValue() + rhsInt->getValue()));
-    } else if(lhs->isPhi() && rhs->isPhi()) {
-        if(lhsPhi == rhsPhi)
-            return createMulVal(ConstantInt::get(2), lhsPhi);
+    } else if(lhs->isInv() && rhs->isInv()) {
+        if(lhsInv == rhsInv)
+            return createMulVal(ConstantInt::get(2), lhsInv);
         else
-            return createAddVal(lhsPhi, rhsPhi);
-    } else if(lhs->isConst() && rhs->isPhi() || lhs->isPhi() && rhs->isConst()) {
+            return createAddVal(lhsInv, rhsInv);
+    } else if(lhs->isConst() && rhs->isInv() || lhs->isInv() && rhs->isConst()) {
         if(lhs->isConst())
-            return createAddVal(lhsInt, rhsPhi);
+            return createAddVal(lhsInt, rhsInv);
         else
-            return createAddVal(rhsInt,lhsPhi);
+            return createAddVal(rhsInt, lhsInv);
     } else if(lhs->isConst() && rhs->isMul() || lhs->isMul() && rhs->isConst()) {
         if(lhs->isConst())
             return createAddVal({lhs, rhs});
@@ -72,8 +72,8 @@ SCEVVal *SCEVVal::addSCEVVal(SCEVVal *rhs)  {
         } else {
             return createAddVal({lhs, rhs}); 
         }
-    } else if(lhs->isPhi() && rhs->isMul() || lhs->isMul() && rhs->isPhi()) {
-        SCEVVal *phiVal = (lhs->isPhi()? lhs : rhs);
+    } else if(lhs->isInv() && rhs->isMul() || lhs->isMul() && rhs->isInv()) {
+        SCEVVal *phiVal = (lhs->isInv()? lhs : rhs);
         SCEVVal *mulVal = (lhs->isMul()? lhs : rhs);
         vector<SCEVVal*> &mulOperands = mulVal->operands;
         
@@ -101,15 +101,15 @@ SCEVVal *SCEVVal::addSCEVVal(SCEVVal *rhs)  {
         }
 
         return createAddVal(newOperands);
-    } else if(lhs->isAdd() && rhs->isPhi() || lhs->isPhi() && rhs->isAdd()) {
+    } else if(lhs->isAdd() && rhs->isInv() || lhs->isInv() && rhs->isAdd()) {
         SCEVVal *addVal = (lhs->isAdd() ? lhs : rhs);
-        SCEVVal *phiVal = (lhs->isPhi() ? lhs : rhs);
+        SCEVVal *phiVal = (lhs->isInv() ? lhs : rhs);
         vector<SCEVVal*> &oldOperands = addVal->operands; 
         vector<SCEVVal*> newOperands = vector<SCEVVal*>(oldOperands.begin(), oldOperands.end());
         
         bool addLast = true;
         for(int i = 0; i < newOperands.size(); i++) {
-            if(newOperands[i]->isPhi() && newOperands[i]->sval == phiVal->sval ||
+            if(newOperands[i]->isInv() && newOperands[i]->sval == phiVal->sval ||
                newOperands[i]->isMul() && newOperands[i]->operands[1]->sval == phiVal->sval){
                 newOperands[i] = newOperands[i]->addSCEVVal(phiVal);
                 addLast = false;
@@ -127,7 +127,7 @@ SCEVVal *SCEVVal::addSCEVVal(SCEVVal *rhs)  {
 
         bool addLast = true;
         for(int i = 0; i < newOperands.size(); i++) {
-            if(newOperands[i]->isPhi() && newOperands[i]->sval == mulVal->operands[1]->sval ||
+            if(newOperands[i]->isInv() && newOperands[i]->sval == mulVal->operands[1]->sval ||
                newOperands[i]->isMul() && newOperands[i]->operands[1]->sval == mulVal->operands[1]->sval){
                 newOperands[i] = newOperands[i]->addSCEVVal(mulVal);
                 addLast = false;
@@ -157,8 +157,8 @@ SCEVVal *SCEVVal::mulSCEVVal(SCEVVal *rhs) {
     
     ConstantInt *lhsInt = dynamic_cast<ConstantInt*>(lhs->sval);
     ConstantInt *rhsInt = dynamic_cast<ConstantInt*>(rhs->sval);
-    PhiInst *lhsPhi = dynamic_cast<PhiInst*>(lhs->sval);
-    PhiInst *rhsPhi = dynamic_cast<PhiInst*>(rhs->sval);
+    Value *lhsInv = lhs->sval;
+    Value *rhsInv = rhs->sval;
 
     // val * 0
     if( lhsInt && lhsInt->getValue() == 0 || rhsInt && rhsInt->getValue() == 0) {
@@ -166,18 +166,18 @@ SCEVVal *SCEVVal::mulSCEVVal(SCEVVal *rhs) {
     }
     // val * 1
     if( lhsInt && lhsInt->getValue() == 1 )
-            return rhs;
+        return rhs;
     else if( rhsInt && rhsInt->getValue() == 1 )
-            return lhs;
+        return lhs;
 
     if(lhs->isConst() && rhs->isConst()) {
         int sum = lhsInt->getValue() * rhsInt->getValue();
         return createConVal(ConstantInt::get(sum));
-    } else if(lhs->isConst() && rhs->isPhi() || lhs->isPhi() && rhs->isConst()) {
+    } else if(lhs->isConst() && rhs->isInv() || lhs->isInv() && rhs->isConst()) {
         if(lhs->isConst())
-            return createMulVal(lhsInt, rhsPhi);
+            return createMulVal(lhsInt, rhsInv);
         else
-            return createMulVal(rhsInt, lhsPhi);
+            return createMulVal(rhsInt, lhsInv);
     } else if(lhs->isConst() && rhs->isMul() || lhs->isMul() && rhs->isConst()) {
         int prod = lhs->isConst() ? lhsInt->getValue() : rhsInt->getValue();
         prod *= lhs->isMul() ? 
@@ -326,8 +326,8 @@ static SCEVExpr *CRProd(SCEVExpr *a, SCEVExpr *b) {
 }
 
 void SCEV::analyseOnFunc(Function *func) {
-    loops = infoManager->getInfo<LoopInfo>()->getLoops(func);
-    for(Loop *loop : loops) {
+    loops[func] = infoManager->getInfo<LoopInfo>()->getLoops(func);
+    for(Loop *loop : loops[func]) {
         loopPhis[loop] = {};
         // 访问loop中的所有loop-phi（位于header的phi），包括子循环中的loop-phi
         visitLoop(loop);
@@ -428,14 +428,14 @@ SCEVExpr *SCEV::getPhiSCEV(PhiInst *phi, Loop *loop) {
         return SCEVExpr::createUnknown(loop);
     }
 
-    // 假设可求SCEV的phi格式为 phi i32 [const/phi/add/sub, b1], [bin, b2]
+    // 假设可求SCEV的phi格式为 phi i32 [const/inv, b1], [bin, b2]
+    LoopInvariant *inv = infoManager->getInfo<LoopInvariant>(); 
     ConstantInt *initConst = dynamic_cast<ConstantInt*>(phi->getOperand(0));
-    PhiInst *initPhi = dynamic_cast<PhiInst*>(phi->getOperand(0));
-    BinaryInst *initBin = dynamic_cast<BinaryInst*>(phi->getOperand(0));
+    Value *initInv  = phi->getOperand(0);
 
     BinaryInst *bin = dynamic_cast<BinaryInst*>(phi->getOperand(2));
-    if(!getExpr(phi->getOperand(0), loop) || !bin) {
-        return SCEVExpr::createValue(SCEVVal::createPhiVal(phi), loop);
+    if(!initConst && !inv->isInvariable(loop, initInv) || !bin) {
+        return SCEVExpr::createValue(SCEVVal::createInvVal(phi), loop);
     }
         
     // 即假设use链为bin -> phi -> bin，不是可能出错
@@ -447,25 +447,23 @@ SCEVExpr *SCEV::getPhiSCEV(PhiInst *phi, Loop *loop) {
             addInt = dynamic_cast<ConstantInt*>(bin->getOperand(1));
             usedPhi = dynamic_cast<PhiInst*>(bin->getOperand(0));
             if(!addInt || !usedPhi) {
-                return SCEVExpr::createValue(SCEVVal::createPhiVal(phi), loop);
+                return SCEVExpr::createValue(SCEVVal::createInvVal(phi), loop);
             }
         }
         if(usedPhi != phi) {
-            return SCEVExpr::createValue(SCEVVal::createPhiVal(phi), loop);
+            return SCEVExpr::createValue(SCEVVal::createInvVal(phi), loop);
         }
         addNum = bin->isSub() ? -addInt->getValue() : addInt->getValue();
     } else {
-        return SCEVExpr::createValue(SCEVVal::createPhiVal(phi), loop);
+        return SCEVExpr::createValue(SCEVVal::createInvVal(phi), loop);
     }
     
     if(initConst) {
         return SCEVExpr::createAddRec( { getExpr(initConst, loop), SCEVExpr::createConst(addNum, loop) }, loop);
-    } else if(initPhi) {
-        return SCEVExpr::createAddRec( { getExpr(initPhi, loop), SCEVExpr::createConst(addNum, loop) }, loop);
-    } else if(initBin) {
-        return SCEVExpr::createAddRec( { getExpr(initBin, loop), SCEVExpr::createConst(addNum, loop) }, loop);
+    } else if(initInv) {
+        return SCEVExpr::createAddRec( { getExpr(initInv, loop), SCEVExpr::createConst(addNum, loop) }, loop);
     } else {
-        return SCEVExpr::createValue(SCEVVal::createPhiVal(phi), loop);
+        return SCEVExpr::createValue(SCEVVal::createInvVal(phi), loop);
     }
 }
 
@@ -492,21 +490,26 @@ string SCEV::print(){
     };
     
     string scevStr = "";
-    for(Loop *loop : loops) {
-        scevStr += STRING_RED("Loop<" + loop->getHeader()->getName() + ">:\n");
-        for(BasicBlock *bb : loop->getBlocks()) {
-            for(Instruction *inst : bb->getInstructions()) {
-                if(getExpr(inst, loop) != nullptr) {
-                    if(getExpr(inst, loop)->isUnknown())
-                        continue;
-                    // if(!inst->isPhi())
-                    //     continue;
-                    scevStr += STRING(inst->print()) + "\n";
-                    scevStr += STRING_YELLOW(inst->getName()) + ": " + getExpr(inst, loop)->print() + "\n";
+    for(Function *f : module_->getFunctions()) {
+        if(f->getBasicBlocks().size() == 0)
+            continue;
+        for(Loop *loop : loops[f]) {
+            scevStr += STRING_RED("Loop<" + loop->getHeader()->getName() + ">:\n");
+            for(BasicBlock *bb : loop->getBlocks()) {
+                for(Instruction *inst : bb->getInstructions()) {
+                    if(getExpr(inst, loop) != nullptr) {
+                        if(getExpr(inst, loop)->isUnknown())
+                            continue;
+                        // if(!inst->isPhi())
+                        //     continue;
+                        scevStr += STRING(inst->print()) + "\n";
+                        scevStr += STRING_YELLOW(inst->getName()) + ": " + getExpr(inst, loop)->print() + "\n";
+                    }
                 }
             }
+            scevStr += printInner(loop);
         }
-        scevStr += printInner(loop);
     }
+    
     return scevStr;
 }

@@ -110,6 +110,7 @@ Modify ValNumbering::runOnFunc(Function*func){
     if(func->getBasicBlocks().empty())return {};
     // auto runvn=[this](Function*func)->Modify{
         std::vector<PhiInst*> phi_set_;
+        std::vector<std::pair<CallInst*,std::vector<int>>> call_set_;
         Modify ret{};
         std::vector<std::pair<PhiInst*,std::vector<Value*>>> phi_ins;
         auto entry=func->getEntryBlock();
@@ -118,9 +119,18 @@ Modify ValNumbering::runOnFunc(Function*func){
             auto b=work_list.front();
             work_list.pop_front();
             for(auto ins:b->getInstructions()){
-                if(ins->isCall()||ins->isBr()||ins->isRet()||ins->isStore()||ins->isLoad())
+                if(ins->isBr()||ins->isRet()||ins->isStore()||ins->isLoad())
                     continue;
-                else if(ins->isPhi())
+                else if(ins->isCall()){
+                    auto callee=(Function*)(ins->getOperand(0));
+                    if(!fa_->isPureFunc(callee))
+                        continue;
+                    std::vector<int>num;
+                    for(auto o:ins->getOperands()){
+                        num.push_back(this->vn_table_.getValueNum(o));
+                    }
+                    call_set_.push_back({(CallInst*)ins,std::move(num)});
+                }else if(ins->isPhi())
                     phi_set_.push_back((PhiInst*)ins);
                 else
                     vn_table_.getValueNum(ins);
@@ -237,10 +247,86 @@ Modify ValNumbering::runOnFunc(Function*func){
         //     }
 
         // }
+        ret.modify_call|=procCall(call_set_);
+        ret.modify_instr|=ret.modify_call;
         return ret;
     // };
     // return runvn(func);
 }
+bool ValNumbering::procCall(std::vector<std::pair<CallInst*,std::vector<int>>> &call_set_){
+    bool ret=false;
+    for(int i=0;i<call_set_.size();i++){
+        auto  &[call_Ins ,call_arg] =call_set_[i];
+        std::vector<CallInst*>erase;
+        for(int j=i+1;j< call_set_.size();j++){
+            auto & [other ,other_call_arg] =call_set_[j];
+            if(call_arg.size()!=other_call_arg.size())
+                continue;
+            bool eq=true;
+            for(int op_offset=0;op_offset<call_arg.size();op_offset++){
+                if(call_arg[op_offset]!=other_call_arg[op_offset]){
+                    eq=false;
+                    break;
+                }
+            }
+            if(eq){
+                auto lca=dom->findLCA(call_Ins->getParent(),other->getParent());
+                if(lca==0)
+                    continue;
+                if(lca==call_Ins->getParent()){
+                    other->replaceAllUseWith(call_Ins);
+                    erase.push_back(other);
+                }else{
+                    
+                    bool valid_ins=true;
+                    for (auto operand : call_Ins->getOperands())
+                        if(auto op_ins=dynamic_cast<Instruction*>(operand);op_ins&&!dom->isLdomR(op_ins->getParent(),lca)){
+                            valid_ins = false;
+                            break;
+                        }
+                    if (!valid_ins)
+                        continue;
+                    auto &inss=lca->getInstructions();
+                    auto br=inss.back();
+                    Instruction* is_cmp=nullptr;
+                    inss.pop_back();
+                    if(!inss.empty()){
+                        is_cmp=inss.back();
+                        if((is_cmp->isCmp()||is_cmp->isFCmp())&&br->getOperand(0)==is_cmp){
+                            inss.pop_back();
+                        }else{
+                            is_cmp=0;
+                        }
+                    }
+                    call_Ins->getParent()->getInstructions().remove(call_Ins);
+                    call_Ins->setParent(br->getParent());
+                    inss.push_back(call_Ins);
+                    other->replaceAllUseWith(call_Ins);
+                    erase.push_back(other);
+                    if(is_cmp){
+                        inss.push_back(is_cmp);
+                    }
+                    inss.push_back(br);
+                }
+            }
+        }
+        for(auto era:erase){
+            for(auto iter=call_set_.begin();iter!=call_set_.end();){
+                auto cur=iter++;
+                if(cur->first==era){
+                    iter=call_set_.erase(cur);
+                    break;
+                }
+            }
+            era->getParent()->deleteInstr(era);
+        }
+        if(!erase.empty())
+            ret=true;
+    }
+    return ret;
+}
+
+
 // static std::set<BasicBlock*> visited;
 // bool ValNumbering::dvnt(Function*func,BasicBlock*bb){
 //     if(visited.count(bb))

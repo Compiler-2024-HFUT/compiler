@@ -9,6 +9,7 @@
 #include <variant>
 #include <vector>
 #include <map>
+#include <ranges>
 /*需要访问的中端数据结构如下：
 module
 function
@@ -34,6 +35,13 @@ fcmbrinst
 loadoffsetinst
 storeoffsetinst
 */
+
+//以8字节为对齐
+#define align_8(address) ((address+7)/8)*8
+
+//以4字节为对齐
+#define align_4(address) ((address+3)/4)*4
+
 extern::std::vector<int> all_alloca_gprs;
 
 extern::std::vector<int> all_alloca_fprs;
@@ -67,6 +75,19 @@ class AsmGen : public IRVisitor{
             {CmpOp::LE, [this](FCmpInst* inst)->void{visitFLE(inst);}},
             {CmpOp::LT, [this](FCmpInst* inst)->void{visitFLT(inst);}},
             {CmpOp::NE, [this](FCmpInst* inst)->void{visitFNE(inst);}}
+        }, phi_handle_cmp_map{
+            {CmpOp::EQ, [this](Value* cond1, Value* cond2)->void{handleEQ(cond1, cond2);}},
+            {CmpOp::LT, [this](Value* cond1, Value* cond2)->void{handleLT(cond1, cond2);}},
+            {CmpOp::GE, [this](Value* cond1, Value* cond2)->void{handleGE(cond1, cond2);}},
+            {CmpOp::NE, [this](Value* cond1, Value* cond2)->void{handleNE(cond1, cond2);}}
+
+        }, phi_handle_fcmp_map{
+            {CmpOp::EQ, [this](Value* cond1, Value* cond2)->void{handleFEQ(cond1, cond2);}},
+            {CmpOp::LT, [this](Value* cond1, Value* cond2)->void{handleFLT(cond1, cond2);}},
+            {CmpOp::GE, [this](Value* cond1, Value* cond2)->void{handleFGE(cond1, cond2);}},
+            {CmpOp::NE, [this](Value* cond1, Value* cond2)->void{handleFNE(cond1, cond2);}},
+            {CmpOp::GT, [this](Value* cond1, Value* cond2)->void{handleFGT(cond1, cond2);}},
+            {CmpOp::LE, [this](Value* cond1, Value* cond2)->void{handleFLE(cond1, cond2);}}
         }{
             asm_unit = new AsmUnit(module);
 
@@ -127,11 +148,26 @@ class AsmGen : public IRVisitor{
         void visitFLT(FCmpInst* inst);
         void visitFNE(FCmpInst* inst);
 
+    private:
+        void handleEQ(Value* cond1, Value* cond2);
+        void handleLT(Value* cond1, Value* cond2);
+        void handleGE(Value* cond1, Value* cond2);
+        void handleNE(Value* cond1, Value* cond2);
+
+        void handleFEQ(Value* cond1, Value* cond2);
+        void handleFLT(Value* cond1, Value* cond2);
+        void handleFGE(Value* cond1, Value* cond2);
+        void handleFNE(Value* cond1, Value* cond2);
+        void handleFGT(Value* cond1, Value* cond2);
+        void handleFLE(Value* cond1, Value* cond2);
     
     private:
         const ::std::map<Instruction::OpID, ::std::function<void(BinaryInst*)>> b_inst_gen_map;
         const ::std::map<CmpOp, ::std::function<void(CmpInst*)>> cmp_inst_gen_map;
         const ::std::map<CmpOp, ::std::function<void(FCmpInst*)>> fcmp_inst_gen_map;
+
+        const ::std::map<CmpOp, ::std::function<void(Value* , Value* )>> phi_handle_cmp_map;
+        const ::std::map<CmpOp, ::std::function<void(Value* , Value* )>> phi_handle_fcmp_map;
 
     private:
         GReg* getGRD(Instruction* inst);
@@ -149,7 +185,7 @@ class AsmGen : public IRVisitor{
         Subroutine* subroutine;
         Sequence* sequence;
 
-        //& active intervals of value for reg alloc
+     
         std::map<Value*, Interval*> ival2interval;
         std::map<Value*, Interval*> fval2interval;
 
@@ -160,7 +196,7 @@ class AsmGen : public IRVisitor{
         int caller_saved_regs_stack_offset = 0;
         int caller_trans_args_stack_offset = 0;
 
-    //& regs temporary used by inst need to be saved
+  
     std::set<Interval*> use_tmp_regs_interval;
         std::set<int> cur_tmp_iregs;                                //// 当前用来保存栈上值的临时寄存器
         std::set<int> cur_tmp_fregs;                                //// 当前用来保存栈上值的临时寄存器
@@ -169,18 +205,18 @@ class AsmGen : public IRVisitor{
 
         std::set<IRIA*> free_locs_for_tmp_regs_saved;
 
-        //& linearizing bbs and gen labels for bbs in function
+     
         std::vector<BasicBlock*> linear_bbs;
         std::map<BasicBlock*, Label *> bb2label; 
 
-        //& function info statistic
-        std::pair<std::set<int>, std::set<int>> used_iregs_pair; 
-        std::pair<std::set<int>, std::set<int>> used_fregs_pair; 
+     
+        std::pair<std::vector<int>, std::vector<int>> used_iregs_pair; 
+        std::pair<std::vector<int>, std::vector<int>> used_fregs_pair; 
         
-        //& stack alloc 
+       
         ::std::map<Value*, IRIA*> val2stack;
 
-        const std::set<int> callee_saved_iregs = {
+        ::std::vector<int> icallee = {
             static_cast<int>(RISCV::GPR::s0),
             static_cast<int>(RISCV::GPR::s2),
             static_cast<int>(RISCV::GPR::s3),
@@ -194,7 +230,7 @@ class AsmGen : public IRVisitor{
             static_cast<int>(RISCV::GPR::s11)
         };
 
-        const std::set<int> callee_saved_fregs = {
+        ::std::vector<int> fcallee = {
             static_cast<int>(RISCV::FPR::fs2),
             static_cast<int>(RISCV::FPR::fs3),
             static_cast<int>(RISCV::FPR::fs4),
@@ -207,27 +243,75 @@ class AsmGen : public IRVisitor{
             static_cast<int>(RISCV::FPR::fs11)
         };
 
-        //& 方便代码生成 
+
     
         const int var_align = 2;
         const int func_align = 1;
         const int reg_size = 8;
 
-        const int arg_reg_base = 10;  //~ reg_a0 or reg_fa0
+        const int arg_reg_base = 10;  //a0 or fa0
+
+        int total_size;
+        int iargs_size;
+        int fargs_size;
+
+        int save_offset;
 
 
+        void iparas_pass_callee(Function *func);
+        void fparas_pass_callee(Function *func);
+        void iparas_pass_caller(CallInst *call);
+        void fparas_pass_caller(CallInst *call);
 
-        //& args move for callee or caller
-        std::vector<std::pair<AddressMode*, AddressMode*>> callee_iargs_move(Function *func);
-        std::vector<std::pair<AddressMode*, AddressMode*>> callee_fargs_move(Function *func);
-        std::vector<std::pair<AddressMode*, AddressMode*>> caller_iargs_move(CallInst *call);
-        std::vector<std::pair<AddressMode*, AddressMode*>> caller_fargs_move(CallInst *call);
+        int setCallerAndCalleeRegs();
 
-        //& temporary use regs for inst(all ops need to be loaded to regs for risc arch)
-        void ld_tmp_regs_for_inst(Instruction *inst);
- 
+        int allocateMemForIArgs();
+        int allocateMemForFArgs();
 
-        void phi_union(Instruction *br_inst);
+        int allocateMemForIPointer();
+        int allocateMemForFPointer();
+
+        int allocateMemForAlloca();
+
+        std::vector<std::pair<IRA*, IRIA*>> getCalleeSaveIRegs();
+        std::vector<std::pair<FRA*, IRIA*>> getCalleeSaveFRegs();
+
+        void addIPara(::std::vector<std::pair<AddressMode*, AddressMode*>>* iparas_pass, ::std::map<int, bool>* flags);
+        void addFPara(::std::vector<std::pair<AddressMode*, AddressMode*>>* fparas_pass, ::std::map<int, bool>* flags);
+
+        void addILoopPara(::std::vector<std::pair<AddressMode*, AddressMode*>>* iparas_pass, ::std::map<int, bool>* flags);
+        void addFLoopPara(::std::vector<std::pair<AddressMode*, AddressMode*>>* fparas_pass, ::std::map<int, bool>* flags);
+
+        void initIPara(std::vector<Value*>* ip_s, std::map<int, bool>* flags, int num, std::map<int, std::set<int>>* ireg_ipara_map);
+        void initFPara(std::vector<Value*>* fp_s, std::map<int, bool>* flags, int num, std::map<int, std::set<int>>* freg_fpara_map);
+
+        void processIPara(std::map<int, bool> flags, std::map<int, std::set<int>> ireg_ipara_map, std::vector<Value*> iargs);
+        void processFPara(std::map<int, bool> flags, std::map<int, std::set<int>> freg_fpara_map, std::vector<Value*> fargs);
+
+
+        void addIStackPara(std::vector<Value*> iargs);
+        void addFStackPara(std::vector<Value*> fargs);
+
+        void getIPass(Instruction* inst, Value* lst_val);
+        void getFPass(Instruction* inst, Value* lst_val);
+
+        void handleFCmpbr(FCmpBrInst* fcmpbr);
+        void handleCmpbr(CmpBrInst* cmpbr);
+        void handleBr(BranchInst* br);
+        void initPhi();
+        void process();
+
+        void setDIPtr(Instruction* inst);
+        void setDFPtr(Instruction* inst);
+
+        void processSucc(BasicBlock* succ, Value* last_value);
+
+        void loadITmpReg(Instruction* inst, std::set<int>* load_iregs, std::set<int>* record_iregs);
+        void loadFTmpReg(Instruction* inst, std::set<int>* load_fregs, std::set<int>* record_fregs);
+
+        void recordIReg(Instruction* inst, std::set<int>* record_iregs);
+        void recordFReg(Instruction* inst, std::set<int>* record_fregs);
+        
 
         std::map<int, IRIA*> caller_saved_ireg_locs;             //// caller在调用函数前保存寄存器的位置
         std::map<int, IRIA*> caller_saved_freg_locs;             //// caller在调用函数前保存寄存器的位置
@@ -242,20 +326,62 @@ class AsmGen : public IRVisitor{
         std::set<Value*> to_store_fvals;
 
 
-    void tmp_regs_restore();
-    std::vector<std::pair<AddressMode*, AddressMode*>> idata_move(std::vector<AddressMode*>& src, std::vector<AddressMode*>&dst);
-    std::vector<std::pair<AddressMode*, AddressMode*>> fdata_move(std::vector<AddressMode*>& src, std::vector<AddressMode*>&dst);
+
+    void mov_value(std::vector<std::pair<AddressMode*, AddressMode*>>* to_move_locs, std::vector<AddressMode*>& src, std::vector<AddressMode*>&dst, bool is_float);
+    
 
 
-        //& help funcs for asm code gen
+        
     Val *getAllocaReg(Value* value);
 
-        //& global variable label gen for function using these global variable
+       
     std::map<GlobalVariable*, Label*> global_variable_labels_table;
 
     //收集call指令前定义寄存器的信息
     ::std::map<Instruction* , ::std::vector<int>> call_define_ireg_map;
     ::std::map<Instruction* , ::std::vector<int>> call_define_freg_map;
+
+    ::std::vector<std::pair<AddressMode*, AddressMode*>> iparas_pass;
+    ::std::vector<std::pair<AddressMode*, AddressMode*>> fparas_pass;
+
+    std::list<std::pair<Argument*, int>> ipara_sh;
+    std::list<std::pair<Argument*, int>> fpara_sh;
+
+    ::std::vector<std::pair<AddressMode*, AddressMode*>> caller_iparas_pass;
+    ::std::vector<std::pair<AddressMode*, AddressMode*>> caller_fparas_pass;
+
+    ::std::vector<std::pair<Value*, int>> caller_ipara_sh;
+    ::std::vector<std::pair<Value*, int>> caller_fpara_sh;
+
+    std::vector<AddressMode*> phi_itargets;
+    std::vector<AddressMode*> phi_isrcs;
+    std::vector<AddressMode*> phi_ftargets;
+    std::vector<AddressMode*> phi_fsrcs;
+
+      
+    std::map<int, AddressMode*> ireg2loc;
+    std::map<int, AddressMode*> freg2loc;
+
+    BasicBlock *succ_bb;
+    BasicBlock *fail_bb;
+
+    AsmInst *succ_br_inst;
+    AsmInst *fail_br_inst;
+
+    PhiPass *succ_move_inst;
+    PhiPass *fail_move_inst;
+    PhiPass **move_inst;
+
+    bool have_succ_move;    
+    bool have_fail_move;
+
+    AddressMode *dst_ptr;
+
+    std::vector<std::pair<IRA*, IRIA*>> restore_ireg_s;
+    std::vector<std::pair<FRA*, IRIA*>> restore_freg_s;
+    
+
+    BasicBlock *ret_bb;
 
 friend class LSRA;
     

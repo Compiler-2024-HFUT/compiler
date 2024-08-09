@@ -14,6 +14,7 @@
 #include "optimization/CombinBB.hpp"
 #include "optimization/ConstBrEli.hpp"
 #include "optimization/DCE.hpp"
+#include "optimization/DFE.hpp"
 #include "optimization/DeadPHIEli.hpp"
 #include "optimization/DeadStoreEli.hpp"
 #include "optimization/G2L.hpp"
@@ -36,10 +37,12 @@
 #include "optimization/LoopSimplified.hpp"
 #include "optimization/LICM.hpp"
 #include "optimization/LoopUnroll.hpp"
+#include "optimization/LoopStrengthReduction.hpp"
 
 #include "optimization/BreakGEP.hpp"
 #include "optimization/CombineJJ.hpp"
 #include "optimization/MemInstOffset.hpp"
+#include "optimization/splitArr.hpp"
 
 void usage(){
 	(void)fprintf(stderr, "%s\n%s\n",
@@ -54,7 +57,8 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addInfo<LoopInfo>();
     pm.addInfo<LoopInvariant>();
     pm.addInfo<SCEV>();
-
+    
+    //mem2regpass
     pm.addPass<DeadStoreEli>();    
     pm.addPass<CombinBB>();
     pm.addPass<Mem2Reg>();
@@ -62,13 +66,34 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
     pm.addPass<InstrCombine>();
+    pm.addPass<SCCP>();
+    pm.addPass<CombinBB>();
+    pm.addPass<InstrCombine>();
     pm.addPass<InstrResolve>();
     pm.addPass<DCE>();
+    pm.addPass<DFE>();
 
+    //loop pass
     pm.addPass<LoopSimplified>();
+    pm.addPass<LoopStrengthReduction>();
     pm.addPass<LICM>();
     pm.addPass<LoopUnroll>();
+    pm.addPass<SCCP>();
+    pm.addPass<CombinBB>();
+    pm.addPass<DCE>();
+    pm.addPass<InstrCombine>();
 
+    //arrpass
+    pm.addPass<MoveAlloca>();
+    pm.addPass<ValNumbering>();
+    pm.addPass<CombinBB>();
+    pm.addPass<ArrReduc>();
+    pm.addPass<SplitArr>();
+    pm.addPass<Mem2Reg>();
+    pm.addPass<DCE>();
+    pm.addPass<SCCP>();
+
+    //inline and g2l pass
     pm.addPass<FuncInline>();
     pm.addPass<CombinBB>();
     pm.addPass<G2L>();
@@ -81,14 +106,20 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<ArrReduc>();
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
-    pm.addPass<BreakGEP>();
 
+    //gep loadimm and licm pass
+    pm.addPass<BreakGEP>();
+    pm.addPass<LoopSimplified>();
+    pm.addPass<LICM>();
+
+    pm.addPass<CombinBB>();
+    // pm.addPass<SCCP>();
+    pm.addPass<InstrCombine>();
     pm.addPass<DCE>();
     pm.addPass<ValNumbering>();
 
     pm.addPass<CombinBB>();
     // pm.addPass<VRE>();
-    pm.addPass<ValNumbering>();
     pm.addPass<DCE>();
 
     lir(pm);
