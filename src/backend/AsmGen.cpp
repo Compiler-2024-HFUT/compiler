@@ -1999,6 +1999,7 @@ void AsmGen::addIPara(::std::vector<std::pair<AddressMode*, AddressMode*>>* ipar
         (*iparas_pass).push_back(::std::make_pair(ira, ira_));
         (*flags)[i->second] = true;
     }
+    return;
 }
 
 void AsmGen::addFPara(::std::vector<std::pair<AddressMode*, AddressMode*>>* fparas_pass, ::std::map<int, bool>* flags){
@@ -2008,6 +2009,7 @@ void AsmGen::addFPara(::std::vector<std::pair<AddressMode*, AddressMode*>>* fpar
         (*fparas_pass).push_back(::std::make_pair(fra, fra_));
         (*flags)[f->second] = true;
     }
+    return;
 }
 
 void AsmGen::addILoopPara(::std::vector<std::pair<AddressMode*, AddressMode*>>* iparas_pass, ::std::map<int, bool>* flags){
@@ -2020,6 +2022,7 @@ void AsmGen::addILoopPara(::std::vector<std::pair<AddressMode*, AddressMode*>>* 
         }
 
     }
+    return;
 }
 
 void AsmGen::addFLoopPara(::std::vector<std::pair<AddressMode*, AddressMode*>>* fparas_pass, ::std::map<int, bool>* flags){
@@ -2032,6 +2035,7 @@ void AsmGen::addFLoopPara(::std::vector<std::pair<AddressMode*, AddressMode*>>* 
         }
 
     }
+    return;
 }
 
 void AsmGen::initIPara(std::vector<Value*>* ip_s, std::map<int, bool>* flags, int num, std::map<int, std::set<int>>* ireg_ipara_map){
@@ -2046,6 +2050,7 @@ void AsmGen::initIPara(std::vector<Value*>* ip_s, std::map<int, bool>* flags, in
         }
         (*flags)[i] = false;
     }
+    return;
 }
 
 void AsmGen::initFPara(std::vector<Value*>* fp_s, std::map<int, bool>* flags, int num,std::map<int, std::set<int>>* freg_fpara_map){
@@ -2060,6 +2065,7 @@ void AsmGen::initFPara(std::vector<Value*>* fp_s, std::map<int, bool>* flags, in
         }
         (*flags)[i] = false;
     }
+    return;
 }
 
 void AsmGen::addIStackPara(std::vector<Value*> iargs){
@@ -2088,6 +2094,7 @@ void AsmGen::addIStackPara(std::vector<Value*> iargs){
             }
         }
     }
+    return;
 }
 
 void AsmGen::addFStackPara(std::vector<Value*> fargs){
@@ -2118,6 +2125,7 @@ void AsmGen::addFStackPara(std::vector<Value*> fargs){
             }
         }
     }
+    return;
 
 
 }
@@ -2272,6 +2280,7 @@ void AsmGen::processIPara(std::map<int, bool> flags, std::map<int, std::set<int>
             }
         }
     }
+    return;
 }
 
 void AsmGen::processFPara(std::map<int, bool> flags, std::map<int, std::set<int>> freg_fpara_map, std::vector<Value*> fargs){
@@ -2425,6 +2434,7 @@ void AsmGen::processFPara(std::map<int, bool> flags, std::map<int, std::set<int>
             }
         }
     }
+    return;
 }
 
 void AsmGen::getIPass(Instruction* inst, Value* lst_val){
@@ -2458,6 +2468,7 @@ void AsmGen::getIPass(Instruction* inst, Value* lst_val){
                         lst_val = opr;
                     }
                 }
+                return;
 }
 
 void AsmGen::getFPass(Instruction* inst, Value* lst_val){
@@ -2491,6 +2502,7 @@ void AsmGen::getFPass(Instruction* inst, Value* lst_val){
                         lst_val = opr;
                     }
                 }
+                return;
 }
 
 void AsmGen::handleBr(BranchInst* br){
@@ -2517,6 +2529,7 @@ void AsmGen::handleBr(BranchInst* br){
             fail_br_inst = sequence->createJump(bb2label[fail_bb]);
             sequence->deleteInst();
         }
+        return;
 }
 
 void AsmGen::handleCmpbr(CmpBrInst* cmpbr){
@@ -2525,6 +2538,7 @@ void AsmGen::handleCmpbr(CmpBrInst* cmpbr){
     auto pair = phi_handle_cmp_map.find(cmpbr->getCmpOp());
     if(pair==phi_handle_cmp_map.end())  return;
     pair->second(cmpbr->getOperand(0), cmpbr->getOperand(1));
+    return;
 }
 
 void AsmGen::handleFCmpbr(FCmpBrInst* fcmpbr){
@@ -2533,6 +2547,7 @@ void AsmGen::handleFCmpbr(FCmpBrInst* fcmpbr){
     auto pair = phi_handle_fcmp_map.find(fcmpbr->getCmpOp());
     if(pair==phi_handle_fcmp_map.end())  return;
     pair->second(fcmpbr->getOperand(0), fcmpbr->getOperand(1));
+    return;
 }
 
 void AsmGen::initPhi(){    
@@ -2581,6 +2596,7 @@ void AsmGen::initPhi(){
 
     if(! restore_freg_s.empty())
         sequence->createStoreTmpRegs(restore_freg_s);
+    return;
 }
 
 void AsmGen::process(){
@@ -2617,6 +2633,7 @@ void AsmGen::process(){
             sequence->deleteInst();
         }
     }
+    return;
 }
 
 void AsmGen::handleEQ(Value* cond1, Value* cond2){
@@ -3261,6 +3278,7 @@ void AsmGen::setDIPtr(Instruction* inst){
     } else {
         dst_ptr = val2stack[inst];
     }
+    return;
 }
 
 void AsmGen::setDFPtr(Instruction* inst){
@@ -3271,6 +3289,7 @@ void AsmGen::setDFPtr(Instruction* inst){
     } else {
         dst_ptr = val2stack[inst];
     }
+    return;
 }
 
 void AsmGen::processSucc(BasicBlock* succ, Value* last_value){
@@ -3291,6 +3310,7 @@ for(auto inst: succ->getInstructions()) {
 
 
         }
+        return;
 }
 
 
@@ -3301,6 +3321,7 @@ void AsmGen::recordIReg(Instruction* inst, std::set<int>* record_iregs){
             record_iregs->insert(ival2interval[inst]->reg);
         }
     }
+    return;
 }
 
 void AsmGen::recordFReg(Instruction* inst, std::set<int>* record_fregs){
@@ -3309,4 +3330,5 @@ void AsmGen::recordFReg(Instruction* inst, std::set<int>* record_fregs){
             record_fregs->insert(fval2interval[inst]->reg);
         }
     }
+    return;
 }
