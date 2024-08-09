@@ -6,7 +6,6 @@
 #include "midend/Type.hpp"
 #include "midend/Value.hpp"
 #include "optimization/splitArr.hpp"
-#include <cstddef>
 #include <functional>
 bool __ismemset(Instruction*ins){
     CallInst* _memset = dynamic_cast<CallInst*>(ins);
@@ -28,7 +27,7 @@ bool SplitArr::canSpilt(Value *value) {
 }
 
 //请确保所有offset都为常量
-size_t getoffset(GetElementPtrInst*gep){
+int __getoffset(GetElementPtrInst*gep){
     int offset=((ConstantInt*)(gep->getOperands().back()))->getValue();
     while(true){
         auto ptr=gep->getOperand(0);
@@ -41,18 +40,18 @@ size_t getoffset(GetElementPtrInst*gep){
     }
     return offset;
 }
-auto SplitArr::replaceArray(Value *array,  std::vector<AllocaInst*>& new_array)->void {
+void SplitArr::replaceArray(Value *array,  std::vector<AllocaInst*>& new_array) {
     std::function<void(Value*)> dfs = [&](Value* inst) -> void {
         if (auto gep = dynamic_cast<GetElementPtrInst*>(inst)) {
             for (auto &&user : gep->getUseList()) dfs(user.val_);
-            auto idx = getoffset(gep);
+            auto idx = __getoffset(gep);
             Value *new_value = new_array[idx];
             gep->replaceAllUseWith(new_value);
         } else if (CallInst* _memset = dynamic_cast<CallInst*>(inst);_memset&&__ismemset(_memset)) {
             auto bb = _memset->getParent();
             int base = 0;
             if(auto gep=dynamic_cast<GetElementPtrInst*>(array)){
-                base=getoffset(gep);
+                base=__getoffset(gep);
             }         
             Constant*zero=(_memset->getOperand(2)->getType()->isIntegerType()?(Constant*)ConstantInt::get(0):(Constant*)ConstantFP::get(0));
             for (auto i = base; i < ((ConstantInt*)_memset->getOperand(2))->getValue()+base; i++) {
@@ -66,7 +65,7 @@ auto SplitArr::replaceArray(Value *array,  std::vector<AllocaInst*>& new_array)-
     for (auto user : array->getUseList()) dfs(user.val_);
 }
 
-auto SplitArr::spiltArray(AllocaInst *_alloca)->bool {
+bool SplitArr::spiltArray(AllocaInst *_alloca) {
     //if(_alloc is not arr) return false;
     if (!canSpilt(_alloca))
         return false;
