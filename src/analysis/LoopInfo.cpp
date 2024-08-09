@@ -403,6 +403,11 @@ Loop *Loop::copyLoop() {
 
     copyBody(entry, singleLatch, exiting, BBMap, instMap);
     BB *ph = preheader->copyBB();
+    while(ph->getInstructions().size() != 1) {
+        Instruction *inst = ph->getInstructions().front();
+        inst->removeUseOfOps();
+        ph->getInstructions().pop_front();
+    }
     BB *h = header->copyBB();
 
     // 更新header和preheader中的指令，但要注意新Loop header中的初始值是旧Loop的迭代结果
@@ -511,6 +516,17 @@ void Loop::findExits() {
     }
 }
 
+static bool isInvariant(Loop* loop, Value *val) {
+        if(dynamic_cast<ConstantInt*>(val) || dynamic_cast<Argument*>(val))
+            return true;
+        
+        Instruction *inst = dynamic_cast<Instruction*>(val);
+        if( inst && !loop->contain(inst->getParent()) )
+            return true;
+        
+        return false;
+}
+
 LoopTrip Loop::computeTrip(SCEV *scev) {
     // 如果未计算cond，先计算
     if(conditions.size()==0 && !computeConds()) {
@@ -521,14 +537,17 @@ LoopTrip Loop::computeTrip(SCEV *scev) {
         return LoopTrip::createEmptyTrip(-1);
     }
 
-    // 只处理(i relOp const) 或 (const relOp i)的情况，
-    // 同时将cond的比较强制更正为(i relOp const)形式
+    // 同时将cond的比较强制更正为(ind relOp inv)形式
     PhiInst *lhs;
-    ConstantInt *rhs;
+    Value *rhs;
     LoopCond::opType relOp;
-    if( (lhs = dynamic_cast<PhiInst*>(conditions[0]->lhs)) && (rhs = dynamic_cast<ConstantInt*>(conditions[0]->rhs)) ) {
+    if( dynamic_cast<PhiInst*>(conditions[0]->lhs) && isInvariant(this, conditions[0]->rhs) ) {
+        lhs = dynamic_cast<PhiInst*>(conditions[0]->lhs);
+        rhs = conditions[0]->rhs;
         relOp = conditions[0]->op;
-    } else if ( (lhs = dynamic_cast<PhiInst*>(conditions[0]->rhs)) && (rhs = dynamic_cast<ConstantInt*>(conditions[0]->lhs)) ) {
+    } else if ( dynamic_cast<PhiInst*>(conditions[0]->rhs) && isInvariant(this, conditions[0]->lhs) ) {
+        lhs = dynamic_cast<PhiInst*>(conditions[0]->rhs);
+        rhs = conditions[0]->lhs;
         relOp = (LoopCond::opType)(-conditions[0]->op);
     } else {
         return LoopTrip::createEmptyTrip(-1);
@@ -548,7 +567,15 @@ LoopTrip Loop::computeTrip(SCEV *scev) {
     // 获取初始值
     start = expr->getOperand(0)->getConst();
     iter  = expr->getOperand(1)->getConst();
-    end   = rhs->getValue();
+    
+    ConstantInt *rhsInt = dynamic_cast<ConstantInt*>(rhs);
+    // 正常情况trip的start是一个constInt，但对于dynamicLoop，start是一个phiInst，常量隐含为op[0]
+    if(!rhsInt) {
+        return {lhs, rhs, iter, -3};
+    } else {
+        end = rhsInt->getValue();
+    }
+    
 
     switch (relOp) {
         case  LoopCond::opType::eq:
@@ -615,5 +642,5 @@ LoopTrip Loop::computeTrip(SCEV *scev) {
             break;
     }
 
-    return {start, end, iter, step};
+    return {ConstantInt::get(start), ConstantInt::get(end), iter, step};
 }

@@ -37,6 +37,7 @@
 #include "optimization/LoopSimplified.hpp"
 #include "optimization/LICM.hpp"
 #include "optimization/LoopUnroll.hpp"
+#include "optimization/LoopStrengthReduction.hpp"
 
 #include "optimization/BreakGEP.hpp"
 #include "optimization/CombineJJ.hpp"
@@ -74,6 +75,7 @@ void Compiler::buildOpt(PassManager &pm){
 
     //loop pass
     pm.addPass<LoopSimplified>();
+    pm.addPass<LoopStrengthReduction>();
     pm.addPass<LICM>();
     pm.addPass<LoopUnroll>();
     pm.addPass<SCCP>();

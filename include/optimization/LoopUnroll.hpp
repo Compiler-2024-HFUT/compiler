@@ -14,7 +14,7 @@
         n = n + i;              ->                  n = n + i;  ... n = n + i + 4;
         i = i + 1;                                  i = i + 1;  ... i = i + 1;      
     }                                           }
-    2. 循环次数不可被整除 或 循环次数未知
+    2. 循环次数不可被整除
     i = 0;                                      i = 0;
     while(i < 91) {                             while(i < 90(91/5*5)){
         n = n + i;                                  n = n + i;  ... n = n + i + 4;
@@ -30,6 +30,18 @@
         n = n + i;              ->              n = n + i + 1;
         i = i + 1;                                ... 
     }                                           n = n + i + 4;
+    4. 循环次数未知（动态展开）
+    i = 0;                                      i = 0;
+                                                // i+iter*time < n是weakcond，其包含i < n的情况，故后者省略
+    while(i < n) {                              while((i < n &&) i+iter*time < n){    
+        n = n + i;                                  n = n + i;  ... n = n + i + 4;
+        i = i + 1;               ->                 i = i + 1;  ... i = i + 1;
+    }                                           }
+                                                while(i < n){
+                                                    n = n + i;
+                                                    i = i + 1;
+                                                }
+
  */
 
 #ifndef LOOP_UNROLL_HPP
@@ -48,10 +60,11 @@ using std::vector;
 
 class LoopUnroll : public FunctionPass{
     void visitLoop(Loop *loop);
-    void unrollCommonLoop(Loop *loop, LoopTrip trip, int time);   // 情况1
-    void unrollPartialLoop(Loop *loop, LoopTrip trip, int time);  // 情况2
-    void unrolEntirelLoop(Loop *loop, LoopTrip trip);           // 情况3 
-    void unrollEntirelLoopInOneBB(Loop *loop, LoopTrip trip);   // 情况3，但LoopBody仅有一个基本块
+    void unrollCommonLoop(Loop *loop, LoopTrip trip, int time);     // 情况1
+    void unrollPartialLoop(Loop *loop, LoopTrip trip, int time);    // 情况2
+    void unrolEntirelLoop(Loop *loop, LoopTrip trip);               // 情况3 
+    void unrollEntirelLoopInOneBB(Loop *loop, LoopTrip trip);       // 情况3，但LoopBody仅有一个基本块
+    void unrollDynamicLoop(Loop *loop, LoopTrip trip, int time);    // 情况4
     
     // 循环消除，对于迭代次数为0的循环，可以将其删除
     void removeLoop(Loop *loop);

@@ -1,5 +1,6 @@
 #include "analysis/LoopInvariant.hpp"
 #include "midend/GlobalVariable.hpp"
+#include "analysis/funcAnalyse.hpp"
 
 bool LoopInvariant::isValueInvariant(Loop *loop, Value *val) {
     if(dynamic_cast<Instruction*>(val))
@@ -36,7 +37,17 @@ bool LoopInvariant::isInstInvariant(Loop *loop, Instruction *inst) {
             return true;
         // 普通指针load的值可能因store而变化
         return false;
-    } else if (inst->isCall() || inst->isGep()) {
+    } else if (inst->isCall()) {
+        FuncAnalyse *fan = infoManager->getInfo<FuncAnalyse>();
+        if( !fan->isPureFunc(dynamic_cast<Function*>(inst->getOperand(0))) ) 
+            return false;
+        vector<Value*> args = vector<Value*>(inst->getOperands().begin() + 1, inst->getOperands().end());
+        for(Value *arg : args) {
+            if ( !isValueInvariant(loop, arg) )
+                return false;
+        }
+        return true;
+    } else if (inst->isGep()) {  
         vector<Value*> &ops = inst->getOperands();
         for(Value *op : ops) {
             if ( !isValueInvariant(loop, op) )
