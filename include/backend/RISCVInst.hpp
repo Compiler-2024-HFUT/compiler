@@ -86,6 +86,10 @@ class RISCVInst{
         
         static ::std::string sh2add(GReg *rd, GReg *rs1, GReg *rs2);
 
+
+
+        
+
 };
 
 #endif

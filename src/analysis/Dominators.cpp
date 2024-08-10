@@ -3,6 +3,7 @@
 #include "midend/BasicBlock.hpp"
 #include "midend/Function.hpp"
 #include <algorithm>
+#include <cassert>
 #include <functional>
 #include <ostream>
 #include <set>
@@ -14,6 +15,27 @@ int Dominators::getDomDepth(BasicBlock* bb){
         bb=getIDom(bb);
     }
     return ret;
+}
+bool Dominators::isLBeforeR(Instruction*l,Instruction*r){
+    assert(l!=r&&"指令不应该相等");
+    auto l_bb=l->getParent();
+    auto r_bb=r->getParent();
+    //在同一块内
+    if(l_bb==r_bb){
+        auto iter=l_bb->getInstructions().begin();
+        bool find_l=false;
+        while(find_l==false){
+            if(*iter==l){
+                find_l=true;
+            }else if(*iter==r){
+                return false;
+            }
+            ++iter;
+        }
+        return true;
+
+    }else 
+        return isLdomR(l_bb,r_bb);
 }
 //寻找公共祖先
 BasicBlock* Dominators::findLCA(BasicBlock* lbb,BasicBlock*rbb){

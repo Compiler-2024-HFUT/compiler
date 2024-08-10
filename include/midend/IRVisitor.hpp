@@ -29,6 +29,7 @@ class IRVisitor{
         virtual void visit(FCmpBrInst &node) = 0;
         virtual void visit(LoadOffsetInst &node) = 0;
         virtual void visit(StoreOffsetInst &node) = 0;
+        virtual void visit(LoadImmInst &node) = 0;
 
 };
 

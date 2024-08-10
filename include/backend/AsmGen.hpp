@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <map>
+
 /*需要访问的中端数据结构如下：
 module
 function
@@ -116,6 +117,7 @@ class AsmGen : public IRVisitor{
         virtual void visit(FCmpBrInst &node) override;
         virtual void visit(LoadOffsetInst &node) override;
         virtual void visit(StoreOffsetInst &node) override;
+        virtual void visit(LoadImmInst &node) override;
     
     private:
         void visitAdd(BinaryInst* inst);
