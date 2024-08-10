@@ -2783,5 +2783,14 @@ memset_f:\n\
 
 
  ::std::string Sh2Add::print(){
-        return RISCVInst::sh2add(rd, rs1, rs2);
+    return RISCVInst::sh2add(rd, rs1, rs2);
+}
+
+::std::string LoadIImm::print(){
+    return RISCVInst::li(grd, i_val->getIConst());
+}
+
+::std::string LoadFImm::print(){
+    return RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)(&(f_val->getFConst())))+
+           RISCVInst::fmv_s_x(frd, new GReg(static_cast<int>(RISCV::GPR::s1)));
 }

@@ -265,6 +265,8 @@ class PhiPass;
 
 //性能优化指令
 class Sh2Add;
+class LoadIImm;
+class LoadFImm;
 
 
 
@@ -367,6 +369,8 @@ class Sequence{
         PhiPass* createPhiPass(::std::vector<::std::pair<AddressMode*, AddressMode*>> i_phi, ::std::vector<::std::pair<AddressMode*, AddressMode*>> f_phi);
     
         Sh2Add* createSh2Add(GReg* rd,GReg* rs1,GReg* rs2);
+        LoadIImm* createLoadIImm(GReg* grd, IConst* i_val);
+        LoadFImm* createLoadFImm(FReg* frd, FConst* f_val);
 
     private:
         BasicBlock* bb;
@@ -523,7 +527,9 @@ class AsmInst{
 
 
             //性能优化指令
-            sh2add  //加速地址计算
+            sh2add,  //加速地址计算
+            loadiimm,
+            loadfimm
 
         };
     public:
@@ -1393,5 +1399,29 @@ class Sh2Add: public AsmInst{
         GReg* rs2;
 };
 
+class LoadIImm: public AsmInst{
+    public:
+        LoadIImm(GReg* grd, IConst* i_val, Sequence* seq)
+        :grd(grd), i_val(i_val), AsmInst(Op::loadiimm, seq){}
+        ::std::string print() final;
+
+    private:
+        GReg* grd;
+        IConst* i_val;
+
+};
+
+
+class LoadFImm: public AsmInst{
+    public:
+        LoadFImm(FReg* frd, FConst* f_val, Sequence* seq)
+        :frd(frd), f_val(f_val), AsmInst(Op::loadfimm, seq){}
+        ::std::string print() final;
+
+    private:
+        FReg* frd;
+        FConst* f_val;
+
+};
 
 #endif
