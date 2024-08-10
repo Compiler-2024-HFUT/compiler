@@ -785,7 +785,7 @@ public:
         return  new LoadImmInst(this->getType(),getOperand(0),bb);
     }
 
-    virtual void accept(IRVisitor &visitor) final{}
+    virtual void accept(IRVisitor &visitor) final;
 
 private:
     LoadImmInst(Type*type,Value*cons,  BasicBlock *bb);

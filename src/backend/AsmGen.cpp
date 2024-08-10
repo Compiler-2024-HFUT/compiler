@@ -1164,6 +1164,22 @@ void AsmGen::visit(StoreOffsetInst &node){
     }
 }
 
+void AsmGen::visit(LoadImmInst &node){
+    auto inst = &node;
+    auto i_src = dynamic_cast<ConstantInt*>(inst->getOperand(0));
+    auto f_src = dynamic_cast<ConstantFP*>(inst->getOperand(0));
+    if(i_src){
+        auto grd = getGRD(inst);
+        auto i_const = new IConst(i_src->getValue());
+        sequence->createLoadIImm(grd, i_const);
+    }
+    else if(dynamic_cast<ConstantFP*>(inst->getOperand(0))){
+        auto frd = getFRD(inst);
+        auto f_const = new FConst(f_src->getValue());
+        sequence->createLoadFImm(frd, f_const);
+    }
+}
+
 void AsmGen::visitAdd(BinaryInst* inst){
     auto ird = getGRD(inst);
     auto irs1 = dynamic_cast<IConst*>(getIRS1(inst))?dynamic_cast<IConst*>(getIRS1(inst)):getIRS1(inst);

@@ -402,3 +402,15 @@ Sh2Add* Sequence::createSh2Add(GReg* rd,GReg* rs1,GReg* rs2){
     insts.push_back(inst);
     return inst;   
 }
+
+LoadIImm* Sequence::createLoadIImm(GReg* grd, IConst* i_val){
+    auto inst = new LoadIImm(grd, i_val, this);
+    insts.push_back(inst);
+    return inst;   
+}
+
+LoadFImm* Sequence::createLoadFImm(FReg* frd, FConst* f_val){
+    auto inst = new LoadFImm(frd, f_val, this);
+    insts.push_back(inst);
+    return inst;   
+}

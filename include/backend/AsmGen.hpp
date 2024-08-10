@@ -117,6 +117,7 @@ class AsmGen : public IRVisitor{
         virtual void visit(FCmpBrInst &node) override;
         virtual void visit(LoadOffsetInst &node) override;
         virtual void visit(StoreOffsetInst &node) override;
+        virtual void visit(LoadImmInst &node) override;
     
     private:
         void visitAdd(BinaryInst* inst);
