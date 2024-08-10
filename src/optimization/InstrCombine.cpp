@@ -5,8 +5,10 @@
 #include "midend/Constant.hpp"
 #include "midend/Function.hpp"
 #include "midend/Instruction.hpp"
+#include "optimization/PassManager.hpp"
 #include <algorithm>
 #include <cassert>
+#include <list>
 int pow2(int num){
     return num!=0?2<<num:1;
 }
@@ -234,10 +236,10 @@ Instruction* InstrCombine::combineAdd(Instruction*instr){
         }
         //(a - c1) + c2 => a + (c2 - c1)
         if(blhs){
-            if(blhs->isSub()){
+            if(blhs->isAdd()){
                 if(auto lhs_rhs_ci=dynamic_cast<ConstantInt*>(blhs->getOperand(1))){
                     instr->replaceOperand(0,blhs->getOperand(0));
-                    instr->replaceOperand(1,ConstantInt::getFromBin(cons_r,Instruction::OpID::sub,lhs_rhs_ci));
+                    instr->replaceOperand(1,ConstantInt::getFromBin(cons_r,Instruction::OpID::add,lhs_rhs_ci));
                     ret=instr;
                 }
             //(-a)+b ==> b-a
@@ -416,7 +418,7 @@ Instruction* InstrCombine::combine(Instruction*instr){
 }
 
 void InstrCombine::removeInsWithWorkset(Instruction*ins){
-  work_set_.erase(std::remove(work_set_.begin(), work_set_.end(), ins),work_set_.end());
+    work_set_.erase(std::remove(work_set_.begin(), work_set_.end(), ins),work_set_.end());
     ins->getParent()->eraseInstr(ins->getParent()->findInstruction(ins));
     delete ins;
 }

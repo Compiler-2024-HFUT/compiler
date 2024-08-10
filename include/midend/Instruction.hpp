@@ -62,6 +62,7 @@ public:
       loadoffset,
       storeoffset,
       select,
+      loadimm,
     };
 
 public:
@@ -116,7 +117,7 @@ public:
         case OpID::loadoffset: return "loadoffset"; break;
         case OpID::storeoffset: return "storeoffset"; break;
         case OpID::select:return "select"; break;
-
+        case OpID::loadimm:return "loadimm"; break;
         default: return ""; break; 
       }
     }
@@ -133,8 +134,6 @@ public:
     //// Return the function this instruction belongs to.
     Function *getFunction();
     
-    Module *getModule();
-
     bool isVoid() {
         return ((op_id_ == OpID::ret) || (op_id_ == OpID::br) || (op_id_ == OpID::store) || (op_id_ == OpID::cmpbr) || (op_id_ == OpID::fcmpbr) || (op_id_ == OpID::storeoffset) || (op_id_ == OpID::memset) ||
                 (op_id_ == OpID::call && this->getType()->isVoidType()));
@@ -210,6 +209,7 @@ public:
     bool isWriteMem(){return isStore() || isStoreOffset(); }
 
     bool isSelect(){return op_id_==OpID::select;}
+    bool isLoadImm(){return op_id_==OpID::loadimm;}
 
     // void setId(int id) { id_ = id; }
     // int getId() { return id_; }
@@ -535,66 +535,61 @@ class ZextInst : public Instruction {
 public:
     static ZextInst *createZext(Value *val, Type *ty, BasicBlock *bb);
 
-    Type *getDestType() const { return dest_ty_; }
+    Type *getDestType() const { return getType(); }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        return new ZextInst(getInstrType(),getOperand(0),dest_ty_,bb);
+        return new ZextInst( getOperand(0),getDestType(),bb);
     }
 
     //后端遍历
     virtual void accept(IRVisitor &visitor) final;
 
 private:
-    ZextInst(OpID op, Value *val, Type *ty, BasicBlock *bb);
+    ZextInst( Value *val, Type *ty, BasicBlock *bb);
 
 private:
-  Type *dest_ty_;
 };
 
 class SiToFpInst : public Instruction {
 public:
     static SiToFpInst *createSiToFp(Value *val, Type *ty, BasicBlock *bb);
 
-    Type *getDestType() const { return dest_ty_; }
+    Type *getDestType() const { return getType(); }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        return new SiToFpInst(getInstrType(), getOperand(0), getDestType(), bb);
+        return new SiToFpInst( getOperand(0), getDestType(), bb);
     }
 
     //后端遍历
     virtual void accept(IRVisitor &visitor) final;
 
 private:
-    SiToFpInst(OpID op, Value *val, Type *ty, BasicBlock *bb);
+    SiToFpInst( Value *val, Type *ty, BasicBlock *bb);
 
-private:
-    Type *dest_ty_;
 };
 
 class FpToSiInst : public Instruction {
 public:
     static FpToSiInst *createFpToSi(Value *val, Type *ty, BasicBlock *bb);
 
-    Type *getDestType() const { return dest_ty_; }
+    Type *getDestType() const { return getType(); }
 
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
-        return new FpToSiInst(getInstrType(), getOperand(0), getDestType(), bb);
+        return new FpToSiInst( getOperand(0), getDestType(), bb);
     }
 
     //后端遍历
     virtual void accept(IRVisitor &visitor) final;
 
 private:
-    FpToSiInst(OpID op, Value *val, Type *ty, BasicBlock *bb);
+    FpToSiInst( Value *val, Type *ty, BasicBlock *bb);
 
-private:
-    Type *dest_ty_;
 };
 
 class PhiInst : public Instruction {
@@ -607,6 +602,21 @@ public:
     void addPhiPairOperand(Value *val, Value *pre_bb) {
         this->addOperand(val);
         this->addOperand(pre_bb);
+    }
+
+    void removePhiPairOperand(Value *pre_bb) {
+        for(int i = 1; i < getNumOperands(); i += 2) {
+            if(getOperand(i) == pre_bb) {
+                removeOperands(i-1, i);
+                break;
+            }
+        }
+
+        std::vector<Value*> &ops = this->getOperands();
+        this->removeUseOfOps();
+        for(int i = 0; i < ops.size(); i++) {
+            this->getOperand(i)->addUse(this, i);
+        }
     }
 
     virtual std::string print() override;
@@ -760,6 +770,25 @@ public:
 
 private:
     SelectInst(Type*type,Value *cond, Value *true_val, Value *false_val, BasicBlock *bb);
+};
+
+class LoadImmInst: public Instruction {
+
+public:
+    static LoadImmInst *createLoadImm(Type*type,Value *cons, BasicBlock *bb);
+
+    // Type *getSelectType() const{return getType();}
+
+    virtual std::string print() override;
+
+    Instruction *copyInst(BasicBlock *bb) override final{
+        return  new LoadImmInst(this->getType(),getOperand(0),bb);
+    }
+
+    virtual void accept(IRVisitor &visitor) final{}
+
+private:
+    LoadImmInst(Type*type,Value*cons,  BasicBlock *bb);
 };
 
 #endif

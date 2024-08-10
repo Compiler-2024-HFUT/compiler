@@ -1,3 +1,5 @@
+#ifndef INTERVAL_HPP__
+#define INTERVAL_HPP__
 #include "midend/Module.hpp"
 
 class Interval{
@@ -20,3 +22,4 @@ class Interval{
         friend class LSRA;
         friend class AsmGen;
 };
+#endif

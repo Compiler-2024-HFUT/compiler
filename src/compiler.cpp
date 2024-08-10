@@ -14,20 +14,36 @@
 #include "optimization/CombinBB.hpp"
 #include "optimization/ConstBrEli.hpp"
 #include "optimization/DCE.hpp"
+#include "optimization/DFE.hpp"
 #include "optimization/DeadPHIEli.hpp"
 #include "optimization/DeadStoreEli.hpp"
 #include "optimization/G2L.hpp"
+#include "optimization/GepOpt.hpp"
 #include "optimization/InstrCombine.hpp"
 #include "optimization/Mem2Reg.hpp"
 #include "optimization/MoveAlloca.hpp"
 #include "optimization/PassManager.hpp"
 #include "optimization/SCCP.hpp"
 #include "optimization/ValueNumbering.hpp"
+#include "optimization/VirtualRetEli.hpp"
 #include "optimization/inline.hpp"
+#include "optimization/instrResolve.hpp"
+
+#include "analysis/LoopInfo.hpp"
+#include "analysis/LoopInvariant.hpp"
+#include "analysis/Dataflow.hpp"
+#include "analysis/SCEV.hpp"
+
+#include "optimization/LoopSimplified.hpp"
+#include "optimization/LICM.hpp"
+#include "optimization/LoopUnroll.hpp"
+#include "optimization/LoopStrengthReduction.hpp"
 
 #include "optimization/BreakGEP.hpp"
 #include "optimization/CombineJJ.hpp"
 #include "optimization/MemInstOffset.hpp"
+#include "optimization/splitArr.hpp"
+#include "analysis/CLND.hpp"
 
 void usage(){
 	(void)fprintf(stderr, "%s\n%s\n",
@@ -38,6 +54,12 @@ void usage(){
 void Compiler::buildOpt(PassManager &pm){
     pm.addInfo<Dominators>();
     pm.addInfo<FuncAnalyse>();
+    pm.addInfo<LiveVar>();
+    pm.addInfo<LoopInfo>();
+    pm.addInfo<LoopInvariant>();
+    pm.addInfo<SCEV>();
+    
+    //mem2regpass
     pm.addPass<DeadStoreEli>();    
     pm.addPass<CombinBB>();
     pm.addPass<Mem2Reg>();
@@ -45,6 +67,34 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
     pm.addPass<InstrCombine>();
+    pm.addPass<SCCP>();
+    pm.addPass<CombinBB>();
+    pm.addPass<InstrCombine>();
+    pm.addPass<InstrResolve>();
+    pm.addPass<DCE>();
+    pm.addPass<DFE>();
+
+    //loop pass
+    pm.addPass<LoopSimplified>();
+    pm.addPass<LoopStrengthReduction>();
+    pm.addPass<LICM>();
+    pm.addPass<LoopUnroll>();
+    pm.addPass<SCCP>();
+    pm.addPass<CombinBB>();
+    pm.addPass<DCE>();
+    pm.addPass<InstrCombine>();
+
+    //arrpass
+    pm.addPass<MoveAlloca>();
+    pm.addPass<ValNumbering>();
+    pm.addPass<CombinBB>();
+    pm.addPass<ArrReduc>();
+    pm.addPass<SplitArr>();
+    pm.addPass<Mem2Reg>();
+    pm.addPass<DCE>();
+    pm.addPass<SCCP>();
+
+    //inline and g2l pass
     pm.addPass<FuncInline>();
     pm.addPass<CombinBB>();
     pm.addPass<G2L>();
@@ -57,10 +107,27 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<ArrReduc>();
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
-    lir(pm);
-    pm.addPass<ValNumbering>();
-    pm.addPass<DCE>();
+
+    //gep loadimm and licm pass
+    pm.addPass<BreakGEP>();
+    pm.addPass<LoopSimplified>();
+    pm.addPass<LICM>();
+
+    pm.addPass<CombinBB>();
+    // pm.addPass<SCCP>();
     pm.addPass<InstrCombine>();
+    pm.addPass<DCE>();
+    pm.addPass<ValNumbering>();
+
+    pm.addPass<CombinBB>();
+    // pm.addPass<VRE>();
+    pm.addPass<DCE>();
+
+    lir(pm);
+
+    pm.addPass<GepOpt>();
+    pm.addPass<DCE>();
+    pm.addPass<ValNumbering>();
     pm.addPass<InstrReduc>();
 }
 
@@ -71,13 +138,13 @@ void Compiler::buildDefault(PassManager &pm){
     pm.addPass<Mem2Reg>();
     pm.addPass<DeadPHIEli>();
     pm.addPass<SCCP>();
+    pm.addPass<BreakGEP>();
     lir(pm);
     pm.addPass<DCE>();
     
 }
 Compiler::Compiler(int argc, char** argv):lir([](PassManager&pm){
     pm.addPass<CombineJJ>();
-    pm.addPass<BreakGEP>();
     pm.addPass<MemInstOffset>();
     pm.addPass<MoveAlloca>();}){
     if(argc<5){
@@ -132,7 +199,7 @@ int Compiler::run(){
     else
         buildDefault(pm);
     pm.run();
-    m->print();
+    m->setPrintName();
 
     std::fstream out_file(out_name,std::ios::out|std::ios::trunc);
     if(is_out_llvm){

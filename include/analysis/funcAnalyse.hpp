@@ -23,25 +23,27 @@ constexpr uint64_t PUT_VAR=(1<<5);
 struct FuncSEInfo{
     uint64_t info;
 
-    bool isWriteGlobal(){return (info&WRITE_GLOBAL)>0;}
-    bool isLoadGlobal(){return (info&LOAD_GLOBAL)>0;}
-    bool isWriteParamArray(){return (info&WRITE_PARAM_ARRAY)>0;}
-    bool isLoadParamArray(){return (info&LOAD_PARAM_ARRAY)>0;}
-    bool isGetVar(){return (info&GET_VAR)>0;}
-    bool isPutVar(){return (info&PUT_VAR)>0;}
+    __always_inline bool isWriteGlobal(){return (info&WRITE_GLOBAL)>0;}
+    __always_inline bool isLoadGlobal(){return (info&LOAD_GLOBAL)>0;}
+    __always_inline bool isWriteParamArray(){return (info&WRITE_PARAM_ARRAY)>0;}
+    __always_inline bool isLoadParamArray(){return (info&LOAD_PARAM_ARRAY)>0;}
+    __always_inline bool isGetVar(){return (info&GET_VAR)>0;}
+    __always_inline bool isPutVar(){return (info&PUT_VAR)>0;}
 
-    void addWriteGlobal(){  info=(info|WRITE_GLOBAL);}
-    void addLoadGlobal(){  info=(info|LOAD_GLOBAL);}
-    void addWriteParamArray(){  info=(info|WRITE_PARAM_ARRAY);}
-    void addLoadParamArray(){  info=(info|LOAD_PARAM_ARRAY);}
-    void addGetVar(){  info=(info|GET_VAR);}
-    void addPutVar(){  info=(info|PUT_VAR);}
+    __always_inline void addWriteGlobal(){  info=(info|WRITE_GLOBAL);}
+    __always_inline void addLoadGlobal(){  info=(info|LOAD_GLOBAL);}
+    __always_inline void addWriteParamArray(){  info=(info|WRITE_PARAM_ARRAY);}
+    __always_inline void addLoadParamArray(){  info=(info|LOAD_PARAM_ARRAY);}
+    __always_inline void addGetVar(){  info=(info|GET_VAR);}
+    __always_inline void addPutVar(){  info=(info|PUT_VAR);}
     __always_inline bool isNoSeFunc(){
     if(isWriteGlobal()||isWriteParamArray()||isGetVar()||isPutVar())
         return false;
     return true;
     }
-
+    __always_inline bool isPureFunc(){
+        return this->info==0;
+    }
     // __always_inline bool isWriteGlobalArray();
     // __always_inline bool isLoadGlobalArray();
 
@@ -73,6 +75,12 @@ public:
     virtual void reAnalyse() override{analyse();}
     FuncAnalyse(Module*m,InfoManager*im):ModuleInfo(m, im){
         mod.modify_call=true;
+    }
+    bool isNoSeFunc(Function* func){
+        return all_se_info.find(func)->second.isNoSeFunc();
+    }
+    bool isPureFunc(Function* func){
+        return all_se_info.find(func)->second.isPureFunc();
     }
     void printInfo();
     ~FuncAnalyse(){}

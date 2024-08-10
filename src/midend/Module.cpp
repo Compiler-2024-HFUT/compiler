@@ -79,6 +79,26 @@ void Module::deleteFunction(Function*f) {
 
 Module::~Module() {
     // breakCheck();
+    for(auto f:functions_list_)
+        for(auto b:f->getBasicBlocks())
+            for(auto i:b->getInstructions())
+                i->removeUseOfOps();
+    for(auto f:functions_list_){
+        for(auto b:f->getBasicBlocks()){
+            for(auto i:b->getInstructions()){
+                delete i;
+            }
+            delete b;
+        }
+        delete f;
+    }
+    for(auto g:globals_list_){
+        delete g;
+    }
+    Constant::manager_->cached_bool.clear();
+    Constant::manager_->cached_int.clear();
+    Constant::manager_->cached_float.clear();
+    Constant::manager_->cached_zero.clear();
 }
 
 void Module::addFunction(Function *f) {
@@ -114,8 +134,8 @@ define void @storeoffset_i(i32 %val ,i32* %base_addr, i32 %offset){
     ret void
 }
 define void @storeoffset_f(float %val , float* %base_addr, i32 %offset){
-    %store = getelementptr i32 , i32* %base_addr , i32 %offset
-    store float %val, i32* %store
+    %store = getelementptr float , float* %base_addr , i32 %offset
+    store float %val, float* %store
     ret void
 }
 )";

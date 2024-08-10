@@ -50,27 +50,28 @@ function asm_test() {
 }
 
 function pass_test(){
+    llvm-as "$name.ll" -o "$name.tmp.bc"
+    llvm-link -o "$name.bc" "$name.tmp.bc" ../lib/sylib.bc ../lib/memset.bc
+
+    rm  "`pwd`/$name.tmp.bc" 
+    #run
+    if [ -f "`pwd`/$name.in"  ] 
+    then
+        cat "`pwd`/$name.in"|lli "$name.bc" > "`pwd`/$name.output"
+    else
+        lli "$name.bc" > "`pwd`/$name.output"
+    fi
+    ret=$?
+    rm "`pwd`/$name.bc" 
+    echo "$ret" >>  "`pwd`/$name.output"
+    compare_out $name
+    
+}
+function compile_pass(){
     name=$1
     ../build/linux/x86_64/debug/compiler "`pwd`/$name.sy" -L -S -O1 -o  "$name.ll" 
     if [ $? -ne 0 ]
     then
         echo "`pwd`$name.sy error 1145141919810" >> "compiler wrong"
-    else
-        llvm-as "$name.ll" -o "$name.tmp.bc"
-        llvm-link -o "$name.bc" "$name.tmp.bc" ../lib/sylib.bc ../lib/memset.bc
-
-        rm  "`pwd`/$name.tmp.bc" 
-        #run
-        if [ -f "`pwd`/$name.in"  ] 
-        then
-            cat "`pwd`/$name.in"|lli "$name.bc" > "`pwd`/$name.output"
-        else
-            lli "$name.bc" > "`pwd`/$name.output"
-        fi
-        ret=$?
-        rm "`pwd`/$name.bc" 
-        echo "$ret" >>  "`pwd`/$name.output"
-        compare_out $name
     fi
-    
 }

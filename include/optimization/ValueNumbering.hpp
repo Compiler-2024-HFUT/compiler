@@ -1,6 +1,7 @@
 #ifndef  VAL_NUM_HPP
 #define VAL_NUM_HPP
 #include "analysis/Dominators.hpp"
+#include "analysis/funcAnalyse.hpp"
 #include "midend/Instruction.hpp"
 #include "midend/Module.hpp"
 #include "midend/Value.hpp"
@@ -14,7 +15,7 @@ struct Expr{
         ZEXT,SITOFP,FPTOSI,
         AND,OR,XOR,
         ASR,SHL,LSR,ASR64,SHL64,LSR64,
-        GEP,
+        GEP,LOADIMM,
     }op_;
     uint32_t lhs,rhs,third;
     Type* type_;
@@ -57,6 +58,7 @@ public:
     // Expr creatExpr(CmpInst* ins);
     // Expr creatExpr(FCmpInst* ins);
     Expr creatExpr(GetElementPtrInst* ins);
+    Expr creatExpr(LoadImmInst* ins);
     ::std::vector<Value*>& getNumVal(uint32_t num){
         return  number_value[num];
     }
@@ -73,17 +75,20 @@ public:
 class ValNumbering:public FunctionPass{
     ValueTable vn_table_;
     Dominators*dom;
+    FuncAnalyse* fa_;
     // ::std::map<BasicBlock*,::std::set<Value*>> basic_value_;
     __attribute__((__always_inline__)) void clear(){
         vn_table_.clear();
         // basic_value_.clear();
     }
     bool proInstr(Instruction*instr);
+    bool procCall(std::vector<std::pair<CallInst*,std::vector<int>>> &call_set_);
 public:
     // bool dvnt(Function*func,BasicBlock*bb);
     virtual Modify runOnFunc(Function *func) override;
     using FunctionPass::FunctionPass;
     void init()override{
+        fa_=info_man_->getInfo<FuncAnalyse>();
         dom=info_man_->getInfo<Dominators>();
     }
     ~ValNumbering(){};
