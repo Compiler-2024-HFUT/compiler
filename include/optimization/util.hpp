@@ -8,4 +8,5 @@ void fixPhiOpUse(Instruction*phi);
 // void deleteBasicBlock(BasicBlock*bb);
 void deleteIns(BasicBlock*bb,Instruction*ins);
 void rmBBPhi(BasicBlock*valuefrom);
+int get_op_offset(std::vector<Value*>&ops, Value*v);
 #endif
