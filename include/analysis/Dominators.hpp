@@ -79,6 +79,7 @@ public:
         auto & l_set=func_dom_set_[l->getParent()].find(l)->second;
         return l_set.count(r);
     }
+    bool isLBeforeR(Instruction*l,Instruction*r);
 };
 
 #endif
