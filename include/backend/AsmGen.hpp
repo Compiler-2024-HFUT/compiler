@@ -334,6 +334,18 @@ class AsmGen : public IRVisitor{
         
     Val *getAllocaReg(Value* value);
 
+    GReg* getAddRD(Add* inst){
+        return inst->getRD();
+    }
+
+    Val* getAddRS1(Add* inst){
+        return inst->getRS1();
+    }
+
+    Val* getAddRS2(Add* inst){
+        return inst->getRS2();
+    }
+
        
     std::map<GlobalVariable*, Label*> global_variable_labels_table;
 

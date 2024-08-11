@@ -280,6 +280,10 @@ class Sequence{
         void deleteInst(){
             insts.pop_back();
         }
+        ::std::vector<AsmInst*>* getAsmInsts(){
+            return &insts;
+        }
+
         BasicBlock* getBBOfSeq(){return bb;}
         Label* getLabelOfSeq(){return label;}
         Subroutine* getSubroutineOfSeq(){return parent;}
@@ -537,6 +541,7 @@ class AsmInst{
         virtual ~AsmInst() = default;
         Sequence* getSeq(){return seq;}
         Subroutine* getSub(){return seq->getSubroutineOfSeq();}
+        enum class Op getID(){return id;};
         virtual ::std::string print() = 0;
 
     private:
@@ -552,6 +557,10 @@ class Add: public AsmInst{
         Add(GReg* rd,Val* rs1,Val* rs2, Sequence* seq)
         :rd(rd), rs1(rs1), rs2(rs2), AsmInst(Op::add, seq){} 
         ::std::string print() final;
+
+        GReg* getRD(){ return rd; }
+        Val* getRS1(){ return rs1; }
+        Val* getRS2(){ return rs2; }
 
     private:
         GReg* rd;
