@@ -88,7 +88,7 @@ Modify GenLoadImm::runOnFunc(Function *function){
                         ins->replaceOperand(2,imm);
                     }
                 }
-            }else if(ins->isDiv()||ins->isFDiv()||ins->isRem()||ins->isFAdd()||ins->isFMul()){
+            }else if(ins->isDiv()||ins->isFDiv()||ins->isRem()||ins->isFAdd()||ins->isFMul()||ins->isSub()){
                 if(dynamic_cast<Constant*>(ins->getOperand(0))){
                     auto imm=LoadImmInst::createLoadImm(ins->getOperand(0)->getType(),ins->getOperand(0),b);
                     ins_list.pop_back();
