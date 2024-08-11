@@ -77,6 +77,34 @@ void MemInstOffset::handleGEP(GetElementPtrInst* inst_gep, ::std::list<Instructi
    
     
 }
+/*
+void MemInstOffset::handleGEP(GetElementPtrInst* inst_gep, ::std::list<Instruction*>& inst_list, ::std::list<Instruction*>::iterator& inst_pos, BasicBlock* bb, bool flag){
+    Value *base, *offset;
+    auto inst = *inst_pos;
+    base = inst_gep->getOperand(0);
+    offset = inst_gep->getOperand(inst_gep->getNumOperands()-1);
+    // auto const_offset=dynamic_cast<ConstantInt*>(offset);
+    // if(const_offset==0)return ;
+    if(!flag) {
+        auto inst_offset =  LoadOffsetInst::createLoadOffset((*inst_pos)->getType(), base, offset, bb);
+
+        inst_list.pop_back();
+        bb->addInstruction(inst_pos--, inst_offset);
+        inst->replaceAllUseWith(inst_offset);
+        bb->deleteInstr(inst);
+
+    }
+    else {
+        auto inst_offset = StoreOffsetInst::createStoreOffset(dynamic_cast<StoreInst*>(inst)->getRVal(), base, offset, bb);
+        inst_list.pop_back();
+        bb->addInstruction(inst_pos--, inst_offset);
+        inst->replaceAllUseWith(inst_offset);
+        bb->deleteInstr(inst);
+
+    }
+}
+
+*/
 void MemInstOffset::handleAdd(BinaryInst* inst_ptr, ::std::list<Instruction*>& inst_list, ::std::list<Instruction*>::iterator& inst_pos, BasicBlock* bb, bool flag){
     Value *base, *offset;
     auto inst = *inst_pos;
