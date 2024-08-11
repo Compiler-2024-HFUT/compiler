@@ -22,8 +22,17 @@ Modify GepCombine::runOnFunc(Function*func){
     if(func->isDeclaration())
         return{};
     for(auto b:func->getBasicBlocks()){
-        for(auto ins:b->getInstructions()){
+        auto ins_list=b->getInstructions();
+        for(auto iter=ins_list.begin();iter!=ins_list.end();){
+            auto cur_iter=iter;
+            auto ins=*cur_iter;
+            ++iter;
             if(ins->isGep()&&ins->getNumOperands()==2){
+                if(ins->useEmpty()){
+                    b->eraseInstr(cur_iter);
+                    delete  ins;
+                    continue;
+                }
                 work_set_.push_back((GetElementPtrInst*)ins);
             }
         }
@@ -38,11 +47,17 @@ Modify GepCombine::runOnFunc(Function*func){
                     auto gep_has_offset=__isBeGepUseEq(lhs,gep->getOperand(0));
                     if(gep_has_offset==0)
                         continue;
+                    //必须在前面
+                    if(!dom->isLBeforeR(gep_has_offset,gep))
+                        continue;
                     auto bb=gep->getParent();
                     auto new_gep=GetElementPtrInst::createGep(gep_has_offset,{add->getOperand(1)},bb);
                     gep->replaceAllUseWith(new_gep);
                     bb->getInstructions().pop_back();
                     bb->insertInstr(bb->findInstruction(gep),new_gep);
+                    if(dynamic_cast<ConstantInt*>(gep_has_offset->getOperand(1))){
+                        work_set_.push_back(new_gep);
+                    }
                 }
                 
             }
