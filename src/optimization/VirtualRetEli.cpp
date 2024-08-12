@@ -29,7 +29,11 @@ Modify VRE::runOnFunc(Function*func){
         bb_val.push_back({(BasicBlock*)phi->getOperand(i+1),phi->getOperand(i)});
     }
     //现在pre的size不一定等于bb_valsize;
-    for(auto [b,val]:bb_val){
+    auto &phi_ops=phi->getOperands();
+
+    for(int __i=0;__i<bb_val.size();__i++ ){
+        auto [b,val]=bb_val[__i];
+
         auto &pre_inss=b->getInstructions();
         auto ter=pre_inss.back();
         if(ter->isBr()&&ter->getNumOperands()==1){
@@ -42,6 +46,10 @@ Modify VRE::runOnFunc(Function*func){
             b->removeSuccBasicBlock(ret_bb);
             b->getSuccBasicBlocks().clear();
             ReturnInst::createRet(val,b);
+
+            int offset=get_op_offset(phi_ops,val);
+            phi->removeOperands(offset,offset+1);
+            fixPhiOpUse(phi);
         }
     }
     if(ret_bb->getPreBasicBlocks().empty()){

@@ -88,16 +88,7 @@ Modify GenLoadImm::runOnFunc(Function *function){
                         ins->replaceOperand(2,imm);
                     }
                 }
-            }else if(ins->isFAdd()||ins->isFMul()){
-                auto cons=dynamic_cast<Constant*>(ins->getOperand(1));
-                if(cons){
-                    auto imm=LoadImmInst::createLoadImm(cons->getType(),cons,b);
-                    ins_list.pop_back();
-                    ins_list.insert(cur_iter,imm);
-                    ret.modify_instr=true;
-                    ins->replaceOperand(1,imm);
-                }
-            }else if(ins->isDiv()||ins->isFDiv()){
+            }else if(ins->isDiv()||ins->isFDiv()||ins->isRem()||ins->isFAdd()||ins->isFMul()||ins->isSub()){
                 if(dynamic_cast<Constant*>(ins->getOperand(0))){
                     auto imm=LoadImmInst::createLoadImm(ins->getOperand(0)->getType(),ins->getOperand(0),b);
                     ins_list.pop_back();
@@ -110,6 +101,14 @@ Modify GenLoadImm::runOnFunc(Function *function){
                     ins_list.insert(cur_iter,imm);
                     ret.modify_instr=true;
                     ins->replaceOperand(1,imm);
+                }
+            }else if(ins->isLsl()||ins->isAsr()||ins->isLsr()){
+                if(dynamic_cast<ConstantInt*>(ins->getOperand(0))){
+                    auto imm=LoadImmInst::createLoadImm(ins->getOperand(0)->getType(),ins->getOperand(0),b);
+                    ins_list.pop_back();
+                    ins_list.insert(cur_iter,imm);
+                    ret.modify_instr=true;
+                    ins->replaceOperand(0,imm);
                 }
             }
         }

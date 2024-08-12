@@ -981,6 +981,6 @@ LoadImmInst* LoadImmInst::createLoadImm(Type*type,Value *cons, BasicBlock *bb){
 }
 std::string LoadImmInst::print() {
     static int num=0;
-    std::string instr_ir="%"+getName()+"= " +(this->getType()->isIntegerType()?"add i32 ":"fadd float ")+"0 ,"+printAsOp(getOperand(0));
+    std::string instr_ir="%"+getName()+"= " +(this->getType()->isIntegerType()?"add i32 0 ,":"fadd float 0x0 ,")+printAsOp(getOperand(0));
     return instr_ir;
 }
