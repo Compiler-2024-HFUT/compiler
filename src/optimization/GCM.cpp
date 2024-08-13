@@ -85,7 +85,7 @@ Instruction *GCM::scheduleEarly(Instruction *inst) {
     LOG_WARNING("earlyBB: " + inst->getName() + ", " + instBB->getName())
 
     if(!isPinned(inst) && inst->getParent() != instBB) {
-        inst->getParent()->deleteInstr(inst);
+        inst->getParent()->getInstructions().remove(inst);
         instBB->addInstrBeforeTerminator(inst);
     }
     
@@ -136,7 +136,7 @@ Instruction *GCM::scheduleLate(Instruction *inst) {
                 list<Instruction*> &userBBInstList = userInst->getParent()->getInstructions();
                 auto pos = find(userBBInstList.begin(), userBBInstList.end(), userInst);
                 
-                inst->getParent()->deleteInstr(inst);
+                inst->getParent()->getInstructions().remove(inst);
                 inst->setParent(userInst->getParent());
                 userInst->getParent()->addInstruction(pos, inst);
                 return inst;
@@ -145,7 +145,7 @@ Instruction *GCM::scheduleLate(Instruction *inst) {
     }
 
     if(!isPinned(inst) && bestBB != instBB) {
-        inst->getParent()->deleteInstr(inst);
+        inst->getParent()->getInstructions().remove(inst);
         bestBB->addInstrBeforeTerminator(inst);
     }
     return inst;
