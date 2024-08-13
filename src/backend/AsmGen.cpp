@@ -1032,27 +1032,51 @@ void AsmGen::visit(ReturnInst &node){
 //
 void AsmGen::visit(GetElementPtrInst &node){
     auto inst = &node;
-    auto base = inst->getOperand(0);
-    auto global_base = dynamic_cast<GlobalVariable*>(base);
-    auto alloca_base = dynamic_cast<AllocaInst*>(base);
-    auto arg_base = dynamic_cast<Argument*>(base);
-    if(global_base) {
-        auto addr = global_variable_labels_table[global_base];
-        auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
-        sequence->createLa(rd, addr);
-    } 
-    else if(alloca_base) {
-        auto addr = val2stack[base];
-        auto rs1 = new GReg(static_cast<int>(addr->getReg()));
-        auto rs2 = new IConst(addr->getOffset());
-        auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
-        sequence->createAdd(rd, rs1, rs2);
-    } 
-    else {
-        auto rs = dynamic_cast<GReg*>( getAllocaReg(base));
-        auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
-        sequence->createMv(rd, rs);
+    //三个操作数，只能是取首地址
+    if(inst->getNumOperands()==3){
+        auto base = inst->getOperand(0);
+        auto global_base = dynamic_cast<GlobalVariable*>(base);
+        auto alloca_base = dynamic_cast<AllocaInst*>(base);
+        auto arg_base = dynamic_cast<Argument*>(base);
+        if(global_base) {
+            auto addr = global_variable_labels_table[global_base];
+            auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
+            sequence->createLa(rd, addr);
+        } 
+        else if(alloca_base) {
+            auto addr = val2stack[base];
+            auto rs1 = new GReg(static_cast<int>(addr->getReg()));
+            auto rs2 = new IConst(addr->getOffset());
+            auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
+            sequence->createAdd(rd, rs1, rs2);
+        } 
+        else {
+            auto rs = dynamic_cast<GReg*>( getAllocaReg(base));
+            auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
+            sequence->createMv(rd, rs);
+        }
     }
+    //2个操作数，求完整地址。有2种情况，一种是偏移量是寄存器，另一种是偏移量是立即数。
+    //是寄存器的情况，直接求出完整地址
+    //是立即数的情况，与访存指令合成为偏移化访存指令
+   else if(inst->getNumOperands()==2){
+        auto rd = dynamic_cast<GReg*>( getAllocaReg(inst));
+        auto base = dynamic_cast<GReg*>( getAllocaReg(inst->getOperand(0)));
+
+
+        if(dynamic_cast<ConstantInt*>(inst->getOperand(1))){
+            int offset_const = dynamic_cast<ConstantInt*>(inst->getOperand(1))->getValue();
+            assert(offset_const>=-512 && offset_const<511);
+            int final_offset_const = offset_const*4;
+            auto offset = new IConst(final_offset_const);
+            sequence->createAdd(rd, base, offset);
+        }
+        else if(dynamic_cast<GReg*>( getAllocaReg(inst->getOperand(1)))){
+            auto offset = dynamic_cast<GReg*>( getAllocaReg(inst->getOperand(1)));
+            sequence->createSh2Add(rd, offset, base);
+        }
+        
+   }
 }
 
 
@@ -1069,6 +1093,25 @@ void AsmGen::visit(StoreInst &node){
             sequence->createSw_label(irs1, dst);     
         }
     }
+    //增加地址是寄存器存储的
+    else if(dynamic_cast<GReg*>( getAllocaReg(inst->getOperand(1)))){
+        //通过存放立即数的寄存器类型或立即数类型判断是否是浮点数
+        auto base = dynamic_cast<GReg*>( getAllocaReg(inst->getOperand(1)));
+        auto offset = new IConst(0);
+        if(dynamic_cast<FConst*>(getFRS1(inst))){
+            sequence->createFsw(dynamic_cast<FConst*>(getFRS1(inst)), base, offset);
+        }
+        else if(dynamic_cast<FReg*>(getFRS1(inst))){
+            sequence->createFsw(dynamic_cast<FReg*>(getFRS1(inst)), base, offset);
+        }   
+        else if(dynamic_cast<IConst*>(getIRS1(inst))){
+            sequence->createSw(dynamic_cast<IConst*>(getIRS1(inst)), base, offset);
+        }
+        else if(dynamic_cast<GReg*>(getIRS1(inst))){
+            sequence->createSw(dynamic_cast<GReg*>(getIRS1(inst)), base, offset);
+        } 
+    }
+    
 }
 
 void AsmGen::visit(MemsetInst &node){
@@ -1085,6 +1128,19 @@ void AsmGen::visit(LoadInst &node){
         } else {
             auto irs = dynamic_cast<GReg*>(getAllocaReg(inst));
             sequence->createLw_label(irs , dst);
+        }
+    }
+    //源操作数是寄存器类型
+    else if(dynamic_cast<GReg*>( getAllocaReg(inst->getOperand(0)))){
+        auto base = dynamic_cast<GReg*>( getAllocaReg(inst->getOperand(0)));
+        auto offset = new IConst(0);
+        auto ird = getGRD(inst);
+        auto frd = getFRD(inst);
+        if(ird){
+            sequence->createLw(ird, base, offset);
+        }
+        else if(frd){
+            sequence->createFlw(frd, base, offset);
         }
     }
 }
