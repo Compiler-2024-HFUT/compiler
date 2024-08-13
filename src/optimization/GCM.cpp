@@ -85,10 +85,8 @@ Instruction *GCM::scheduleEarly(Instruction *inst) {
     if(instBB != nullptr)
         LOG_WARNING("earlyBB: " + inst->getName() + ", " + instBB->getName())
 
-    if(!isPinned(inst) && inst->getParent() != instBB) {
+    if(!isPinned(inst)) {
         earBB[inst] = instBB;
-        // inst->getParent()->getInstructions().remove(inst);
-        // instBB->addInstrBeforeTerminator(inst);
     }
     
     return inst;
@@ -111,9 +109,13 @@ Instruction *GCM::scheduleLate(Instruction *inst) {
             if(userInst->isPhi()) {
                 vector<Value*> &ops = userInst->getOperands();
                 for(int i = 0; i < ops.size(); i += 2) {
+                    // 同条phi use多次inst，找出最浅的BB
                     if(ops[i] == inst) {
-                        userBB = dynamic_cast<BasicBlock*>(ops[i+1]);
-                        break;
+                        BasicBlock *opBB = dynamic_cast<BasicBlock*>(ops[i+1]);
+                        // opBB 优先于 phi所在BB
+                        if(domDepth[opBB] <= domDepth[userBB]) {
+                            userBB = opBB;
+                        }
                     }
                 }
             }
@@ -126,6 +128,15 @@ Instruction *GCM::scheduleLate(Instruction *inst) {
 
     BasicBlock *bestBB = lca;
     BasicBlock *instBB = earBB[inst];
+
+    // inst不在ear和late的范围之间 或 ear == late
+    if(domDepth[inst->getParent()] < domDepth[instBB] || 
+       domDepth[inst->getParent()] > domDepth[bestBB] ||
+       instBB == bestBB) 
+    {
+        return inst;
+    }
+
     while(lca != nullptr && lca != instBB) {
         if(loopDepth[lca] < loopDepth[bestBB])
             bestBB = lca;
@@ -148,7 +159,7 @@ Instruction *GCM::scheduleLate(Instruction *inst) {
         }
     }
 
-    if(!isPinned(inst) && bestBB != instBB) {
+    if(!isPinned(inst) && bestBB != inst->getParent()) {
         inst->getParent()->getInstructions().remove(inst);
         bestBB->addInstrBeforeTerminator(inst);
     }
