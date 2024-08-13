@@ -14,5 +14,8 @@ class GepCombine:public FunctionPass{
     }
 public:
     using FunctionPass::FunctionPass;
+    bool  immOverRange(Function*func);
+    bool adduseOneCombine(Function*func);
+    bool  immOverRangeOnBB(BasicBlock*bb,    std::vector<std::pair<GetElementPtrInst*, int const>>gep_offset);
     Modify runOnFunc(Function*func)override;
 };

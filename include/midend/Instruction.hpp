@@ -776,7 +776,7 @@ class LoadImmInst: public Instruction {
 
 public:
     static LoadImmInst *createLoadImm(Type*type,Value *cons, BasicBlock *bb);
-
+    static LoadImmInst *createLoadImm(Type*type,Value *cons);
     // Type *getSelectType() const{return getType();}
 
     virtual std::string print() override;
@@ -789,6 +789,7 @@ public:
 
 private:
     LoadImmInst(Type*type,Value*cons,  BasicBlock *bb);
+    LoadImmInst(Type*type,Value*cons);
 };
 
 #endif
