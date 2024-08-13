@@ -82,11 +82,13 @@ Instruction *GCM::scheduleEarly(Instruction *inst) {
         }
     }
 
-    LOG_WARNING("earlyBB: " + inst->getName() + ", " + instBB->getName())
+    if(instBB != nullptr)
+        LOG_WARNING("earlyBB: " + inst->getName() + ", " + instBB->getName())
 
     if(!isPinned(inst) && inst->getParent() != instBB) {
-        inst->getParent()->getInstructions().remove(inst);
-        instBB->addInstrBeforeTerminator(inst);
+        earBB[inst] = instBB;
+        // inst->getParent()->getInstructions().remove(inst);
+        // instBB->addInstrBeforeTerminator(inst);
     }
     
     return inst;
@@ -109,19 +111,21 @@ Instruction *GCM::scheduleLate(Instruction *inst) {
             if(userInst->isPhi()) {
                 vector<Value*> &ops = userInst->getOperands();
                 for(int i = 0; i < ops.size(); i += 2) {
-                    if(ops[i] == inst)
+                    if(ops[i] == inst) {
                         userBB = dynamic_cast<BasicBlock*>(ops[i+1]);
                         break;
+                    }
                 }
             }
             lca = findLCA(lca, userBB);
         }
     }
     
-    LOG_WARNING("last: " + inst->getName() + ", " + lca->getName())
+    if(lca != nullptr)
+        LOG_WARNING("last: " + inst->getName() + ", " + lca->getName())
 
     BasicBlock *bestBB = lca;
-    BasicBlock *instBB = inst->getParent();
+    BasicBlock *instBB = earBB[inst];
     while(lca != nullptr && lca != instBB) {
         if(loopDepth[lca] < loopDepth[bestBB])
             bestBB = lca;
