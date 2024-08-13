@@ -77,9 +77,13 @@ public:
         mod.modify_call=true;
     }
     bool isNoSeFunc(Function* func){
+        if(func->isDeclaration())
+            return false;
         return all_se_info.find(func)->second.isNoSeFunc();
     }
     bool isPureFunc(Function* func){
+        if(func->isDeclaration())
+            return false;
         return all_se_info.find(func)->second.isPureFunc();
     }
     void printInfo();
