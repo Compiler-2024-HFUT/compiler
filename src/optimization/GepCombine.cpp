@@ -30,7 +30,7 @@ bool GepCombine::adduseOneCombine(Function*func){
             auto ins=*_iter;
             auto cur_iter=_iter++;
             if(ins->isGep()&&ins->getNumOperands()==2){
-                if(auto add=dynamic_cast<BinaryInst*>(ins->getOperand(1));add&&add->useOne()){
+                if(auto add=dynamic_cast<BinaryInst*>(ins->getOperand(1));add&&add->isAdd()&&add->useOne()){
                     if(dynamic_cast<ConstantInt*>((add->getOperand(1)))){
                         erase.push_back(add);
                         auto inser_bb=add->getParent();
@@ -109,6 +109,7 @@ Modify GepCombine::runOnFunc(Function*func){
                     bb->getInstructions().pop_back();
                     bb->insertInstr(bb->findInstruction(gep),new_gep);
                     bb->deleteInstr(gep);
+                    delete gep;
                     if(dynamic_cast<ConstantInt*>(gep_has_offset->getOperand(1))){
                         work_set_.push_back(new_gep);
                     }
@@ -148,7 +149,9 @@ bool GepCombine::immOverRangeOnBB(BasicBlock*bb,std::vector<std::pair<GetElement
                         auto new_gep=GetElementPtrInst::createGep(old_gep,{ConstantInt::get(offset-old_offset)},bb);
                         inst_list.pop_back();
                         inst->replaceAllUseWith(new_gep);
-                        inst_list.insert(cur_iter,new_gep);
+                        inst_list.insert(inst_list.erase(cur_iter),new_gep);
+                        inst->removeUseOfOps();
+                        delete inst;
                         _modify=true;
                         ret=true;
                     }
