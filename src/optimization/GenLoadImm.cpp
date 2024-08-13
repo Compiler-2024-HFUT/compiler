@@ -29,7 +29,7 @@ Instruction* __genNewIntImm(std::vector<std::pair<int,Instruction*>>&cache, int 
     for(int i=cache.size()-1;i>=0;--i){
         auto [old_imm,ins]=cache[i];
         int gap=new_imm-old_imm;
-        if(gap<2048&&gap>-2047){
+        if(gap<2048&&gap>-2049){
             ret=BinaryInst::create(Instruction::OpID::add,ins,ConstantInt::get(gap));
             cache.push_back({new_imm,ret});
             break;
