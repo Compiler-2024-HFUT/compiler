@@ -992,3 +992,20 @@ std::string LoadImmInst::print() {
     std::string instr_ir="%"+getName()+"= " +(this->getType()->isIntegerType()?"add i32 0 ,":"fadd float 0x0 ,")+printAsOp(getOperand(0));
     return instr_ir;
 }
+CastInst *CastInst::createCastInst(Type*type,Value *val, BasicBlock *bb){
+    return new CastInst(type,val,bb);
+}
+CastInst *CastInst::createCastInst(Type*type,Value *val){
+    return new CastInst(type,val);
+}
+CastInst::CastInst(Type*type,Value*val,  BasicBlock *bb):Instruction(type, Instruction::OpID::bitcast, 1,bb),origin_type(val->getType()){
+    setOperand(0,val);
+}
+CastInst::CastInst(Type*type,Value*val):Instruction(type, Instruction::OpID::bitcast, 1),origin_type(val->getType()){
+    setOperand(0,val);
+}
+std::string CastInst::print() {
+    static int num=0;
+    std::string instr_ir="%"+getName()+"= " +"bitcast "+origin_type->print()+" "+printAsOp(getOperand(0))+" to "+getType()->print();
+    return instr_ir;
+}

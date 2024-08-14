@@ -170,7 +170,7 @@ FunctionType *FunctionType::get(Type *result, std::vector<Type *> params) {
 }
 
 bool FunctionType::isValidReturnType(Type *ty) {
-    return ty->isIntegerType() || ty->isVoidType() || ty->isFloatType();
+    return ty->isIntegerType() || ty->isVoidType() || ty->isFloatType()||ty->isPointerType() ;
 }
 
 bool FunctionType::isValidArgumentType(Type *ty) {
