@@ -344,115 +344,10 @@ void AsmGen::visit(BasicBlock &node){
     for(auto &inst: sequence->getBBOfSeq()->getInstructions()) {
         if(inst->isTerminator()) {
             //处理尾指令
-            //********************************装载临时寄存器到指令********************
-                if(!inst->isAlloca() && !inst->isPhi()){
-        
 
-    std::set<int> record_iregs;
-    std::set<int> load_iregs;
-    std::set<int> record_fregs;
-    std::set<int> load_fregs;
+            br_inst = inst;
 
-    std::vector<std::pair<IRA*, IRIA*>> resault_iregs;
-    std::vector<std::pair<FRA*, IRIA*>> resault_fregs;
-    
-
-    loadITmpReg(inst, &load_iregs, &record_iregs);
-    loadFTmpReg(inst, &load_fregs, &record_fregs);
-
-    if(!inst->isVoid()) {
-        if(inst->getType()->isFloatType()) {
-
-            recordFReg(inst, &record_fregs);
-        } else {
-
-            recordIReg(inst, &record_iregs);
-        }
-    }
-
-    for(auto ld_reg: load_iregs) {        
-        resault_iregs.push_back(std::make_pair(new IRA(ld_reg), tmp_iregs_loc[ld_reg]));
-    }
-
-    for(auto ld_reg: load_fregs) {
-        resault_fregs.push_back(std::make_pair(new FRA(ld_reg), tmp_fregs_loc[ld_reg]));
-    }
-
-    if(! resault_iregs.empty())
-        sequence->createLoadTmpRegs(resault_iregs);
-    
-    if(! resault_fregs.empty())
-        sequence->createLoadTmpRegs(resault_fregs);
-
-    for(auto del_reg: record_iregs) {
-        auto del_loc = tmp_iregs_loc[del_reg];
-        free_locs_for_tmp_regs_saved.insert(del_loc);
-        cur_tmp_iregs.erase(del_reg);
-        tmp_iregs_loc.erase(del_reg);
-    }
-
-    for(auto del_reg: record_fregs) {
-        auto del_loc = tmp_fregs_loc[del_reg];
-        free_locs_for_tmp_regs_saved.insert(del_loc);
-        cur_tmp_fregs.erase(del_reg);
-        tmp_fregs_loc.erase(del_reg);
-    }
-}
-            //********************************装载临时寄存器到指令********************        
-            if(inst->isRet()) {
-                inst->accept(*this);
-            } else {
-                //*****************************处理phi**********************
-            if(dynamic_cast<CmpBrInst*>(inst)){
-                auto c_inst = dynamic_cast<CmpBrInst*>(inst);
-                initPhi();
-                succ_bb = dynamic_cast<BasicBlock*>(c_inst->getOperand(2));
-                fail_bb = dynamic_cast<BasicBlock*>(c_inst->getOperand(3));
-                process();
-                handleCmpbr(c_inst);
-                if(succ_move_inst)  sequence->appendInst(succ_move_inst);
-                if(succ_br_inst)    sequence->appendInst(succ_br_inst);
-                if(fail_move_inst)  sequence->appendInst(fail_move_inst);
-                if(fail_br_inst)    sequence->appendInst(fail_br_inst);
-            }
-            else if(dynamic_cast<FCmpBrInst*>(inst)){
-                auto fc_inst = dynamic_cast<FCmpBrInst*>(inst);
-                initPhi();
-                succ_bb = dynamic_cast<BasicBlock*>(fc_inst->getOperand(2));
-                fail_bb = dynamic_cast<BasicBlock*>(fc_inst->getOperand(3));
-                process();
-                handleFCmpbr(fc_inst);
-                if(succ_move_inst)  sequence->appendInst(succ_move_inst);
-                if(succ_br_inst)    sequence->appendInst(succ_br_inst);
-                if(fail_move_inst)  sequence->appendInst(fail_move_inst);
-                if(fail_br_inst)    sequence->appendInst(fail_br_inst);
-            }
-            else{
-                auto br = dynamic_cast<BranchInst*>(inst); 
-                initPhi();
-                if(br->getNumOperands() == 1) {
-                    succ_bb = dynamic_cast<BasicBlock*>(br->getOperand(0));
-                } else {
-                    succ_bb = dynamic_cast<BasicBlock*>(br->getOperand(1));
-                    fail_bb = dynamic_cast<BasicBlock*>(br->getOperand(2));
-                }
-                process();
-                handleBr(br);
-                if(br->getNumOperands() == 1) {
-                    if(succ_move_inst)  sequence->appendInst(succ_move_inst);
-                    if(succ_br_inst)    sequence->appendInst(succ_br_inst);
-        
-                } else {
-                    if(succ_br_inst)    sequence->appendInst(succ_br_inst);
-                    if(fail_move_inst)  sequence->appendInst(fail_move_inst);
-                    if(fail_br_inst)    sequence->appendInst(fail_br_inst);
-                }
-        
-            }
-               // phi_union(br_inst);
-        
-                //*****************************处理phi**********************
-            }
+            break;
         }
 
  
@@ -856,6 +751,151 @@ void AsmGen::visit(BasicBlock &node){
         } 
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            
+            //********************************装载临时寄存器到指令********************
+                if(!br_inst->isAlloca() && !br_inst->isPhi()){
+        
+
+    std::set<int> record_iregs;
+    std::set<int> load_iregs;
+    std::set<int> record_fregs;
+    std::set<int> load_fregs;
+
+    std::vector<std::pair<IRA*, IRIA*>> resault_iregs;
+    std::vector<std::pair<FRA*, IRIA*>> resault_fregs;
+    
+
+    loadITmpReg(br_inst, &load_iregs, &record_iregs);
+    loadFTmpReg(br_inst, &load_fregs, &record_fregs);
+
+    if(!br_inst->isVoid()) {
+        if(br_inst->getType()->isFloatType()) {
+
+            recordFReg(br_inst, &record_fregs);
+        } else {
+
+            recordIReg(br_inst, &record_iregs);
+        }
+    }
+
+    for(auto ld_reg: load_iregs) {        
+        resault_iregs.push_back(std::make_pair(new IRA(ld_reg), tmp_iregs_loc[ld_reg]));
+    }
+
+    for(auto ld_reg: load_fregs) {
+        resault_fregs.push_back(std::make_pair(new FRA(ld_reg), tmp_fregs_loc[ld_reg]));
+    }
+
+    if(! resault_iregs.empty())
+        sequence->createLoadTmpRegs(resault_iregs);
+    
+    if(! resault_fregs.empty())
+        sequence->createLoadTmpRegs(resault_fregs);
+
+    for(auto del_reg: record_iregs) {
+        auto del_loc = tmp_iregs_loc[del_reg];
+        free_locs_for_tmp_regs_saved.insert(del_loc);
+        cur_tmp_iregs.erase(del_reg);
+        tmp_iregs_loc.erase(del_reg);
+    }
+
+    for(auto del_reg: record_fregs) {
+        auto del_loc = tmp_fregs_loc[del_reg];
+        free_locs_for_tmp_regs_saved.insert(del_loc);
+        cur_tmp_fregs.erase(del_reg);
+        tmp_fregs_loc.erase(del_reg);
+    }
+}
+            //********************************装载临时寄存器到指令********************        
+            if(br_inst->isRet()) {
+                br_inst->accept(*this);
+            } else {
+                //*****************************处理phi**********************
+            if(dynamic_cast<CmpBrInst*>(br_inst)){
+                auto c_inst = dynamic_cast<CmpBrInst*>(br_inst);
+                initPhi();
+                succ_bb = dynamic_cast<BasicBlock*>(c_inst->getOperand(2));
+                fail_bb = dynamic_cast<BasicBlock*>(c_inst->getOperand(3));
+                process();
+                handleCmpbr(c_inst);
+                if(succ_move_inst)  sequence->appendInst(succ_move_inst);
+                if(succ_br_inst)    sequence->appendInst(succ_br_inst);
+                if(fail_move_inst)  sequence->appendInst(fail_move_inst);
+                if(fail_br_inst)    sequence->appendInst(fail_br_inst);
+            }
+            else if(dynamic_cast<FCmpBrInst*>(br_inst)){
+                auto fc_inst = dynamic_cast<FCmpBrInst*>(br_inst);
+                initPhi();
+                succ_bb = dynamic_cast<BasicBlock*>(fc_inst->getOperand(2));
+                fail_bb = dynamic_cast<BasicBlock*>(fc_inst->getOperand(3));
+                process();
+                handleFCmpbr(fc_inst);
+                if(succ_move_inst)  sequence->appendInst(succ_move_inst);
+                if(succ_br_inst)    sequence->appendInst(succ_br_inst);
+                if(fail_move_inst)  sequence->appendInst(fail_move_inst);
+                if(fail_br_inst)    sequence->appendInst(fail_br_inst);
+            }
+            else{
+                auto br = dynamic_cast<BranchInst*>(br_inst); 
+                initPhi();
+                if(br->getNumOperands() == 1) {
+                    succ_bb = dynamic_cast<BasicBlock*>(br->getOperand(0));
+                } else {
+                    succ_bb = dynamic_cast<BasicBlock*>(br->getOperand(1));
+                    fail_bb = dynamic_cast<BasicBlock*>(br->getOperand(2));
+                }
+                process();
+                handleBr(br);
+                if(br->getNumOperands() == 1) {
+                    if(succ_move_inst)  sequence->appendInst(succ_move_inst);
+                    if(succ_br_inst)    sequence->appendInst(succ_br_inst);
+        
+                } else {
+                    if(succ_br_inst)    sequence->appendInst(succ_br_inst);
+                    if(fail_move_inst)  sequence->appendInst(fail_move_inst);
+                    if(fail_br_inst)    sequence->appendInst(fail_br_inst);
+                }
+        
+            }
+               // phi_union(br_inst);
+        
+                //*****************************处理phi**********************
+            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 
@@ -1066,7 +1106,7 @@ void AsmGen::visit(GetElementPtrInst &node){
 
         if(dynamic_cast<ConstantInt*>(inst->getOperand(1))){
             int offset_const = dynamic_cast<ConstantInt*>(inst->getOperand(1))->getValue();
-            assert(offset_const>=-512 && offset_const<511);
+            assert(offset_const>=-512 && offset_const<=511);
             int final_offset_const = offset_const*4;
             auto offset = new IConst(final_offset_const);
             sequence->createAdd(rd, base, offset);
@@ -3203,7 +3243,7 @@ void AsmGen::handleFLT(Value* cond1, Value* cond2){
             auto r2 = getAllocaReg(cond2);
             succ_br_inst = sequence->createFBlt(mem1, r2, bb2label[succ_bb]);
            
-        } else if(fval2interval[cond2]->reg < 0) {
+        } else if(fval2interval[cond2] && fval2interval[cond2]->reg < 0) {
             auto r1 = getAllocaReg(cond1);
             auto mem2 =  new Mem(val2stack[cond2]->getOffset(), static_cast<int>(val2stack[cond2]->getReg()));
             succ_br_inst = sequence->createFBlt(r1, mem2, bb2label[succ_bb]);
