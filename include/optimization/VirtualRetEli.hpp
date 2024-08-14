@@ -10,5 +10,12 @@ class VRE:public FunctionPass{
 public:
     Modify runOnFunc(Function*func);
     using FunctionPass::FunctionPass;
+    ~VRE(){};
+};
+class GenVR:public FunctionPass{
+public:
+    Modify runOnFunc(Function*func);
+    using FunctionPass::FunctionPass;
+    ~GenVR(){};
 };
 #endif

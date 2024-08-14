@@ -59,3 +59,35 @@ Modify VRE::runOnFunc(Function*func){
     }
     return mod;
 }
+Modify GenVR::runOnFunc(Function*func){
+    Modify ret{};
+    std::vector<std::pair<BasicBlock*, Instruction*>>bb_ret;
+    for(auto b:func->getBasicBlocks()){
+        if(b->getSuccBasicBlocks().size()==0&&b->getInstructions().back()->isRet()){
+            bb_ret.push_back({b,b->getInstructions().back()});
+        }
+    }
+    if(bb_ret.size()>1){
+        ret.modify_bb=true;
+        ret.modify_instr=true;
+        auto ret_bb=BasicBlock::create("",func);
+        for(auto [b,ret_ins]:bb_ret){
+            auto &ins_list=b->getInstructions();
+            ins_list.pop_back();
+            BranchInst::createBr(ret_bb,b);
+        }
+        if(bb_ret.front().second->getNumOperands()==0){
+            ReturnInst::createVoidRet(ret_bb);
+        }else{
+            auto new_phi=PhiInst::createPhi(bb_ret.front().second->getOperand(0)->getType(),ret_bb);
+            ret_bb->addInstruction(new_phi);
+            for(auto [bb ,ret_val]:bb_ret){
+                new_phi->addPhiPairOperand(ret_val->getOperand(0),bb);
+                ReturnInst::createRet(new_phi,ret_bb);   
+                ret_val->removeUseOfOps();
+                delete ret_val;
+            }
+        }
+    }
+    return ret;
+}
