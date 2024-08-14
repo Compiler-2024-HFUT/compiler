@@ -81,9 +81,9 @@ Modify GenVR::runOnFunc(Function*func){
         }else{
             auto new_phi=PhiInst::createPhi(bb_ret.front().second->getOperand(0)->getType(),ret_bb);
             ret_bb->addInstruction(new_phi);
+            ReturnInst::createRet(new_phi,ret_bb);   
             for(auto [bb ,ret_val]:bb_ret){
                 new_phi->addPhiPairOperand(ret_val->getOperand(0),bb);
-                ReturnInst::createRet(new_phi,ret_bb);   
                 ret_val->removeUseOfOps();
                 delete ret_val;
             }
