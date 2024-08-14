@@ -173,13 +173,13 @@ bool GenLoadImm::runOnBB(BasicBlock*b,std::vector<std::pair<int,Instruction*>>ca
         }
         else if(ins->isFDiv()||ins->isFAdd()||ins->isFMul()||ins->isFDiv()||ins->isFCmp()){
             if(dynamic_cast<Constant*>(ins->getOperand(0))){
-                auto imm=LoadImmInst::createLoadImm(ins->getType(),ins->getOperand(0),b);
+                auto imm=LoadImmInst::createLoadImm(ins->getOperand(0)->getType(),ins->getOperand(0),b);
                 ins_list.pop_back();
                 ins_list.insert(cur_iter,imm);
                 ret=true;
                 ins->replaceOperand(0,imm);
             }else if(dynamic_cast<Constant*>(ins->getOperand(1))){
-                auto imm=LoadImmInst::createLoadImm(ins->getType(),ins->getOperand(1),b);
+                auto imm=LoadImmInst::createLoadImm(ins->getOperand(0)->getType(),ins->getOperand(1),b);
                 ins_list.pop_back();
                 ins_list.insert(cur_iter,imm);
                 ret=true;
@@ -187,7 +187,7 @@ bool GenLoadImm::runOnBB(BasicBlock*b,std::vector<std::pair<int,Instruction*>>ca
             }
         }else if(ins->isLsl()||ins->isAsr()||ins->isLsr()){
             if(dynamic_cast<ConstantInt*>(ins->getOperand(0))){
-                auto imm=LoadImmInst::createLoadImm(ins->getOperand(0)->getType(),ins->getOperand(0),b);
+                auto imm=LoadImmInst::createLoadImm(ins->getType(),ins->getOperand(0),b);
                 ins_list.pop_back();
                 ins_list.insert(cur_iter,imm);
                 ret=true;
