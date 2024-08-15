@@ -778,7 +778,6 @@ public:
     static CastInst *createCastInst(Type*type,Value *val);
     // Type *getSelectType() const{return getType();}
 
-    virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
         return  new CastInst(this->getType(),getOperand(0),bb);
