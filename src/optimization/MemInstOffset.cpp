@@ -52,13 +52,16 @@ void MemInstOffset::makeOffsetT(T*inst_load_or_store, ::std::list<Instruction*>&
     }
 }
 
+
+
 void MemInstOffset::handleGEP(GetElementPtrInst* inst_gep, ::std::list<Instruction*>& inst_list, ::std::list<Instruction*>::iterator& inst_pos, BasicBlock* bb, bool flag){
     Value *base, *offset;
     auto inst = *inst_pos;
     base = inst_gep->getOperand(0);
+    if(!dynamic_cast<GetElementPtrInst*>(base)) return;
     offset = inst_gep->getOperand(inst_gep->getNumOperands()-1);
-    // auto const_offset=dynamic_cast<ConstantInt*>(offset);
-    // if(const_offset==0)return ;
+    auto const_offset=dynamic_cast<ConstantInt*>(offset);
+    if(const_offset==0)return ;
     if(!flag) {
         auto inst_offset =  LoadOffsetInst::createLoadOffset((*inst_pos)->getType(), base, offset, bb);
 
