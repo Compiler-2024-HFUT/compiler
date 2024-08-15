@@ -29,7 +29,11 @@ Modify VRE::runOnFunc(Function*func){
         bb_val.push_back({(BasicBlock*)phi->getOperand(i+1),phi->getOperand(i)});
     }
     //现在pre的size不一定等于bb_valsize;
-    for(auto [b,val]:bb_val){
+    auto &phi_ops=phi->getOperands();
+
+    for(int __i=0;__i<bb_val.size();__i++ ){
+        auto [b,val]=bb_val[__i];
+
         auto &pre_inss=b->getInstructions();
         auto ter=pre_inss.back();
         if(ter->isBr()&&ter->getNumOperands()==1){
@@ -42,6 +46,10 @@ Modify VRE::runOnFunc(Function*func){
             b->removeSuccBasicBlock(ret_bb);
             b->getSuccBasicBlocks().clear();
             ReturnInst::createRet(val,b);
+
+            int offset=get_op_offset(phi_ops,val);
+            phi->removeOperands(offset,offset+1);
+            fixPhiOpUse(phi);
         }
     }
     if(ret_bb->getPreBasicBlocks().empty()){
@@ -50,4 +58,36 @@ Modify VRE::runOnFunc(Function*func){
         func->removeBasicBlock(ret_bb);
     }
     return mod;
+}
+Modify GenVR::runOnFunc(Function*func){
+    Modify ret{};
+    std::vector<std::pair<BasicBlock*, Instruction*>>bb_ret;
+    for(auto b:func->getBasicBlocks()){
+        if(b->getSuccBasicBlocks().size()==0&&b->getInstructions().back()->isRet()){
+            bb_ret.push_back({b,b->getInstructions().back()});
+        }
+    }
+    if(bb_ret.size()>1){
+        ret.modify_bb=true;
+        ret.modify_instr=true;
+        auto ret_bb=BasicBlock::create("",func);
+        for(auto [b,ret_ins]:bb_ret){
+            auto &ins_list=b->getInstructions();
+            ins_list.pop_back();
+            BranchInst::createBr(ret_bb,b);
+        }
+        if(bb_ret.front().second->getNumOperands()==0){
+            ReturnInst::createVoidRet(ret_bb);
+        }else{
+            auto new_phi=PhiInst::createPhi(bb_ret.front().second->getOperand(0)->getType(),ret_bb);
+            ret_bb->addInstruction(new_phi);
+            ReturnInst::createRet(new_phi,ret_bb);   
+            for(auto [bb ,ret_val]:bb_ret){
+                new_phi->addPhiPairOperand(ret_val->getOperand(0),bb);
+                ret_val->removeUseOfOps();
+                delete ret_val;
+            }
+        }
+    }
+    return ret;
 }

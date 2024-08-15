@@ -1,6 +1,8 @@
 #include "optimization/util.hpp"
 #include "midend/BasicBlock.hpp"
 #include "midend/Instruction.hpp"
+#include <cassert>
+#include <vector>
 // bool is_call_func(CallInst*call,Function*f,std::set<Function*>visited){
 //     visited.insert(call->getParent()->getParent());
 //     auto func=static_cast<Function*>(call->getOperand(0));
@@ -68,3 +70,13 @@ void deleteIns(BasicBlock*bb,Instruction*ins){
 //             }
 //         }
 // }
+int get_op_offset(std::vector<Value*>&ops, Value*v){
+    auto size=ops.size();
+    for(int i=0;i<size;++i){
+        if(v==ops[i]){
+            return i;
+        }
+    }
+    assert(0);
+    return -1;
+}

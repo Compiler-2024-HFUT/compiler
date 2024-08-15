@@ -20,7 +20,8 @@ bool SplitArr::canSpilt(Value *value) {
                 if (!dynamic_cast<ConstantInt *>(gep->getOperand(i))) return false;
             if (!canSpilt(gep)) return false;
         }else if(auto call = dynamic_cast<CallInst *>(user.val_)) {
-            return __ismemset(call);
+            if(!__ismemset(call))
+                return false;
         }
     }
     return true;

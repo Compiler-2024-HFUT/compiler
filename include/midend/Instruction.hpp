@@ -63,6 +63,7 @@ public:
       storeoffset,
       select,
       loadimm,
+      bitcast,
     };
 
 public:
@@ -756,7 +757,7 @@ class LoadImmInst: public Instruction {
 
 public:
     static LoadImmInst *createLoadImm(Type*type,Value *cons, BasicBlock *bb);
-
+    static LoadImmInst *createLoadImm(Type*type,Value *cons);
     // Type *getSelectType() const{return getType();}
 
     Instruction *copyInst(BasicBlock *bb) override final{
@@ -767,8 +768,29 @@ public:
 
 private:
     LoadImmInst(Type*type,Value*cons,  BasicBlock *bb);
+    LoadImmInst(Type*type,Value*cons);
 };
 
+class CastInst: public Instruction {
+
+public:
+    static CastInst *createCastInst(Type*type,Value *val, BasicBlock *bb);
+    static CastInst *createCastInst(Type*type,Value *val);
+    // Type *getSelectType() const{return getType();}
+
+    virtual std::string print() override;
+
+    Instruction *copyInst(BasicBlock *bb) override final{
+        return  new CastInst(this->getType(),getOperand(0),bb);
+    }
+
+    virtual void accept(IRVisitor &visitor) final{}
+
+private:
+    Type* origin_type;
+    CastInst(Type*type,Value*val,  BasicBlock *bb);
+    CastInst(Type*type,Value*val);
+};
 #endif
 
 
