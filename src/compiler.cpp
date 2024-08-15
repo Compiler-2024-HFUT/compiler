@@ -145,6 +145,7 @@ void Compiler::buildDefault(PassManager &pm){
     pm.addPass<DeadPHIEli>();
     pm.addPass<SCCP>();
     pm.addPass<BreakGEP>();
+    pm.addPass<GenLoadImm>();
     lir(pm);
     pm.addPass<DCE>();
     
