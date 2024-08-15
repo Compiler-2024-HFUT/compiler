@@ -63,7 +63,8 @@ public:
     ::std::set<BasicBlock*> &getDomFrontier(BasicBlock* bb){ return func_dom_frontier_[bb->getParent()].find(bb)->second; }
     ::std::unordered_set<BasicBlock*> &getDomSet(BasicBlock* bb){ return func_dom_set_[bb->getParent()].find(bb)->second; }
     ::std::set<BasicBlock*> &getDomTree(BasicBlock* dominator){ return func_dom_tree_[dominator->getParent()].find(dominator)->second; }
-
+    ::std::map<BasicBlock*,::std::set<BasicBlock*> > &getDomTree(Function *func) { return func_dom_tree_[func]; }
+    ::std::map<BasicBlock*,BasicBlock*> &getIDom() { return idom_; }
 
     BasicBlock* findLCA(BasicBlock* lbb,BasicBlock*rbb);
     //entry为0,依次递增

@@ -22,6 +22,7 @@ using BB = BasicBlock;
     包括如下数据流分析：
     1. 活跃变量分析
     参考资料：SSA-based Compiler Design P110 的数据流方程
+             编译器设计（第2版）P328
 
     2. 可达定义分析
  */
