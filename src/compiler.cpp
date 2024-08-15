@@ -112,6 +112,7 @@ void Compiler::buildOpt(PassManager &pm){
 
     //gep loadimm and licm pass
     pm.addPass<BreakGEP>();
+    pm.addPass<InstrResolve>();
     pm.addPass<LoopSimplified>();
     pm.addPass<LICM>();
 
@@ -119,22 +120,27 @@ void Compiler::buildOpt(PassManager &pm){
     // pm.addPass<SCCP>();
     pm.addPass<InstrCombine>();
     pm.addPass<DCE>();
+    pm.addPass<ValNumbering>();
+    //breakgep之后再运行vn再跑gepcombine
+    pm.addPass<GepCombine>();
+    pm.addPass<ValNumbering>();
+    pm.addPass<DCE>();
     pm.addPass<GepCombine>();
     pm.addPass<DCE>();
-    pm.addPass<ValNumbering>();
-    pm.addPass<GepCombine>();
 
     pm.addPass<CombinBB>();
     // pm.addPass<VRE>();
     pm.addPass<DCE>();
 
-    pm.addPass<GenLoadImm>();
     lir(pm);
 
     pm.addPass<GepOpt>();
     pm.addPass<DCE>();
     pm.addPass<ValNumbering>();
     pm.addPass<InstrReduc>();
+    pm.addPass<GenLoadImm>();
+    pm.addPass<DCE>();
+
 }
 
 void Compiler::buildDefault(PassManager &pm){
