@@ -181,6 +181,6 @@
 
 
 ::std::string RISCVInst::sh2add(GReg *rd, GReg *rs1, GReg *rs2){
-    return TR("sh2add.uw", rd, rs1, rs2);
+    return TR("sh2add", rd, rs1, rs2);
 }
 

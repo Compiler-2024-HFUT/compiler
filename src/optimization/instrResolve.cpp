@@ -7,7 +7,7 @@ std::vector<Instruction*> InstrResolve::resolveAdd(Instruction*instr){
 
     if(lhs->isAdd()){
         //(a+c1)+b==>a+b+c1
-        if(auto lhs_r=dynamic_cast<ConstantInt*>(lhs->getOperand(1));lhs_r&&lhs_r->getValue()>513&&lhs_r->getValue()<512){
+        if(auto lhs_r=dynamic_cast<ConstantInt*>(lhs->getOperand(1));lhs_r&&lhs_r->getValue()>-513&&lhs_r->getValue()<512){
             auto ins1=BinaryInst::create(Instruction::OpID::add,lhs->getOperand(0),instr->getOperand(1));
             auto ins2=BinaryInst::create(Instruction::OpID::add,ins1,lhs_r);
             ins1->setParent(instr->getParent());
@@ -17,7 +17,7 @@ std::vector<Instruction*> InstrResolve::resolveAdd(Instruction*instr){
         
     }
     if(auto rhs=dynamic_cast<Instruction*>(instr->getOperand(1));rhs&&rhs->isAdd()){
-        if(auto rhs_r=dynamic_cast<ConstantInt*>(rhs->getOperand(1));rhs_r&&rhs_r->getValue()>513&&rhs_r->getValue()<512){
+        if(auto rhs_r=dynamic_cast<ConstantInt*>(rhs->getOperand(1));rhs_r&&rhs_r->getValue()>-513&&rhs_r->getValue()<512){
             auto ins1=BinaryInst::create(Instruction::OpID::add,lhs,rhs->getOperand(0));
             auto ins2=BinaryInst::create(Instruction::OpID::add,ins1,rhs_r);
             ins1->setParent(instr->getParent());
