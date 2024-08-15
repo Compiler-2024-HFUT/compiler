@@ -397,98 +397,88 @@ void LSRA::genIInterMap(Value* op, Instruction* inst, int bb_low){
 
 
 void LSRA::traverseIntervals(){
-    for(auto i=intervals.begin(); i!=intervals.end(); i++){
-         auto cur_interval = *i;
-        for(auto i_: occupied_intervals){
-            if((*(i_->small_intervals.rbegin()))->second<(*cur_interval->small_intervals.begin())->first){
-                if(i_->isFloat()){
-                    assert(i_->reg>=0 && i_->reg<=31);//continue;
-                    if(fpr_interval_map[i_->reg].size()<=1) free_fprs.insert(i_->reg);
-                    fpr_interval_map[i_->reg].erase(i_);
-                }
-                else{
-                    assert(i_->reg>=5 && i_->reg<=31);//continue;
-                    if(gpr_interval_map[i_->reg].size()<=1) free_gprs.insert(i_->reg);
-                    gpr_interval_map[i_->reg].erase(i_);
-                }
-                free_intervals.push_back(i_);
+   for(auto i=intervals.begin(); i!=intervals.end(); i++){
+        auto cur_interval = *i;
+       for(auto i_: occupied_intervals){
+           if((*(i_->small_intervals.rbegin()))->second<(*cur_interval->small_intervals.begin())->first){
+               if(i_->isFloat()){
+                   assert(i_->reg>=0 && i_->reg<=31);//continue;
+                   if(fpr_interval_map[i_->reg].size()<=1) free_fprs.insert(i_->reg);
+                   fpr_interval_map[i_->reg].erase(i_);
+               }
+               else{
+                   assert(i_->reg>=5 && i_->reg<=31);//continue;
+                   if(gpr_interval_map[i_->reg].size()<=1) free_gprs.insert(i_->reg);
+                   gpr_interval_map[i_->reg].erase(i_);
+               }
+               free_intervals.push_back(i_);
+           }
+
+       }
+
+       for(auto i_: free_intervals){
+           occupied_intervals.erase(i_);
+           if(i_->isFloat())   fpr_interval_map[i_->reg].erase(i_);
+           else gpr_interval_map[i_->reg].erase(i_);
+       }
+
+       //试分配FPR
+       if(cur_interval->isFloat()){
+           //没有空闲寄存器
+            if(!free_fprs.empty()){
+                replaceTFReg(cur_interval);
+                continue;
             }
-
-        }
-
-        for(auto i_: free_intervals){
-            occupied_intervals.erase(i_);
-            if(i_->isFloat())   fpr_interval_map[i_->reg].erase(i_);
-            else gpr_interval_map[i_->reg].erase(i_);
-        }
-
-        //试分配FPR
-        if(cur_interval->isFloat()){
-            //没有空闲寄存器
-            if(free_fprs.empty()){
+            else{
                 spare_fprs = {};
                 //尝试能不能进行寄存器替换
-
                 findSpareFpr(cur_interval);
                 //有寄存器可以替换，选择较优解的寄存器予以替换
                 if(!spare_fprs.empty()){
-
-
-                    replaceFReg(cur_interval);
-                   continue;
+                   replaceFReg(cur_interval);
+                    continue;
                 }
-
                 bool is_spill;
                 int spill_reg =  fSpill(cur_interval, &is_spill);
                 if(!is_spill){
                     cur_interval->reg = -1;
-                   continue;
-                }else{
+                    continue;
+                }
+                else{
                     //溢出的完备性，凡是使用溢出寄存器的区间统统溢出
                     assert(spill_reg>=0);
                     allFSpill(cur_interval, spill_reg);
                     continue;
                 }
             }
-            else{
-
-          replaceTFReg(cur_interval);
-                continue;
-            }
         }
         else{
-
-
-
-
-                    if(!free_gprs.empty()){
-                 spare_gprs = {};
-
+            if(!free_gprs.empty()){
+                replaceTGReg(cur_interval);
+                continue;
+            }
+            else{
+                spare_gprs = {};
                 findSpareFpr(cur_interval);
                 if(!spare_gprs.empty()){
                     replaceGReg(cur_interval);
                     continue;
                 }
-
                 bool is_spill;
                 int spill_reg = gSpill(cur_interval, &is_spill);
                 if(!is_spill){
                     cur_interval->reg = -1;
-                   continue;
-                }else{
+                    continue;
+                }
+                else{
                     assert(spill_reg>=0);
                     allGSpill(cur_interval, spill_reg);
                     continue;
                 }
             }
-            else{
-
-         replaceTGReg(cur_interval);
-               continue;
-            }
         }
 
-        }
+    }
 }
 
 
