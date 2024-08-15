@@ -257,18 +257,6 @@ Instruction* InstrCombine::combineAdd(Instruction*instr){
         }
         return ret;
     }
-    if(blhs){
-        if(blhs->isAdd()&&blhs->useOne()){
-            if(rhs==blhs->getOperand(1)){
-                return BinaryInst::create(Instruction::OpID::mul,rhs,ConstantInt::get(2));
-            }
-        }
-        if(blhs->isSub()){
-            if(rhs==blhs->getOperand(1)){
-                return replaceInstUsesWith(instr,blhs);
-            }
-        }
-    }
 
 
     if(brhs){
