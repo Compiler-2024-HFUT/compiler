@@ -172,7 +172,101 @@ void LSRA::calculateCost(Function* func){
         }
     }
     return;
-
+  
+//  int callee_arg_cnt = 0;
+//  for(auto arg:func->getIArgs()){
+//      if(callee_arg_cnt < 8){
+//          callee_argument_bonus[arg][callee_arg_cnt] += mov_cost;
+//          spill_cost[arg] += store_cost;
+//      }//TODO:FOR ARG > 4?
+//      callee_arg_cnt ++;
+//  }
+//  for(auto arg:func->getFArgs()){
+//      if(callee_arg_cnt < 8){
+//          callee_argument_bonus[arg][callee_arg_cnt] += mov_cost;
+//          spill_cost[arg] += store_cost;
+//      }//TODO:FOR ARG > 4?
+//      callee_arg_cnt ++;
+//  }
+//  for(auto bb:number_bbs[func]){
+//      auto loop_depth = bb->getLoopDepth();
+//      double scale_factor = pow(loop_scale, loop_depth);
+//      for(auto inst:bb->getInstructions()){
+//          auto ops = inst->getOperands();
+//          
+//          if(inst->isPhi()){
+//              for(auto op:ops){
+//                  if(dynamic_cast<BasicBlock*>(op)||dynamic_cast<Constant*>(op)) continue;
+//                  phi_bonus[inst][op] += mov_cost * scale_factor;
+//                  phi_bonus[op][inst] += mov_cost * scale_factor;
+//              }
+//          }
+//          
+//          if(inst->isCall()){
+//              int caller_iarg_cnt = -1;
+//              int caller_farg_cnt = -1;
+//              for(auto op:ops){
+//                  
+//                 if(op->getType()->isFloatType()){
+//                      if(caller_farg_cnt >= 0){
+//                          if(caller_farg_cnt < 8){
+//                              caller_argument_bonus[op][caller_farg_cnt] += mov_cost * scale_factor;
+//                          }
+//                          caller_farg_cnt ++;
+//                          continue;
+//                      }
+//                      else{
+//                          caller_farg_cnt ++;
+//                          continue;
+//                      }
+//                 }
+//                 else{
+//                      if(caller_iarg_cnt >= 0){
+//                          if(caller_iarg_cnt < 8){
+//                              caller_argument_bonus[op][caller_iarg_cnt] += mov_cost * scale_factor;
+//                          }
+//                          caller_iarg_cnt ++;
+//                          continue;
+//                      }
+//                      else{
+//                          caller_iarg_cnt ++;
+//                          continue;
+//                      }
+//                 }
+//              }
+//              
+//              if(!inst->isVoid()){
+//                  call_bonus[inst] += mov_cost * scale_factor;
+//              }
+//          }
+//          
+//          if(inst->isRet()){
+//              if(inst->getNumOperands()){
+//                  ret_bonus[inst->getOperand(0)] += mov_cost;//TODO:whether to add scale_factor?
+//              }
+//          }
+//          
+//          if(!inst->isAlloca()&&!inst->isGep()){
+//              for(auto op:ops){
+//                  if(dynamic_cast<BasicBlock*>(op)||dynamic_cast<Constant*>(op)||dynamic_cast<GlobalVariable*>(op))
+//                      continue;
+//                  spill_cost[op] += load_cost * scale_factor;
+//              }
+//          }
+//          if(inst->isGep()){
+//              for(auto op:ops){
+//                  if(dynamic_cast<GlobalVariable*>(op)||dynamic_cast<AllocaInst*>(op)||dynamic_cast<Constant*>(op))
+//                      continue;
+//                  spill_cost[op] += load_cost * scale_factor;
+//              }
+//          }
+//          if(!inst->isVoid()){
+//              if(!inst->isAlloca()){
+//                  spill_cost[inst] += store_cost * scale_factor;
+//              }
+//          }
+//      }
+//  }
 }
 
 
@@ -397,98 +491,115 @@ void LSRA::genIInterMap(Value* op, Instruction* inst, int bb_low){
 
 
 void LSRA::traverseIntervals(){
-    for(auto i=intervals.begin(); i!=intervals.end(); i++){
-         auto cur_interval = *i;
-        for(auto i_: occupied_intervals){
-            if((*(i_->small_intervals.rbegin()))->second<(*cur_interval->small_intervals.begin())->first){
-                if(i_->isFloat()){
-                    assert(i_->reg>=0 && i_->reg<=31);//continue;
-                    if(fpr_interval_map[i_->reg].size()<=1) free_fprs.insert(i_->reg);
-                    fpr_interval_map[i_->reg].erase(i_);
-                }
-                else{
-                    assert(i_->reg>=5 && i_->reg<=31);//continue;
-                    if(gpr_interval_map[i_->reg].size()<=1) free_gprs.insert(i_->reg);
-                    gpr_interval_map[i_->reg].erase(i_);
-                }
-                free_intervals.push_back(i_);
+   for(auto i=intervals.begin(); i!=intervals.end(); i++){
+        auto cur_interval = *i;
+       for(auto i_: occupied_intervals){
+           if((*(i_->small_intervals.rbegin()))->second<(*cur_interval->small_intervals.begin())->first){
+               if(i_->isFloat()){
+                   assert(i_->reg>=0 && i_->reg<=31);//continue;
+                   if(fpr_interval_map[i_->reg].size()<=1) free_fprs.insert(i_->reg);
+                   fpr_interval_map[i_->reg].erase(i_);
+               }
+               else{
+                   assert(i_->reg>=5 && i_->reg<=31);//continue;
+                   if(gpr_interval_map[i_->reg].size()<=1) free_gprs.insert(i_->reg);
+                   gpr_interval_map[i_->reg].erase(i_);
+               }
+               free_intervals.push_back(i_);
+           }
+
+       }
+
+       for(auto i_: free_intervals){
+           occupied_intervals.erase(i_);
+           if(i_->isFloat())   fpr_interval_map[i_->reg].erase(i_);
+           else gpr_interval_map[i_->reg].erase(i_);
+       }
+
+       //试分配FPR
+       if(cur_interval->isFloat()){
+           //没有空闲寄存器
+            if(!free_fprs.empty()){
+                replaceTFReg(cur_interval);
+                continue;
             }
-
-        }
-
-        for(auto i_: free_intervals){
-            occupied_intervals.erase(i_);
-            if(i_->isFloat())   fpr_interval_map[i_->reg].erase(i_);
-            else gpr_interval_map[i_->reg].erase(i_);
-        }
-
-        //试分配FPR
-        if(cur_interval->isFloat()){
-            //没有空闲寄存器
-            if(free_fprs.empty()){
+            else{
                 spare_fprs = {};
                 //尝试能不能进行寄存器替换
-
                 findSpareFpr(cur_interval);
                 //有寄存器可以替换，选择较优解的寄存器予以替换
                 if(!spare_fprs.empty()){
-
-
-                    replaceFReg(cur_interval);
-                   continue;
+                   replaceFReg(cur_interval);
+                    continue;
                 }
-
                 bool is_spill;
                 int spill_reg =  fSpill(cur_interval, &is_spill);
                 if(!is_spill){
                     cur_interval->reg = -1;
-                   continue;
-                }else{
+                    continue;
+                }
+                else{
                     //溢出的完备性，凡是使用溢出寄存器的区间统统溢出
                     assert(spill_reg>=0);
                     allFSpill(cur_interval, spill_reg);
                     continue;
                 }
             }
-            else{
-
-          replaceTFReg(cur_interval);
-                continue;
-            }
         }
         else{
-
-
-
-
-                    if(!free_gprs.empty()){
-                 spare_gprs = {};
-
+            if(!free_gprs.empty()){
+                replaceTGReg(cur_interval);
+                continue;
+            }
+            else{
+                spare_gprs = {};
                 findSpareFpr(cur_interval);
                 if(!spare_gprs.empty()){
                     replaceGReg(cur_interval);
                     continue;
                 }
-
                 bool is_spill;
                 int spill_reg = gSpill(cur_interval, &is_spill);
                 if(!is_spill){
                     cur_interval->reg = -1;
-                   continue;
-                }else{
+                    continue;
+                }
+                else{
                     assert(spill_reg>=0);
                     allGSpill(cur_interval, spill_reg);
                     continue;
                 }
             }
-            else{
-
-         replaceTGReg(cur_interval);
-               continue;
-            }
         }
 
-        }
+    }
+
+  //  occupied_intervals.clear();
+  //  gpr_interval_map.clear();
+  //  fpr_interval_map.clear();
+  //  for (auto cur_it = intervals.begin(); cur_it != intervals.end(); cur_it++){
+  //       cur_interval = *cur_it;
+  //      auto pos = (*cur_interval->small_intervals.begin())->first;
+  //      std::vector<Interval*> delete_list = {};
+  //      for(auto it : occupied_intervals){
+  //         
+  //          if((*(it->small_intervals.rbegin()))->second < pos){
+  //              add_reg_to_pool(it);
+  //              delete_list.push_back(it);
+  //          }
+  //      }
+  //      for(auto it: delete_list){
+  //          occupied_intervals.erase(it);
+  //          if(it->isFloat())
+  //              fpr_interval_map[it->reg].erase(it);
+  //          else
+  //              gpr_interval_map[it->reg].erase(it);
+  //      }
+//
+  //      try_alloc_free_reg();
+  //  }
+
+
 }
 
 
@@ -726,3 +837,248 @@ void LSRA::replaceTGReg(Interval* cur_interval){
     gpr_interval_map[assign_reg].insert(cur_interval);
     free_gprs.erase(assign_reg);
 }
+
+//bool LSRA::try_alloc_free_reg(){
+//    if(!cur_interval->isFloat()){
+//        if(!free_gprs.empty()){
+//            double bonus = -1;
+//            int assigned_id = *free_gprs.begin();
+//            for(auto new_reg_id:free_gprs){
+//                double new_bonus = 0;
+//                for(auto pair:phi_bonus[cur_interval->value]){
+//                    auto phi_val = pair.first;
+//                    if(!ival_inter_map.count(phi_val))continue;
+//                    if(!ival_inter_map[phi_val]->isOverLap(cur_interval)){//TODO:CHECK must be true?;
+//                        if(ival_inter_map[phi_val]->reg == new_reg_id){
+//                            new_bonus += pair.second;
+//                        }
+//                    }
+//                }
+//                new_bonus += caller_argument_bonus[cur_interval->value][new_reg_id];
+//                new_bonus += callee_argument_bonus[cur_interval->value][new_reg_id];
+//                if(new_reg_id == 0){
+//                    new_bonus += ret_bonus[cur_interval->value];
+//                    new_bonus += call_bonus[cur_interval->value];
+//                }
+//                if(new_bonus > bonus){
+//                    bonus = new_bonus;
+//                    assigned_id = new_reg_id;
+//                }
+//            }
+//            remained_all_ireg_ids.erase(assigned_id);
+//            cur_interval->reg = assigned_id;
+//            unused_gpr.erase(assigned_id);
+//            occupied_intervals.insert(cur_interval);
+//            gpr_interval_map[assigned_id].insert(cur_interval);
+//            return true;
+//        }
+//
+//
+//        else{
+//            std::set<int, cmp_ireg> spare_reg_id = {};
+//            for(const auto& pair:ireg2ActInter){
+//                bool insert_in_hole = true;
+//                for(auto inter:pair.second){
+//                    insert_in_hole = insert_in_hole && (!inter->intersects(current));
+//                }
+//                if(insert_in_hole){
+//                    spare_reg_id.insert(pair.first);
+//                }
+//            }
+//            if(!spare_reg_id.empty()){
+//                int assigned_id = *spare_reg_id.begin();
+//                double bonus = -1;
+//                for(auto new_reg_id:spare_reg_id){
+//                    double new_bonus = 0;
+//                    for(auto pair:phi_bonus[current->value]){
+//                        auto phi_val = pair.first;
+//                        if(!ival2Inter.count(phi_val))continue;
+//                        if(!ival2Inter[phi_val]->intersects(current)){
+//                            if(ival2Inter[phi_val]->reg_id == new_reg_id){
+//                                new_bonus += pair.second;
+//                            }
+//                        }
+//                    }
+//                    new_bonus += caller_arg_bonus[current->value][new_reg_id];
+//                    new_bonus += callee_arg_bonus[current->value][new_reg_id];
+//                    if(new_reg_id == 0){
+//                        new_bonus += ret_bonus[current->value];
+//                        new_bonus += call_bonus[current->value];
+//                    }
+//                    if(new_bonus > bonus){
+//                        bonus = new_bonus;
+//                        assigned_id = new_reg_id;
+//                    }
+//                }
+//                current->reg_id = assigned_id;
+//                unused_ireg_id.erase(assigned_id);
+//                active.insert(current);
+//                ireg2ActInter[assigned_id].insert(current);
+//                return true;
+//            }
+//
+//            
+//            auto spill_val = current;
+//            auto min_expire_val = spill_cost[current->value];
+//            int spilled_reg_id = -1;
+//            for(const auto& pair:ireg2ActInter){
+//                double cur_expire_val = 0.0;
+//                for(auto inter:pair.second){
+//                    if(inter->intersects(current)){
+//                        cur_expire_val += spill_cost[inter->value];
+//                    }
+//                }
+//                if(cur_expire_val < min_expire_val){
+//                    spilled_reg_id = pair.first;
+//                    min_expire_val = cur_expire_val;
+//                    spill_val = nullptr;
+//                }
+//            }
+//            if(spill_val==current){
+//                current->reg_id = -1;
+//                return false;
+//            }else{
+//                if(spilled_reg_id < 0){
+//                  //  LOG(ERROR) << "spilled reg id is -1,something was wrong while register allocation";
+//                }
+//                std::set<Interval *> to_spill_set;
+//                current->reg_id = spilled_reg_id;
+//                unused_ireg_id.erase(spilled_reg_id);
+//                for(auto inter:ireg2ActInter.at(spilled_reg_id)){
+//                    if(inter->intersects(current)){
+//                        to_spill_set.insert(inter);
+//                    }
+//                }
+//                for(auto spill_inter:to_spill_set){
+//                    spill_inter->reg_id = -1;
+//                    active.erase(spill_inter);
+//                    ireg2ActInter.at(spilled_reg_id).erase(spill_inter);
+//                }
+//                ireg2ActInter.at(spilled_reg_id).insert(current);
+//                active.insert(current);
+//                return true;
+//            }
+//        }
+//    }
+//
+//
+//
+//    else{
+//        if(!remained_all_freg_ids.empty()){
+//            double bonus = -1;
+//            int assigned_id = *remained_all_freg_ids.begin();
+//            for(auto new_reg_id:remained_all_freg_ids){
+//                double new_bonus = 0;
+//                for(auto pair:phi_bonus[current->value]){
+//                    auto phi_val = pair.first;
+//                    if(!fval2Inter.count(phi_val))continue;
+//                    if(!fval2Inter[phi_val]->intersects(current)){//TODO:CHECK must be true?;
+//                        if(fval2Inter[phi_val]->reg_id == new_reg_id){
+//                            new_bonus += pair.second;
+//                        }
+//                    }
+//                }
+//                new_bonus += caller_arg_bonus[current->value][new_reg_id];
+//                new_bonus += callee_arg_bonus[current->value][new_reg_id];
+//                if(new_reg_id == 0){
+//                    new_bonus += ret_bonus[current->value];
+//                    new_bonus += call_bonus[current->value];
+//                }
+//                if(new_bonus > bonus){
+//                    bonus = new_bonus;
+//                    assigned_id = new_reg_id;
+//                }
+//            }
+//            remained_all_freg_ids.erase(assigned_id);
+//            current->reg_id = assigned_id;
+//            unused_freg_id.erase(assigned_id);
+//            active.insert(current);
+//            freg2ActInter[assigned_id].insert(current);
+//            return true;
+//        }
+//        else{
+//            std::set<int, cmp_freg> spare_reg_id = {};
+//            for(const auto& pair:freg2ActInter){
+//                bool insert_in_hole = true;
+//                for(auto inter:pair.second){
+//                    insert_in_hole = insert_in_hole && (!inter->intersects(current));
+//                }
+//                if(insert_in_hole){
+//                    spare_reg_id.insert(pair.first);
+//                }
+//            }
+//            if(!spare_reg_id.empty()){
+//                int assigned_id = *spare_reg_id.begin();
+//                double bonus = -1;
+//                for(auto new_reg_id:spare_reg_id){
+//                    double new_bonus = 0;
+//                    for(auto pair:phi_bonus[current->value]){
+//                        auto phi_val = pair.first;
+//                        if(!fval2Inter.count(phi_val))continue;
+//                        if(!fval2Inter[phi_val]->intersects(current)){
+//                            if(fval2Inter[phi_val]->reg_id == new_reg_id){
+//                                new_bonus += pair.second;
+//                            }
+//                        }
+//                    }
+//                    new_bonus += caller_arg_bonus[current->value][new_reg_id];
+//                    new_bonus += callee_arg_bonus[current->value][new_reg_id];
+//                    if(new_reg_id == 0){
+//                        new_bonus += ret_bonus[current->value];
+//                        new_bonus += call_bonus[current->value];
+//                    }
+//                    if(new_bonus > bonus){
+//                        bonus = new_bonus;
+//                        assigned_id = new_reg_id;
+//                    }
+//                }
+//                current->reg_id = assigned_id;
+//                unused_freg_id.erase(assigned_id);
+//                active.insert(current);
+//                freg2ActInter[assigned_id].insert(current);
+//                return true;
+//            }
+//            
+//            auto spill_val = current;
+//            auto min_expire_val = spill_cost[current->value];
+//            int spilled_reg_id = -1;
+//            for(const auto& pair:freg2ActInter){
+//                double cur_expire_val = 0.0;
+//                for(auto inter:pair.second){
+//                    if(inter->intersects(current)){
+//                        cur_expire_val += spill_cost[inter->value];
+//                    }
+//                }
+//                if(cur_expire_val < min_expire_val){
+//                    spilled_reg_id = pair.first;
+//                    min_expire_val = cur_expire_val;
+//                    spill_val = nullptr;
+//                }
+//            }
+//            if(spill_val==current){
+//                current->reg_id = -1;
+//                return false;
+//            }else{
+//                if(spilled_reg_id < 0){
+//                  //  LOG(ERROR) << "spilled reg id is -1,something was wrong while register allocation";
+//                }
+//                std::set<Interval *> to_spill_set;
+//                current->reg_id = spilled_reg_id;
+//                unused_freg_id.erase(spilled_reg_id);
+//                for(auto inter:freg2ActInter.at(spilled_reg_id)){
+//                    if(inter->intersects(current)){
+//                        to_spill_set.insert(inter);
+//                    }
+//                }
+//                for(auto spill_inter:to_spill_set){
+//                    spill_inter->reg_id = -1;
+//                    active.erase(spill_inter);
+//                    freg2ActInter.at(spilled_reg_id).erase(spill_inter);
+//                }
+//                freg2ActInter.at(spilled_reg_id).insert(current);
+//                active.insert(current);
+//                return true;
+//            }
+//        }
+//    }
+//}
