@@ -28,6 +28,7 @@ Modify Add2Mul::runOnFunc(Function *func) {
                                     ins->removeUseOfOps();
                                     ins->replaceAllUseWith(ins_lhs);
                                     iter=ins_list.erase(cur_iter);
+                                    delete ins;
                                 }
                             }
                         }else if(ins_lhs->getOperand(1)==rhs&&ins_lhs->useOne()){
@@ -38,15 +39,16 @@ Modify Add2Mul::runOnFunc(Function *func) {
                             ins->removeUseOfOps();
                             ins->replaceAllUseWith(ins_lhs);
                             iter=ins_list.erase(cur_iter);
+                            delete ins;
                         }else if(ins_lhs->getOperand(0)==rhs&&ins_lhs->useOne()){
                         auto mul=BinaryInst::create(Instruction::OpID::mul,rhs,ConstantInt::get(2));
                             mul->setParent(ins_lhs->getParent());
                             ins_lhs->getParent()->insertInstr(ins_lhs->getParent()->findInstruction(ins_lhs),mul);
                             ins_lhs->replaceOperand(0,mul);
-                            ins->replaceAllUseWith(ins_lhs);
                             ins->removeUseOfOps();
                             ins->replaceAllUseWith(ins_lhs);
                             iter=ins_list.erase(cur_iter);
+                            delete ins;
                         }
                     }
                 }
