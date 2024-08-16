@@ -254,7 +254,6 @@ void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip, int time) {
     }
 }
 
-
 // 循环次数小于DIRECT_UNROLLING_TIME的循环
 // 删除header和loop
 //    preheader->header->start->...->end->exit
@@ -318,6 +317,7 @@ void LoopUnroll::unrolEntirelLoop(Loop *loop, LoopTrip trip) {
     for(Instruction *inst : loop->getHeader()->getInstructions()) {
         inst->removeUseOfOps();
     }
+    loop->removeBlock(loop->getHeader());
     loop->getHeader()->eraseFromParent();
     info_man_->getInfo<LoopInfo>()->removeLoop(loop);
 }
@@ -449,6 +449,7 @@ void LoopUnroll::unrollEntirelLoopInOneBB(Loop *loop, LoopTrip trip) {
     for(Instruction *inst : loop->getHeader()->getInstructions()) {
         inst->removeUseOfOps();
     }
+    loop->removeBlock(loop->getHeader());
     loop->getHeader()->eraseFromParent();
     info_man_->getInfo<LoopInfo>()->removeLoop(loop);
 }
