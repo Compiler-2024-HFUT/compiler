@@ -136,6 +136,11 @@ public:
         if(!latch) { blocks.erase(latch); } 
         addBlock(sl);
     }
+    void removeBlock(BB *bb) { 
+        blocks.erase(bb); 
+        if(outer)
+            outer->removeBlock(bb);
+    }
 
     // 检查除header外，其它因短路求值而产生的表示条件判断的BB，匹配如下格式：
     // %op = icmp ...   ; 不考虑fcmp
