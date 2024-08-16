@@ -98,5 +98,54 @@ Modify CombinBB::runOnFunc(Function*func){
             }
         }
     }
+    // for (BasicBlock* block : func->getBasicBlocks()) {
+    //     auto &inslist=block->getInstructions();
+    //     if(block->getPreBasicBlocks().size()!=1||block->getSuccBasicBlocks().size()!=1)
+    //         continue;
+    //     auto prebb=block->getPreBasicBlocks().front();
+    //     auto succbb=block->getSuccBasicBlocks().front();
+    //     if(succbb->getSuccBasicBlocks().empty())
+    //         continue;
+    //     if (inslist.size() == 1 && inslist.front()->isBr()&&inslist.front()->getNumOperands()==1) {
+    //         BranchInst* br = (BranchInst*)(inslist.front());
+    //         BasicBlock* nextBlock = (BasicBlock*)(br->getOperand(0));
+    //         auto pre_termin=prebb->getTerminator();
+    //         if((!pre_termin->isBr())||pre_termin->getNumOperands()!=3)
+    //             continue;
+    //         if(std::find(succbb->getSuccBasicBlocks().begin(),succbb->getSuccBasicBlocks().end(),block)!=succbb->getSuccBasicBlocks().end())
+    //             continue;
+    //         if(std::find(succbb->getSuccBasicBlocks().begin(),succbb->getSuccBasicBlocks().end(),prebb)!=succbb->getSuccBasicBlocks().end())
+    //             continue;
+    //         BasicBlock*other;
+    //         if(pre_termin->getOperand(1)==block){
+    //             other=(BasicBlock*)pre_termin->getOperand(2);
+    //         }else{
+    //             other=(BasicBlock*)pre_termin->getOperand(1);
+    //         }
+    //         if(std::find(succbb->getSuccBasicBlocks().begin(),succbb->getSuccBasicBlocks().end(),other)!=succbb->getSuccBasicBlocks().end())
+    //             continue;
+    //         if(pre_termin->getOperand(1)==block){
+    //             if(pre_termin->getOperand(2)==succbb)
+    //                 continue;
+    //             pre_termin->replaceOperand(1,succbb);
+    //         }else if(pre_termin->getOperand(2)==block){
+    //             if(pre_termin->getOperand(1)==succbb)
+    //                 continue;
+    //             pre_termin->replaceOperand(2,succbb);
+    //         }
+    //         block->replaceAllUseWith(prebb);
+    //         prebb->removeSuccBasicBlock(block);
+    //         prebb->addSuccBasicBlock(succbb);
+    //         succbb->removePreBasicBlock(block);
+    //         succbb->addPreBasicBlock(prebb);
+    //         block->getPreBasicBlocks().clear();
+    //         block->getSuccBasicBlocks().clear();
+    //         ret.modify_bb=true;
+    //         block->getInstructions().front()->removeUseOfOps();
+    //         block->getInstructions().clear();
+    //         func->getBasicBlocks().remove(block);
+    //         break;
+    //     }
+    // }
     return ret;
 }

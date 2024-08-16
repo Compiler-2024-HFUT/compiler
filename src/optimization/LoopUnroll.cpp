@@ -6,7 +6,26 @@
 #include <list>
 using std::list;
 
+static int countBBNum(Loop *loop) {
+    int sum = loop->getBlocks().size();
+    return ( sum > 1 ? sum : 1 );
+}
+
+static int countInstNum(Loop *loop) {
+    int sum = 0;
+    for(BB *bb : loop->getBlocks()) {
+        sum += bb->getInstructions().size();
+    }
+    sum -= loop->getHeader()->getInstructions().size();
+    return sum;
+}
+
 void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip, int time) {
+    if(countBBNum(loop) * time > UNROLLING_BB_SIZE)
+        return;
+    if(countInstNum(loop) * time > UNROLLING_INST_SIZE)
+        return;
+    
     LOG_WARNING("Unrolling Common Loop")
     vector<BB*> blockToAdd = {};
 
@@ -155,6 +174,11 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip, int time) {
 }
 
 void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip, int time) {
+    if(countBBNum(loop) * time > UNROLLING_BB_SIZE)
+        return;
+    if(countInstNum(loop) * time > UNROLLING_INST_SIZE)
+        return;
+    
     LOG_WARNING("Unroll Partial Loop")
     Loop *newLoop = loop->copyLoop();
     unrollCommonLoop(loop, trip, time);
@@ -454,7 +478,13 @@ void LoopUnroll::removeLoop(Loop *loop) {
 }
 
 void LoopUnroll::unrollDynamicLoop(Loop *loop, LoopTrip trip, int time) {
+    if(countBBNum(loop) * time > UNROLLING_BB_SIZE)
+        return;
+    if(countInstNum(loop) * time > UNROLLING_INST_SIZE)
+        return;
+    
     LOG_WARNING("Unroll Dynamic Loop")
+    
     Loop *newLoop = loop->copyLoop();
     unrollCommonLoop(loop, trip, time);
     
@@ -537,7 +567,10 @@ void LoopUnroll::visitLoop(Loop *loop) {
     if(loop->getExits().size() > 1 || 
        loop->getInners().size() > 0)
         return;
-
+    
+    if(trip.iter < MIN_ITER || trip.iter > MAX_ITER)
+        return;
+    
     if(trip.step == -1 || trip.step == -2) {
         return;
     } else if(trip.step == -3) {

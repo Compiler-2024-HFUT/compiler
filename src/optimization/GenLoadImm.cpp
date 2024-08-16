@@ -146,7 +146,7 @@ bool GenLoadImm::runOnBB(BasicBlock*b,std::vector<std::pair<int,Instruction*>>ca
                 genImm(cur_iter, ins, 1,cons->getValue() , caches);
             }
         }
-        else if(ins->isStore()){
+        else if(ins->isStore()||ins->isStoreOffset()){
             auto const_val=dynamic_cast<ConstantInt*>(ins->getOperand(0));
             if(const_val==0)
                 continue;

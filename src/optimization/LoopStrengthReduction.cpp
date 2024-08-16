@@ -26,6 +26,16 @@ static list<BinaryInst*> getLinearExpr(BinaryInst *endInst) {
     return linearExpr;
 } 
 
+static int countPhiNum(BB *bb) {
+    int sum = 0;
+    for(Instruction *inst : bb->getInstructions()) {
+        if(!inst->isPhi())
+            break;
+        sum++;
+    }
+    return sum;
+}
+
 void LoopStrengthReduction::visitLoop(Loop *loop) {
     SCEV *scev = info_man_->getInfo<SCEV>();
     Dominators *dom = info_man_->getInfo<Dominators>();
@@ -39,6 +49,10 @@ void LoopStrengthReduction::visitLoop(Loop *loop) {
     uset<BB*> domSet = {};
     uset<Instruction*> instToDel  = {};
     for(auto [v, expr] : exprs) {
+        // 避免header中phi过多
+        if(countPhiNum(loop->getHeader()) > 9) 
+            break;
+        
         BinaryInst *inst = dynamic_cast<BinaryInst*>(v);
         if(!inst || !expr || expr->isUnknown()) 
             continue;

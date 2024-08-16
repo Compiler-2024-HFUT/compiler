@@ -277,36 +277,36 @@ bool ValNumbering::procCall(std::vector<std::pair<CallInst*,std::vector<int>>> &
                     other->replaceAllUseWith(call_Ins);
                     erase.push_back(other);
                 }else{
-                    
-                    bool valid_ins=true;
-                    for (auto operand : call_Ins->getOperands())
-                        if(auto op_ins=dynamic_cast<Instruction*>(operand);op_ins&&!dom->isLdomR(op_ins->getParent(),lca)){
-                            valid_ins = false;
-                            break;
-                        }
-                    if (!valid_ins)
-                        continue;
-                    auto &inss=lca->getInstructions();
-                    auto br=inss.back();
-                    Instruction* is_cmp=nullptr;
-                    inss.pop_back();
-                    if(!inss.empty()){
-                        is_cmp=inss.back();
-                        if((is_cmp->isCmp()||is_cmp->isFCmp())&&br->getOperand(0)==is_cmp){
-                            inss.pop_back();
-                        }else{
-                            is_cmp=0;
-                        }
-                    }
-                    call_Ins->getParent()->getInstructions().remove(call_Ins);
-                    call_Ins->setParent(br->getParent());
-                    inss.push_back(call_Ins);
-                    other->replaceAllUseWith(call_Ins);
-                    erase.push_back(other);
-                    if(is_cmp){
-                        inss.push_back(is_cmp);
-                    }
-                    inss.push_back(br);
+                    continue;
+                    // bool valid_ins=true;
+                    // for (auto operand : call_Ins->getOperands())
+                    //     if(auto op_ins=dynamic_cast<Instruction*>(operand);op_ins&&!dom->isLdomR(op_ins->getParent(),lca)){
+                    //         valid_ins = false;
+                    //         break;
+                    //     }
+                    // if (!valid_ins)
+                    //     continue;
+                    // auto &inss=lca->getInstructions();
+                    // auto br=inss.back();
+                    // Instruction* is_cmp=nullptr;
+                    // inss.pop_back();
+                    // if(!inss.empty()){
+                    //     is_cmp=inss.back();
+                    //     if((is_cmp->isCmp()||is_cmp->isFCmp())&&br->getOperand(0)==is_cmp){
+                    //         inss.pop_back();
+                    //     }else{
+                    //         is_cmp=0;
+                    //     }
+                    // }
+                    // call_Ins->getParent()->getInstructions().remove(call_Ins);
+                    // call_Ins->setParent(br->getParent());
+                    // inss.push_back(call_Ins);
+                    // other->replaceAllUseWith(call_Ins);
+                    // erase.push_back(other);
+                    // if(is_cmp){
+                    //     inss.push_back(is_cmp);
+                    // }
+                    // inss.push_back(br);
                 }
             }
         }

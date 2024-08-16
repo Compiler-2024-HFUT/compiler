@@ -23,7 +23,7 @@ bool LoopInvariant::isInstInvariant(Loop *loop, Instruction *inst) {
     if(!loop->contain(inst->getParent()))
         return true;
 
-    if(inst->isAlloca() || inst->isLoadImm()) {
+    if(inst->isAlloca() /*|| inst->isLoadImm()*/) {
     // is this right? 
         return true;
     } else if(inst->isVoid() || inst->isPhi() || inst->isLoadOffset()) {

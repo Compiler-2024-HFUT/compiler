@@ -38,7 +38,7 @@ gcc 13.3
         ret
 
 */
-
+bool NEED_CACHE_LOOKUP=false;
 Function*__getLookUpCache(Module*const module_){
     Function* lookup_cache=0;
     for(auto cache_f:module_->getFunctions()){
@@ -71,7 +71,7 @@ Modify PureFuncCache::runOnFunc(Function*func)
                         return false;
                 }
             }
-        return count >= 2;
+        return count >= 1;
     };
     if(!hasRecursive())
         return {};
@@ -151,7 +151,7 @@ Modify PureFuncCache::runOnFunc(Function*func)
             block->addInstruction(terminator);
         }
     }
-
+    NEED_CACHE_LOOKUP=true;
     Modify ret{};
     ret.modify_bb=true;
     ret.modify_instr=true;
