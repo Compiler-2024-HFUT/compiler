@@ -2794,3 +2794,12 @@ memset_f:\n\
     return RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)(&(f_val->getFConst())))+
            RISCVInst::fmv_s_x(frd, new GReg(static_cast<int>(RISCV::GPR::s1)));
 }
+
+
+::std::string Fmv_w_x::print(){
+    return RISCVInst::fmv_w_x(frd, g_val);
+}
+
+::std::string Fmv_x_w::print(){
+    return RISCVInst::fmv_x_w(grd, f_val);
+}

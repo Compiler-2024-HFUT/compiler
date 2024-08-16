@@ -92,3 +92,7 @@ void StoreOffsetInst::accept(IRVisitor &visitor){
 void LoadImmInst::accept(IRVisitor &visitor){
     visitor.visit(*this);
 }
+
+void CastInst::accept(IRVisitor &visitor){
+    visitor.visit(*this);
+}

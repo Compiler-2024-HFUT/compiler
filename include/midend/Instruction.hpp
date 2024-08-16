@@ -806,7 +806,7 @@ public:
         return  new CastInst(this->getType(),getOperand(0),bb);
     }
 
-    virtual void accept(IRVisitor &visitor) final{}
+    virtual void accept(IRVisitor &visitor) final;
 
 private:
     Type* origin_type;
