@@ -1,5 +1,6 @@
 #include "optimization/LoopStrengthReduction.hpp"
 #include "analysis/Dominators.hpp"
+#include "analysis/LoopInvariant.hpp"
 
 #include <list>
 #include <algorithm>
@@ -99,6 +100,13 @@ void LoopStrengthReduction::visitLoop(Loop *loop) {
         LOG_WARNING("linearExpr:" + inst->getName() + ":");
         for(auto bi : linearExpr) {
             LOG_WARNING(bi->print());
+        }
+
+        // 线性表达式中出现非循环不变量
+        LoopInvariant *loopInv = info_man_->getInfo<LoopInvariant>();
+        for(BinaryInst *bi : linearExpr) {
+            if( !loopInv->isInvariable(loop, bi->getOperand(0)) || !loopInv->isInvariable(loop, bi->getOperand(1)) )
+                return;
         }
         
         // 可识别的迭代关系式，之后删除
