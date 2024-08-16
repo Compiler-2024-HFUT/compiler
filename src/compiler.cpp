@@ -25,7 +25,9 @@
 #include "optimization/Mem2Reg.hpp"
 #include "optimization/MoveAlloca.hpp"
 #include "optimization/PassManager.hpp"
+#include "optimization/PureFuncCache.hpp"
 #include "optimization/SCCP.hpp"
+#include "optimization/TailRecursionEli.hpp"
 #include "optimization/ValueNumbering.hpp"
 #include "optimization/VirtualRetEli.hpp"
 #include "optimization/inline.hpp"
@@ -128,8 +130,17 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<GepCombine>();
     pm.addPass<DCE>();
 
+
+    //recursion pass
     pm.addPass<CombinBB>();
-    // pm.addPass<VRE>();
+    //genvr之前没有vr
+    pm.addPass<VRE>();
+
+    pm.addPass<TailRecursionElim>();
+    // pm.addPass<PureFuncCache>();
+    pm.addPass<GenVR>();
+
+    pm.addPass<CombinBB>();
     pm.addPass<DCE>();
 
     lir(pm);
