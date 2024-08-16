@@ -30,6 +30,7 @@
 #include "optimization/TailRecursionEli.hpp"
 #include "optimization/ValueNumbering.hpp"
 #include "optimization/VirtualRetEli.hpp"
+#include "optimization/add2mul.hpp"
 #include "optimization/inline.hpp"
 #include "optimization/instrResolve.hpp"
 
@@ -100,12 +101,18 @@ void Compiler::buildOpt(PassManager &pm){
 
     //inline and g2l pass
     pm.addPass<FuncInline>();
+    pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
+    pm.addPass<VRE>();
+    pm.addPass<TailRecursionElim>();
+    pm.addPass<GenVR>();
+
     pm.addPass<G2L>();
     pm.addPass<DeadPHIEli>();
     pm.addPass<DCE>();
     pm.addPass<SCCP>();
     pm.addPass<InstrCombine>();
+    pm.addPass<Add2Mul>();
     pm.addPass<ConstBr>();
     pm.addPass<ValNumbering>();
     pm.addPass<ArrReduc>();
@@ -121,6 +128,7 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<CombinBB>();
     // pm.addPass<SCCP>();
     pm.addPass<InstrCombine>();
+    pm.addPass<Add2Mul>();
     pm.addPass<DCE>();
     pm.addPass<ValNumbering>();
     //breakgep之后再运行vn再跑gepcombine
@@ -136,7 +144,6 @@ void Compiler::buildOpt(PassManager &pm){
     //genvr之前没有vr
     pm.addPass<VRE>();
 
-    pm.addPass<TailRecursionElim>();
     // pm.addPass<PureFuncCache>();
     pm.addPass<GenVR>();
 
