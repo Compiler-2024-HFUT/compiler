@@ -23,7 +23,8 @@ Modify VRE::runOnFunc(Function*func){
         return{};
     if(ret->getOperand(0)!=phi)
         return mod;
-    
+    if(!phi->isPhi())
+        return mod;
     std::vector<std::pair<BasicBlock*,Value*>>bb_val;
     for(int i=0;i<phi->getNumOperands();i+=2){
         bb_val.push_back({(BasicBlock*)phi->getOperand(i+1),phi->getOperand(i)});
@@ -50,9 +51,28 @@ Modify VRE::runOnFunc(Function*func){
             int offset=get_op_offset(phi_ops,val);
             phi->removeOperands(offset,offset+1);
             fixPhiOpUse(phi);
+        }else if(ter->isBr()&&ter->getNumOperands()==3){
+            auto newbb=BasicBlock::create("",func);
+            int op;
+            mod.modify_bb=true;
+            if(ter->getOperand(1)==ret_bb)
+                op=1;
+            else if(ter->getOperand(2)==ret_bb)
+                op=2;
+            else assert(0);
+            ter->replaceOperand(op,newbb);
+            b->removeSuccBasicBlock(ret_bb);
+            b->addSuccBasicBlock(newbb);
+            ret_bb->removePreBasicBlock(b);
+            newbb->addPreBasicBlock(b);
+            ReturnInst::createRet(val,newbb);
+            int offset=get_op_offset(phi_ops,val);
+            phi->removeOperands(offset,offset+1);
+            fixPhiOpUse(phi);
         }
     }
     if(ret_bb->getPreBasicBlocks().empty()){
+        mod.modify_bb=true;
         phi->removeUseOfOps();
         ret->removeUseOfOps();
         func->removeBasicBlock(ret_bb);
