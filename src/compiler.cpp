@@ -144,7 +144,8 @@ void Compiler::buildOpt(PassManager &pm){
     //genvr之前没有vr
     pm.addPass<VRE>();
 
-    // pm.addPass<PureFuncCache>();
+    pm.addPass<PureFuncCache>();
+
     pm.addPass<GenVR>();
 
     pm.addPass<CombinBB>();

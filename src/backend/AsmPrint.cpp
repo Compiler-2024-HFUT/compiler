@@ -103,9 +103,9 @@ xcCacheLookup:
 	ld	a5,0(a0)
 	beq	a5,a2,.L1
 	sw	zero,12(a0)
-.L4:
+.L9:
 	sd	a2,0(a0)
-.L1:
+.L6:
 	ret
 	.cfi_endproc
 .LFE2:
