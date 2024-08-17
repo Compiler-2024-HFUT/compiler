@@ -14,6 +14,7 @@
 #include "midend/Instruction.hpp"
 #include "midend/Module.hpp"
 #include "midend/Type.hpp"
+#include <algorithm>
 #include <list>
 #include <vector>
 #include "optimization/PureFuncCache.hpp"
@@ -49,11 +50,45 @@ Function*__getLookUpCache(Module*const module_){
     }
     if(lookup_cache==0){
         std::vector<Type*>input_params{Type::getInt32PtrType(),Type::getInt32Type(),Type::getInt32Type()};
+        // std::vector<Type*>input_params{Type::getInt32Type(),Type::getInt32Type(),Type::getInt32Type()};
         auto functype=FunctionType::get(Type::getInt32PtrType(), input_params);
         lookup_cache =Function::create(functype,"xcCacheLookup",module_);
+        // auto entry=BasicBlock::create("",lookup_cache);
+        // auto arg=lookup_cache->getArgs();
+        // auto iter=arg.begin();
+        // auto arg0=*iter;
+        // ++iter;
+        // auto arg1=*iter;
+        // ++iter;
+        // auto arg2=*iter;
+        // BinaryInst::createLsl(arg1,ConstantInt::get(32),entry);
+        // BinaryInst::createOr(arg1,arg2,entry);
+        // BinaryInst::createSRem(arg2,ConstantInt::get(1021),entry);
     }
     return lookup_cache;
 }
+BasicBlock * __get_rec_call(Function*func){
+    std::vector<CallInst*>calls;
+    for(auto block : func->getBasicBlocks())
+        for(auto& inst : block->getInstructions()) {
+            if(inst->getInstrType() == Instruction::OpID::call) {
+                const auto callee = inst->getOperand(0);
+                if(callee == func)
+                    calls.push_back((CallInst*)inst);
+            }
+        }
+    BasicBlock*bb=0;
+    for(auto call:calls){
+        if(bb==0){
+            bb=call->getParent();
+        }else{
+            if(bb!=call->getParent())
+                return 0;
+        }
+    }
+    return bb;
+}
+
 Modify PureFuncCache::runOnFunc(Function*func)
 {
     if(func->isDeclaration())
@@ -71,7 +106,7 @@ Modify PureFuncCache::runOnFunc(Function*func)
                         return false;
                 }
             }
-        return count >= 1;
+        return count >= 2;
     };
     if(!hasRecursive())
         return {};
@@ -98,7 +133,6 @@ Modify PureFuncCache::runOnFunc(Function*func)
     // Function* lookup_cache=__getLookUpCache(module_);
 
     // auto cur_bb=func->getEntryBlock();
-
     uint32_t constexpr tableSize = 1021;
     const auto arrayType = ArrayType::get(i32_type, tableSize * 4);
     const auto lut = GlobalVariable::create("lut_" + std::string(func->getName()), module_,arrayType,false,ConstantZero::get(arrayType));
@@ -106,14 +140,22 @@ Modify PureFuncCache::runOnFunc(Function*func)
 
     Function* lookup=__getLookUpCache(module_);
 
+
+    auto rec_bb=__get_rec_call(func);
+    if(rec_bb==0||rec_bb==func->getEntryBlock()||rec_bb->getSuccBasicBlocks().size()!=0||(!rec_bb->getInstructions().back()->isRet())){
+
+
+
     auto old_entry=func->getBasicBlocks().front();
     BasicBlock* new_entryBlock = BasicBlock::create("",func);
     func->getBasicBlocks().pop_back();
     func->getBasicBlocks().push_front(new_entryBlock);
+    BasicBlock*cur_bb=old_entry;
 
     std::vector<Value*> argVal;
     argVal.reserve(3);
-    argVal.push_back(lut);
+    auto lut_ptr=GetElementPtrInst::createGep(lut, {ConstantInt::get(0), ConstantInt::get( 0) },new_entryBlock);
+    argVal.push_back(lut_ptr);
     for(auto arg : args) {
         if(arg->getType()==i32_type)
             argVal.push_back(arg);
@@ -124,6 +166,7 @@ Modify PureFuncCache::runOnFunc(Function*func)
         argVal.push_back(ConstantInt::get( 0));
 
     const auto call_lookup_ret_ptr = CallInst::createCall(lookup, std::move(argVal),new_entryBlock);
+
     Value* valPtr = GetElementPtrInst::createGep(call_lookup_ret_ptr, { ConstantInt::get( 2) },new_entryBlock);
 
     // if(!valPtr->getType()->as<PointerType>()->isSame(ret))
@@ -157,4 +200,62 @@ Modify PureFuncCache::runOnFunc(Function*func)
     ret.modify_instr=true;
     ret.modify_call=true;
     return ret;
+    }else{
+        std::vector<Instruction*>new_ins_stack;
+        auto new_bb=BasicBlock::create("",func);
+        func->getBasicBlocks().pop_back();
+        func->getBasicBlocks().insert(std::find(func->getBasicBlocks().begin(),func->getBasicBlocks().end(),rec_bb),new_bb);
+        auto prebbs=rec_bb->getPreBasicBlocks();
+        for(auto pre:prebbs){
+            auto br=pre->getInstructions().back();
+            for(int i=0;i<br->getNumOperands();++i){
+                if(br->getOperand(i)==rec_bb){
+                    br->replaceOperand(i,new_bb);
+                    rec_bb->removePreBasicBlock(pre);
+                    new_bb->addPreBasicBlock(pre);
+                    pre->removeSuccBasicBlock(rec_bb);
+                    pre->addSuccBasicBlock(new_bb);
+                    break;
+                }
+            }
+        }
+        std::vector<Value*> argVal;
+        argVal.reserve(3);
+        auto lut_ptr=GetElementPtrInst::createGep(lut, {ConstantInt::get(0), ConstantInt::get( 0) },new_bb);
+        argVal.push_back(lut_ptr);
+        for(auto arg : args) {
+            if(arg->getType()==i32_type)
+                argVal.push_back(arg);
+            else
+                argVal.push_back(CastInst::createCastInst(i32_type, arg,new_bb));
+        }
+        while(argVal.size() < 3)
+            argVal.push_back(ConstantInt::get( 0));
+
+        const auto call_lookup_ret_ptr = CallInst::createCall(lookup, std::move(argVal),new_bb);
+
+        Value* valPtr = GetElementPtrInst::createGep(call_lookup_ret_ptr, { ConstantInt::get( 2) },new_bb);
+        const auto hasValPtr = GetElementPtrInst::createGep(call_lookup_ret_ptr, std::vector<Value*>{ ConstantInt::get( 3) },new_bb);
+        const auto hasVal = CmpInst::createCmp( CmpOp::NE,
+                                                        LoadInst::createLoad(i32_type,hasValPtr,new_bb), ConstantInt::get( 0),new_bb);
+        const auto earlyExit = BasicBlock::create("earlyexit"+func->getName(),func);
+        BranchInst::createCondBr(hasVal, earlyExit, rec_bb,new_bb);
+        Instruction* new_retval=LoadInst::createLoad(valPtr->getType()->getPointerElementType(),valPtr,earlyExit);
+        if(new_retval->getType()!=func->getReturnType()){
+            new_retval=CastInst::createCastInst(func->getReturnType(),new_retval,earlyExit);
+        }
+        ReturnInst::createRet(new_retval,earlyExit);
+        auto old_ret=rec_bb->getInstructions().back();
+        rec_bb->getInstructions().pop_back();
+        auto ret_val=old_ret->getOperand(0);
+        StoreInst::createStore( ConstantInt::get(1),hasValPtr,rec_bb);
+        StoreInst::createStore( ret_val,valPtr,rec_bb);
+        rec_bb->addInstruction(old_ret);
+        NEED_CACHE_LOOKUP=true;
+        Modify ret{};
+        ret.modify_bb=true;
+        ret.modify_instr=true;
+        ret.modify_call=true;
+        return ret;
+    }
 }
