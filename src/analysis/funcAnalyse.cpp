@@ -70,6 +70,10 @@ void FuncAnalyse::analyseOnModule(Module*module_){
         {"memset_i",WRITE_PARAM_ARRAY},
         {"memset_f",WRITE_PARAM_ARRAY},
         // {"putf",LOAD_PARAM_ARRAY},
+        {"xcCacheLookup",WRITE_PARAM_ARRAY},
+        {"xcParallelFor",UINT64_MAX},
+        {"xcReduceAddI32",UINT64_MAX},
+        {"xcReduceAddF32",UINT64_MAX},
         {"_sysy_starttime",UINT64_MAX},
         {"_sysy_stoptime",UINT64_MAX},
     };
@@ -110,6 +114,9 @@ FuncSEInfo FuncAnalyse::analyseSE(Function*func){
         {"memset_f",WRITE_PARAM_ARRAY},
         {"putf",LOAD_PARAM_ARRAY},
         {"xcCacheLookup",WRITE_PARAM_ARRAY},
+        {"xcParallelFor",UINT64_MAX},
+        {"xcReduceAddI32",UINT64_MAX},
+        {"xcReduceAddF32",UINT64_MAX},
         {"_sysy_starttime",UINT64_MAX},
         {"_sysy_stoptime",UINT64_MAX},
     };

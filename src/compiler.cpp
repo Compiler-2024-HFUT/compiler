@@ -25,9 +25,12 @@
 #include "optimization/Mem2Reg.hpp"
 #include "optimization/MoveAlloca.hpp"
 #include "optimization/PassManager.hpp"
+#include "optimization/PureFuncCache.hpp"
 #include "optimization/SCCP.hpp"
+#include "optimization/TailRecursionEli.hpp"
 #include "optimization/ValueNumbering.hpp"
 #include "optimization/VirtualRetEli.hpp"
+#include "optimization/add2mul.hpp"
 #include "optimization/inline.hpp"
 #include "optimization/instrResolve.hpp"
 
@@ -97,13 +100,20 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<SCCP>();
 
     //inline and g2l pass
-    pm.addPass<FuncInline>();
     pm.addPass<CombinBB>();
+    pm.addPass<FuncInline>();
+    pm.addPass<SCCP>();
+    pm.addPass<CombinBB>();
+    pm.addPass<VRE>();
+    pm.addPass<TailRecursionElim>();
+    pm.addPass<GenVR>();
+
     pm.addPass<G2L>();
     pm.addPass<DeadPHIEli>();
     pm.addPass<DCE>();
     pm.addPass<SCCP>();
     pm.addPass<InstrCombine>();
+    pm.addPass<Add2Mul>();
     pm.addPass<ConstBr>();
     pm.addPass<ValNumbering>();
     pm.addPass<ArrReduc>();
@@ -119,6 +129,7 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<CombinBB>();
     // pm.addPass<SCCP>();
     pm.addPass<InstrCombine>();
+    pm.addPass<Add2Mul>();
     pm.addPass<DCE>();
     pm.addPass<ValNumbering>();
     //breakgep之后再运行vn再跑gepcombine
@@ -128,8 +139,17 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<GepCombine>();
     pm.addPass<DCE>();
 
+
+    //recursion pass
     pm.addPass<CombinBB>();
-    // pm.addPass<VRE>();
+    //genvr之前没有vr
+    pm.addPass<VRE>();
+
+    pm.addPass<PureFuncCache>();
+
+    pm.addPass<GenVR>();
+
+    pm.addPass<CombinBB>();
     pm.addPass<DCE>();
 
     lir(pm);

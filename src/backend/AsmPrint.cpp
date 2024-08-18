@@ -1,5 +1,6 @@
 #include "backend/Asm.hpp"
 
+extern bool NEED_CACHE_LOOKUP;
 
  ::std::string IConst::print(){
     return ::std::to_string(val);
@@ -82,6 +83,36 @@ memset_f:\n\
 .L4:\n\
         ret\n\
 .size   memset_f, .-memset_f\n\n";
+//runtime
+    if(NEED_CACHE_LOOKUP){
+        asm_context+=
+R"(	
+.globl	xcCacheLookup
+.type	xcCacheLookup, @function
+xcCacheLookup:
+.LFB2:
+	.cfi_startproc
+	slli	a1,a1,32
+	or	a2,a1,a2
+	li	a5,1021
+	remu	a5,a2,a5
+	slli	a5,a5,4
+	add	a0,a0,a5
+	lw	a5,12(a0)
+	beq	a5,zero,.L4
+	ld	a5,0(a0)
+	beq	a5,a2,.L1
+	sw	zero,12(a0)
+.L9:
+	sd	a2,0(a0)
+.L6:
+	ret
+	.cfi_endproc
+.LFE2:
+	.size	xcCacheLookup, .-xcCacheLookup
+)";
+    }
+
     ::std::vector<::std::string> data_section;
     for(auto i:module->getGlobalVariables()){
         ::std::string data_def;

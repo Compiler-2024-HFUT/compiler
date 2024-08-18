@@ -1009,3 +1009,20 @@ std::string CastInst::print() {
     std::string instr_ir="%"+getName()+"= " +"bitcast "+origin_type->print()+" "+printAsOp(getOperand(0))+" to "+getType()->print();
     return instr_ir;
 }
+
+AtomicAddInst *AtomicAddInst::createAtomicAddInst(Value *ptr, Value *val, BasicBlock *bb) {
+    return new AtomicAddInst(ptr, val, bb);
+}
+
+AtomicAddInst::AtomicAddInst(Value *ptr, Value *val, BasicBlock *bb)
+    : Instruction(Type::getVoidType(), Instruction::OpID::atomicadd, 2, bb) {
+    setOperand(0, ptr);
+    setOperand(1, val);
+}
+
+std::string AtomicAddInst::print() {
+    std::string instr_ir = "atomicrmw add ";
+    instr_ir + "ptr " + getOperand(0)->print() + ", " 
+             + printAsOpWithType(this->getOperand(1));
+    return instr_ir;
+}
