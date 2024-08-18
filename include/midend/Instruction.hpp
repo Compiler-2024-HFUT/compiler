@@ -64,6 +64,7 @@ public:
       select,
       loadimm,
       bitcast,
+      atomicadd,
     };
 
 public:
@@ -119,6 +120,9 @@ public:
         case OpID::storeoffset: return "storeoffset"; break;
         case OpID::select:return "select"; break;
         case OpID::loadimm:return "loadimm"; break;
+        case OpID::bitcast:return "bitcast"; break;
+        // https://llvm.org/docs/LangRef.html#id2126
+        case OpID::atomicadd:return "atomicrmw add"; break;
         default: return ""; break; 
       }
     }
@@ -137,7 +141,7 @@ public:
     
     bool isVoid() {
         return ((op_id_ == OpID::ret) || (op_id_ == OpID::br) || (op_id_ == OpID::store) || (op_id_ == OpID::cmpbr) || (op_id_ == OpID::fcmpbr) || (op_id_ == OpID::storeoffset) || (op_id_ == OpID::memset) ||
-                (op_id_ == OpID::call && this->getType()->isVoidType()));
+                (op_id_ == OpID::atomicadd) || (op_id_ == OpID::call && this->getType()->isVoidType()));
     }
 
     bool isRet() { return op_id_ == OpID::ret; } 
@@ -207,10 +211,12 @@ public:
     }
 
     bool isTerminator() { return isBr() || isRet() || isCmpBr() || isFCmpBr(); }
-    bool isWriteMem(){return isStore() || isStoreOffset(); }
+    bool isWriteMem(){return isStore() || isStoreOffset() || isAtomicAdd();  }
 
     bool isSelect(){return op_id_==OpID::select;}
     bool isLoadImm(){return op_id_==OpID::loadimm;}
+
+    bool isAtomicAdd() { return op_id_==OpID::atomicadd; }
 
     // void setId(int id) { id_ = id; }
     // int getId() { return id_; }
@@ -812,6 +818,22 @@ private:
     Type* origin_type;
     CastInst(Type*type,Value*val,  BasicBlock *bb);
     CastInst(Type*type,Value*val);
+};
+
+class AtomicAddInst : public Instruction {
+public:
+    static AtomicAddInst *createAtomicAddInst(Value *ptr, Value *val, BasicBlock *bb);
+    virtual std::string print() override;
+
+    Instruction *copyInst(BasicBlock *bb) override final{
+        return new AtomicAddInst(getOperand(0), getOperand(1),bb);
+    } 
+
+    //后端遍历
+    virtual void accept(IRVisitor &visitor) final;
+
+private:
+    AtomicAddInst(Value *ptr, Value *val, BasicBlock *bb);
 };
 #endif
 
