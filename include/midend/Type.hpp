@@ -120,6 +120,8 @@ public:
     static bool isValidReturnType(Type *ty);
     static bool isValidArgumentType(Type *params);
 
+    void addArg(Type *param) { args_.push_back(param); }
+
     unsigned getNumOfArgs() const { return args_.size(); };
     std::vector<Type *>::iterator paramBegin() { return args_.begin(); }
     std::vector<Type *>::iterator paramEnd() { return args_.end(); }
