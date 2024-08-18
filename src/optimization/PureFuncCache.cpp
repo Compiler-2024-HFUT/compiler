@@ -53,6 +53,8 @@ Function*__getLookUpCache(Module*const module_){
         // std::vector<Type*>input_params{Type::getInt32Type(),Type::getInt32Type(),Type::getInt32Type()};
         auto functype=FunctionType::get(Type::getInt32PtrType(), input_params);
         lookup_cache =Function::create(functype,"xcCacheLookup",module_);
+        module_->getFunctions().pop_back();
+        module_->getFunctions().push_front(lookup_cache);
         // auto entry=BasicBlock::create("",lookup_cache);
         // auto arg=lookup_cache->getArgs();
         // auto iter=arg.begin();

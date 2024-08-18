@@ -138,47 +138,6 @@ define void @storeoffset_f(float %val , float* %base_addr, i32 %offset){
     store float %val, float* %store
     ret void
 }
-%struct.LUTEntry = type { i64, i32, i32 }
-
-define dso_local i32* @xcCacheLookup(i32*, i32, i32) local_unnamed_addr #0 {
-  %4 = bitcast i32* %0 to %struct.LUTEntry*
-  %5 = zext i32 %1 to i64
-  %6 = shl nuw i64 %5, 32
-  %7 = sext i32 %2 to i64
-  %8 = or i64 %6, %7
-  %9 = urem i64 %8, 1021
-  %10 = getelementptr inbounds %struct.LUTEntry, %struct.LUTEntry* %4, i64 %9
-  %11 = getelementptr inbounds %struct.LUTEntry, %struct.LUTEntry* %4, i64 %9, i32 2
-  %12 = load i32, i32* %11, align 4
-  %13 = icmp eq i32 %12, 0
-  %14 = getelementptr inbounds %struct.LUTEntry, %struct.LUTEntry* %10, i64 0, i32 0
-  br i1 %13, label %22, label %15
-
-15:
-  %16 = load i64, i64* %14, align 8
-  %17 = icmp eq i64 %16, %8
-  br i1 %17, label %25, label %18
-
-18:
-  %19 = getelementptr inbounds %struct.LUTEntry, %struct.LUTEntry* %4, i64 %9
-  %20 = getelementptr inbounds %struct.LUTEntry, %struct.LUTEntry* %4, i64 %9, i32 2
-  store i32 0, i32* %20, align 4
-  %21 = getelementptr inbounds %struct.LUTEntry, %struct.LUTEntry* %19, i64 0, i32 0
-  br label %22
-
-22:
-  %23 = phi i64* [ %21, %18 ], [ %14, %3 ]
-  %24 = phi %struct.LUTEntry* [ %19, %18 ], [ %10, %3 ]
-  store i64 %8, i64* %23, align 8
-  br label %25
-
-25:
-  %26 = phi %struct.LUTEntry* [ %10, %15 ], [ %24, %22 ]
-  %27 = bitcast %struct.LUTEntry* %26 to i32*
-  ret i32* %27
-}
-
-attributes #0 = { nofree norecurse nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 )";
     for (auto &global_val : this->globals_list_) {
         module_ir += global_val->print();
@@ -186,8 +145,6 @@ attributes #0 = { nofree norecurse nounwind uwtable "correctly-rounded-divide-sq
     }
     module_ir += "\n";
     for (auto &func : this->functions_list_) {
-        if(func->getName()=="xcCacheLookup")
-            continue;
         module_ir += func->print();
         module_ir += "\n";
     }

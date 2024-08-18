@@ -51,7 +51,7 @@ function asm_test() {
 
 function pass_test(){
     llvm-as "$name.ll" -o "$name.tmp.bc"
-    llvm-link -o "$name.bc" "$name.tmp.bc" ../lib/sylib.bc ../lib/memset.bc
+    llvm-link -o "$name.bc" "$name.tmp.bc" ../lib/sylib.bc ../lib/runtime.bc
 
     rm  "`pwd`/$name.tmp.bc" 
     #run
