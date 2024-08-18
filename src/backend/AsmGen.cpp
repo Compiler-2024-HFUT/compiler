@@ -1257,6 +1257,13 @@ void AsmGen::visit(CastInst &node){
     }
 }
 
+ void AsmGen::visit(AtomicAddInst &node){
+    auto inst = &node;
+    auto rd = getGRD(inst);
+    auto rs1 = dynamic_cast<GReg*>(getAllocaReg(inst->getOperand(0)));
+    auto rs2 = dynamic_cast<GReg*>(getAllocaReg(inst->getOperand(1)));
+    sequence->createAtomicAdd(rd, rs1, rs2);
+ }
 
 void AsmGen::visitAdd(BinaryInst* inst){
     auto ird = getGRD(inst);

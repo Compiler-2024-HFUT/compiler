@@ -190,3 +190,8 @@
 ::std::string RISCVInst::fmv_x_w(GReg *g_rd, FReg *f_val){
     return DR("fmv_x_w", g_rd, f_val);
 }
+
+//amoadd.w rd, rs2, (rs1)
+::std::string RISCVInst::atomic_add(GReg *rd, GReg *rs1, GReg *rs2){
+    return AMOADD("amoadd.w", rd, rs2, rs1);
+}

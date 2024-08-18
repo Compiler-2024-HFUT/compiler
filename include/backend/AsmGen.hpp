@@ -119,7 +119,7 @@ class AsmGen : public IRVisitor{
         virtual void visit(StoreOffsetInst &node) override;
         virtual void visit(LoadImmInst &node) override;
         virtual void visit(CastInst &node) override;
-    
+        virtual void visit(AtomicAddInst &node) override;
     private:
         void visitAdd(BinaryInst* inst);
         void visitSub(BinaryInst* inst);

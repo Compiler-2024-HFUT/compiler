@@ -2834,3 +2834,7 @@ xcCacheLookup:
 ::std::string Fmv_x_w::print(){
     return RISCVInst::fmv_x_w(grd, f_val);
 }
+
+::std::string AtomicAdd::print(){
+    return RISCVInst::atomic_add(rd, rs1, rs2);
+}

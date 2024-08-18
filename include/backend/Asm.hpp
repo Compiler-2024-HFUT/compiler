@@ -269,6 +269,7 @@ class LoadIImm;
 class LoadFImm;
 class Fmv_x_w;
 class Fmv_w_x;
+class AtomicAdd;
 
 
 
@@ -375,6 +376,7 @@ class Sequence{
         LoadFImm* createLoadFImm(FReg* frd, FConst* f_val);
         Fmv_w_x* createFmv_w_x(FReg* freg, GReg* g_val);
         Fmv_x_w* createFmv_x_w(GReg* greg, FReg* f_val);
+        AtomicAdd* createAtomicAdd(GReg* rd, GReg* rs1, GReg* rs2);
 
         
 
@@ -537,7 +539,8 @@ class AsmInst{
             loadiimm,
             loadfimm,
             fmv_w_x,
-            fmv_x_w
+            fmv_x_w,
+            atomic_add
 
         };
     public:
@@ -1453,5 +1456,17 @@ class Fmv_x_w: public AsmInst{
     private:
         GReg* grd;
         FReg* f_val;
+};
+
+class AtomicAdd: public AsmInst{
+    public:
+        AtomicAdd(GReg* rd, GReg* rs1, GReg* rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), rs2(rs2), AsmInst(Op::atomic_add, seq){}
+        ::std::string print() final;
+
+    private:
+        GReg* rd;
+        GReg* rs1;
+        GReg* rs2;
 };
 #endif
