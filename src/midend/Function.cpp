@@ -20,7 +20,7 @@ void Function::buildArgs() {
     }
 }
 
-void Function::addArg(Type *type) {
+Argument *Function::addArg(Type *type) {
     auto *func_ty = getFunctionType();
     func_ty->addArg(type);
 
@@ -31,6 +31,7 @@ void Function::addArg(Type *type) {
     } else {
         i_args_.push_back(new_arg);
     }
+    return new_arg;
 }
 
 Function::Function(FunctionType *ty, const std::string &name, Module *parent)
