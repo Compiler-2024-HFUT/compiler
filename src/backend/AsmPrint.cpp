@@ -231,9 +231,17 @@ xcCacheLookup:
     auto iconst_rs2 = dynamic_cast<IConst*>(rs2);
     if(iconst_rs1 && iconst_rs2)
         return RISCVInst::addi(rd, new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_rs1->getIConst()-iconst_rs2->getIConst());
-    else if(iconst_rs1)
-        return RISCVInst::addi(rd, new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_rs1->getIConst())+
-               RISCVInst::subw(rd, rd, dynamic_cast<GReg*>(rs2));
+    else if(iconst_rs1){
+        int val = iconst_rs1->getIConst();
+        if(val==0){
+            return RISCVInst::subw(rd, new GReg(static_cast<int>(RISCV::GPR::zero)), dynamic_cast<GReg*>(rs2));    
+        }
+        else{
+            return RISCVInst::addi(rd, new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_rs1->getIConst())+
+               RISCVInst::subw(rd, rd, dynamic_cast<GReg*>(rs2));            
+        }
+    }
+
     else if(iconst_rs2)
         return RISCVInst::addi(rd, dynamic_cast<GReg*>(rs1), -iconst_rs2->getIConst());
     else
@@ -277,9 +285,10 @@ xcCacheLookup:
     else if(iconst_rs1)
         return RISCVInst::addi(rd, new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_rs1->getIConst())+
                RISCVInst::divw(rd, rd, dynamic_cast<GReg*>(rs2));
-    else if(iconst_rs2)
+    else if(iconst_rs2){
         return RISCVInst::addi(rd, new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_rs2->getIConst())+
                RISCVInst::divw(rd, dynamic_cast<GReg*>(rs1), rd);
+    }
     else
         return RISCVInst::divw(rd, dynamic_cast<GReg*>(rs1), dynamic_cast<GReg*>(rs2));
 }
@@ -292,9 +301,10 @@ xcCacheLookup:
     else if(iconst_rs1)
         return RISCVInst::addi(rd, new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_rs1->getIConst())+
                RISCVInst::remw(rd, rd, dynamic_cast<GReg*>(rs2));
-    else if(iconst_rs2)
+    else if(iconst_rs2){
         return RISCVInst::addi(rd, new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_rs2->getIConst())+
                RISCVInst::remw(rd, dynamic_cast<GReg*>(rs1), rd);
+    }
     else
         return RISCVInst::remw(rd, dynamic_cast<GReg*>(rs1), dynamic_cast<GReg*>(rs2));
 }
@@ -687,6 +697,8 @@ xcCacheLookup:
     auto iconst_src = dynamic_cast<IConst*>(src);
     auto iconst_offset = dynamic_cast<IConst*>(offset);
     if(iconst_src){
+        int val = iconst_src->getIConst();
+        if(val!=0){
         if(iconst_offset){
             int iconst_offset_value = iconst_offset->getIConst()*4;
             if(iconst_offset_value<-2048 || iconst_offset_value>2047)
@@ -701,6 +713,23 @@ xcCacheLookup:
             return RISCVInst::sh2add(new GReg(static_cast<int>(RISCV::GPR::ra)), dynamic_cast<GReg*>(offset), base)+
                    RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(RISCV::GPR::zero)), iconst_src->getIConst())+
                    RISCVInst::sw(new GReg(static_cast<int>(RISCV::GPR::s1)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+        }
+        else{
+        if(iconst_offset){
+            int iconst_offset_value = iconst_offset->getIConst()*4;
+            if(iconst_offset_value<-2048 || iconst_offset_value>2047)
+                return RISCVInst::addi(new GReg(static_cast<int>(RISCV::GPR::s1)), base, iconst_offset_value)+
+                       RISCVInst::sw(new GReg(static_cast<int>(RISCV::GPR::zero)), new GReg(static_cast<int>(RISCV::GPR::s1)), 0);
+            else
+                return RISCVInst::sw(new GReg(static_cast<int>(RISCV::GPR::zero)), base, iconst_offset_value);
+        }
+        else
+            return RISCVInst::sh2add(new GReg(static_cast<int>(RISCV::GPR::ra)), dynamic_cast<GReg*>(offset), base)+
+                    RISCVInst::sw(new GReg(static_cast<int>(RISCV::GPR::zero)), new GReg(static_cast<int>(RISCV::GPR::ra)), 0);
+        }
+
+
+
     }
     else{
         if(iconst_offset){
@@ -2825,3 +2854,5 @@ xcCacheLookup:
     return RISCVInst::li(new GReg(static_cast<int>(RISCV::GPR::s1)), *(uint32_t*)(&(f_val->getFConst())))+
            RISCVInst::fmv_s_x(frd, new GReg(static_cast<int>(RISCV::GPR::s1)));
 }
+
+
