@@ -6,6 +6,10 @@
 #include <list>
 using std::list;
 
+// 一般展开是否进行递归
+static bool isComRec = false;
+static bool isEntireUnroll = false;
+
 static int countBBNum(Loop *loop) {
     int sum = loop->getBlocks().size();
     return ( sum > 1 ? sum : 1 );
@@ -21,10 +25,14 @@ static int countInstNum(Loop *loop) {
 }
 
 void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip, int time) {
-    if(countBBNum(loop) * time > UNROLLING_BB_SIZE)
-        return;
-    if(countInstNum(loop) * time > UNROLLING_INST_SIZE)
-        return;
+    if(!isEntireUnroll) {
+        if(isComRec) {
+            while(time > 1 && ( countBBNum(loop) * time > UNROLLING_BB_SIZE || countInstNum(loop) * time > UNROLLING_INST_SIZE ))
+                time /= 2;
+            if(time <= 1)
+                return;
+        }
+    }
     
     LOG_WARNING("Unroll Common Loop<"+ loop->getHeader()->getName() + ">")
     vector<BB*> blockToAdd = {};
@@ -173,10 +181,10 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip, int time) {
     }
 }
 
-void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip, int time) {
-    if(countBBNum(loop) * time > UNROLLING_BB_SIZE)
-        return;
-    if(countInstNum(loop) * time > UNROLLING_INST_SIZE)
+void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip, int time) {  
+    while(time > 1 && ( countBBNum(loop) * time > UNROLLING_BB_SIZE || countInstNum(loop) * time > UNROLLING_INST_SIZE ))
+        time /= 2;
+    if(time <= 1)
         return;
     
     LOG_WARNING("Unroll Partial Loop<"+ loop->getHeader()->getName() + ">")
@@ -485,9 +493,9 @@ void LoopUnroll::removeLoop(Loop *loop) {
 }
 
 void LoopUnroll::unrollDynamicLoop(Loop *loop, LoopTrip trip, int time) {
-    if(countBBNum(loop) * time > UNROLLING_BB_SIZE)
-        return;
-    if(countInstNum(loop) * time > UNROLLING_INST_SIZE)
+    while(time > 1 && ( countBBNum(loop) * time > UNROLLING_BB_SIZE || countInstNum(loop) * time > UNROLLING_INST_SIZE ))
+        time /= 2;
+    if(time <= 1)
         return;
     
     LOG_WARNING("Unroll Dynamic Loop<" + loop->getHeader()->getName() + ">")
@@ -582,6 +590,8 @@ void LoopUnroll::visitLoop(Loop *loop) {
     if(trip.iter < MIN_ITER || trip.iter > MAX_ITER)
         return;
     
+    isComRec = false;
+    isEntireUnroll = false;
     if(trip.step == -1 || trip.step == -2) {
         return;
     } else if(trip.step == -3) {
@@ -590,10 +600,13 @@ void LoopUnroll::visitLoop(Loop *loop) {
         removeLoop(loop);
     } else if(loop->getBlocks().size() == 2 && 
              (loop->getSingleLatch()->getInstructions().size()-1) * trip.step < DIRECT_UNROLLING_SIZE) { 
+        isEntireUnroll = true;
         unrollEntirelLoopInOneBB(loop, trip);
     } else if(trip.step < DIRECT_UNROLLING_TIME) {
+        isEntireUnroll = true;
         unrolEntirelLoop(loop, trip);
     } else if(trip.step % UNROLLING_TIME == 0) {
+        isComRec = true;
         unrollCommonLoop(loop, trip, UNROLLING_TIME);
     } else {
         unrollPartialLoop(loop, trip, UNROLLING_TIME);
