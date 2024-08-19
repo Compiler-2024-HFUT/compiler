@@ -274,7 +274,7 @@ void runimpl(Module*module_,InfoManager*info_man_){
     
     */
     //(8>maxAlignment?8:maxAlignment)
-    ArrayType*newglb_type;
+    ArrayType*newglb_type=ArrayType::get(IntegerType::getInt32Type(),totalSize/4);
     const auto payloadStorage =GlobalVariable::create(getUniqueIDStorage(module_),module_,newglb_type,false,ConstantZero::get(newglb_type));
     Function*cur_func=bodyFunc;
     auto &args=bodyFunc->getArgs();
