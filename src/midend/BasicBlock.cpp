@@ -103,6 +103,11 @@ void BasicBlock::deleteInstr(Instruction *instr) {
 ::std::list<Instruction*>::iterator BasicBlock::insertInstr(::std::list<Instruction*>::iterator instr_iter,Instruction* instr) {
     return instr_list_.insert(instr_iter,instr);
 }
+::std::list<Instruction*>::iterator BasicBlock::insertInstr(Instruction*before_this,Instruction*instr){
+    auto const iter=findInstruction(before_this);
+    assert(iter!=instr_list_.end());
+    return insertInstr(iter,instr);
+}
 
 void BasicBlock::replaceInsWith(Instruction* old_ins,Instruction* new_ins){
     auto iter=findInstruction(old_ins);

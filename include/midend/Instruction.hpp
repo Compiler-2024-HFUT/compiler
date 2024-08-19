@@ -6,6 +6,7 @@
 
 #include "User.hpp"
 #include "Type.hpp"
+#include "midend/Value.hpp"
 
 class Module;
 class BasicBlock;
@@ -64,6 +65,8 @@ public:
       select,
       loadimm,
       bitcast,
+
+      ptradd,
     };
 
 public:
@@ -131,6 +134,13 @@ public:
     inline const BasicBlock *getParent() const { return parent_; }
     inline BasicBlock *getParent() { return parent_; }
     void setParent(BasicBlock *parent) { this->parent_ = parent; }
+
+    bool canbeOperand()   {
+        if(this->getInstrType()==OpID::call) {
+            return !getType()->isVoidType();
+        }
+        return !isTerminator() && op_id_ != OpID::store&&op_id_ != OpID::storeoffset;
+    }
 
     //// Return the function this instruction belongs to.
     Function *getFunction();
@@ -338,7 +348,10 @@ public:
     static CallInst *createCall(Function *func, std::vector<Value *>args, BasicBlock *bb);
     
     FunctionType *getFunctionType() const { return static_cast<FunctionType *>(getOperand(0)->getType()); }
-
+    std::vector<Value*>getArgs(){
+        auto front=getOperands().begin();
+        return {(++front),getOperands().end()};
+    }
     virtual std::string print() override;
 
     Instruction *copyInst(BasicBlock *bb) override final{
@@ -813,6 +826,7 @@ private:
     CastInst(Type*type,Value*val,  BasicBlock *bb);
     CastInst(Type*type,Value*val);
 };
+
 #endif
 
 

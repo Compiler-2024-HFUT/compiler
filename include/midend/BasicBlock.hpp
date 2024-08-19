@@ -57,6 +57,7 @@ public:
     void deleteInstr(Instruction *instr);
     ::std::list<Instruction*>::iterator eraseInstr(::std::list<Instruction*>::iterator instr_iter);
     ::std::list<Instruction*>::iterator insertInstr(::std::list<Instruction*>::iterator instr_iter,Instruction*instr);
+    ::std::list<Instruction*>::iterator insertInstr(Instruction*before_this,Instruction*instr);
 
     __attribute__((always_inline)) std::list<Instruction *>::iterator findInstruction(Instruction *instr){return std::find(instr_list_.begin(), instr_list_.end(), instr);}
     void replaceInsWith(Instruction* old_ins,Instruction* new_ins);
