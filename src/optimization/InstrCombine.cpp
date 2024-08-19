@@ -610,7 +610,7 @@ InstrReduc::InstrReduc(Module *m,InfoManager*im):FunctionPass(m,im),reduc_map_{
     {Instruction::OpID::sub,[this](Instruction* instr)->Instruction* { return reducSub(instr); }},
     {Instruction::OpID::add,[this](Instruction* instr)->Instruction* { return reducAdd(instr); }},
     {Instruction::OpID::mul,[this](Instruction* instr)->Instruction* { return reducMul(instr); }},
-    {Instruction::OpID::sdiv,[this](Instruction* instr)->Instruction* { return reducDiv(instr); }},
+    // {Instruction::OpID::sdiv,[this](Instruction* instr)->Instruction* { return reducDiv(instr); }},
     {Instruction::OpID::lxor,[this](Instruction* instr)->Instruction* { return reducXor(instr); }},
     {Instruction::OpID::land,[this](Instruction* instr)->Instruction* { return reducAnd(instr); }},
     {Instruction::OpID::shl,[this](Instruction* instr)->Instruction* { return reducShl(instr); }},
@@ -618,7 +618,7 @@ InstrReduc::InstrReduc(Module *m,InfoManager*im):FunctionPass(m,im),reduc_map_{
     // {Instruction::OpID::fsub,[this](Instruction* instr)->Instruction* { return combineFSub(instr); }},
     {Instruction::OpID::fadd,[this](Instruction* instr)->Instruction* { return reducFAdd(instr); }},
     {Instruction::OpID::fmul,[this](Instruction* instr)->Instruction* { return reducFMul(instr); }},
-    {Instruction::OpID::srem,[this](Instruction* instr)->Instruction* { return reducRem(instr); }},
+    // {Instruction::OpID::srem,[this](Instruction* instr)->Instruction* { return reducRem(instr); }},
 
     // {Instruction::OpID::lsr,[this](Instruction* instr)->Instruction* { return combineMul(instr); }},
     // {Instruction::OpID::fdiv,[this](Instruction* instr)->Instruction* { return combineDiv(instr); }},

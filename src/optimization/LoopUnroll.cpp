@@ -6,6 +6,10 @@
 #include <list>
 using std::list;
 
+// 一般展开是否进行递归
+static bool isComRec = false;
+static bool isEntireUnroll = false;
+
 static int countBBNum(Loop *loop) {
     int sum = loop->getBlocks().size();
     return ( sum > 1 ? sum : 1 );
@@ -21,12 +25,16 @@ static int countInstNum(Loop *loop) {
 }
 
 void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip, int time) {
-    if(countBBNum(loop) * time > UNROLLING_BB_SIZE)
-        return;
-    if(countInstNum(loop) * time > UNROLLING_INST_SIZE)
-        return;
+    if(!isEntireUnroll) {
+        if(isComRec) {
+            while(time > 1 && ( countBBNum(loop) * time > UNROLLING_BB_SIZE || countInstNum(loop) * time > UNROLLING_INST_SIZE ))
+                time /= 2;
+            if(time <= 1)
+                return;
+        }
+    }
     
-    LOG_WARNING("Unrolling Common Loop")
+    LOG_WARNING("Unroll Common Loop<"+ loop->getHeader()->getName() + ">")
     vector<BB*> blockToAdd = {};
 
     BB *header = loop->getHeader();
@@ -173,13 +181,13 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip, int time) {
     }
 }
 
-void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip, int time) {
-    if(countBBNum(loop) * time > UNROLLING_BB_SIZE)
-        return;
-    if(countInstNum(loop) * time > UNROLLING_INST_SIZE)
+void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip, int time) {  
+    while(time > 1 && ( countBBNum(loop) * time > UNROLLING_BB_SIZE || countInstNum(loop) * time > UNROLLING_INST_SIZE ))
+        time /= 2;
+    if(time <= 1)
         return;
     
-    LOG_WARNING("Unroll Partial Loop")
+    LOG_WARNING("Unroll Partial Loop<"+ loop->getHeader()->getName() + ">")
     Loop *newLoop = loop->copyLoop();
     unrollCommonLoop(loop, trip, time);
     
@@ -254,13 +262,18 @@ void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip, int time) {
     }
 }
 
-
 // 循环次数小于DIRECT_UNROLLING_TIME的循环
 // 删除header和loop
 //    preheader->header->start->...->end->exit
 // -> preheader->start->...->end->exit
-void LoopUnroll::unrolEntirelLoop(Loop *loop, LoopTrip trip) {
-    LOG_WARNING("Unroll Entire Loop")
+void LoopUnroll::unrolEntirelLoop(Loop *loop, LoopTrip trip) { 
+    if(countBBNum(loop) * trip.step > UNROLLING_BB_SIZE)
+        return;
+    if(countInstNum(loop) * trip.step > UNROLLING_INST_SIZE)
+        return;
+
+    LOG_WARNING("Unroll Entire Loop<" + loop->getHeader()->getName() + ">")
+
     unrollCommonLoop(loop, trip, trip.step);
 
     BB *blockStart;
@@ -312,13 +325,14 @@ void LoopUnroll::unrolEntirelLoop(Loop *loop, LoopTrip trip) {
     for(Instruction *inst : loop->getHeader()->getInstructions()) {
         inst->removeUseOfOps();
     }
+    loop->removeBlock(loop->getHeader());
     loop->getHeader()->eraseFromParent();
     info_man_->getInfo<LoopInfo>()->removeLoop(loop);
 }
 
 // 只合并单块(必为latch、唯一入口为header、terminator是无条件跳转)
 void LoopUnroll::unrollEntirelLoopInOneBB(Loop *loop, LoopTrip trip) {
-    LOG_WARNING("Unroll Entirel Loop In One BB")
+    LOG_WARNING("Unroll Entire Loop In One BB<"+ loop->getHeader()->getName() + ">")
     BB *loopBlock = loop->getSingleLatch();
     // todo: remove vector
     umap<Instruction*, vector<Instruction*> > iterValMap = {};
@@ -443,6 +457,7 @@ void LoopUnroll::unrollEntirelLoopInOneBB(Loop *loop, LoopTrip trip) {
     for(Instruction *inst : loop->getHeader()->getInstructions()) {
         inst->removeUseOfOps();
     }
+    loop->removeBlock(loop->getHeader());
     loop->getHeader()->eraseFromParent();
     info_man_->getInfo<LoopInfo>()->removeLoop(loop);
 }
@@ -478,12 +493,12 @@ void LoopUnroll::removeLoop(Loop *loop) {
 }
 
 void LoopUnroll::unrollDynamicLoop(Loop *loop, LoopTrip trip, int time) {
-    if(countBBNum(loop) * time > UNROLLING_BB_SIZE)
-        return;
-    if(countInstNum(loop) * time > UNROLLING_INST_SIZE)
+    while(time > 1 && ( countBBNum(loop) * time > UNROLLING_BB_SIZE || countInstNum(loop) * time > UNROLLING_INST_SIZE ))
+        time /= 2;
+    if(time <= 1)
         return;
     
-    LOG_WARNING("Unroll Dynamic Loop")
+    LOG_WARNING("Unroll Dynamic Loop<" + loop->getHeader()->getName() + ">")
     
     Loop *newLoop = loop->copyLoop();
     unrollCommonLoop(loop, trip, time);
@@ -555,13 +570,17 @@ void LoopUnroll::visitLoop(Loop *loop) {
     if(UNROLLING_TIME == 1)
         return;
 
-    for(Loop *inner : loop->getInners()) {
-        visitLoop(inner);
-    }
-
     SCEV *scev = info_man_->getInfo<SCEV>();
     LoopTrip trip = loop->computeTrip(scev);
     LOG_WARNING(trip.print())
+
+    if(trip.step == 1) 
+        return;
+    
+    vector<Loop*> inners = loop->getInners();
+    for(Loop *inner : inners) {
+        visitLoop(inner);
+    }
 
     // 暂不考虑break和多重循环
     if(loop->getExits().size() > 1 || 
@@ -571,6 +590,8 @@ void LoopUnroll::visitLoop(Loop *loop) {
     if(trip.iter < MIN_ITER || trip.iter > MAX_ITER)
         return;
     
+    isComRec = false;
+    isEntireUnroll = false;
     if(trip.step == -1 || trip.step == -2) {
         return;
     } else if(trip.step == -3) {
@@ -579,10 +600,13 @@ void LoopUnroll::visitLoop(Loop *loop) {
         removeLoop(loop);
     } else if(loop->getBlocks().size() == 2 && 
              (loop->getSingleLatch()->getInstructions().size()-1) * trip.step < DIRECT_UNROLLING_SIZE) { 
-         unrollEntirelLoopInOneBB(loop, trip);
+        isEntireUnroll = true;
+        unrollEntirelLoopInOneBB(loop, trip);
     } else if(trip.step < DIRECT_UNROLLING_TIME) {
+        isEntireUnroll = true;
         unrolEntirelLoop(loop, trip);
     } else if(trip.step % UNROLLING_TIME == 0) {
+        isComRec = true;
         unrollCommonLoop(loop, trip, UNROLLING_TIME);
     } else {
         unrollPartialLoop(loop, trip, UNROLLING_TIME);
