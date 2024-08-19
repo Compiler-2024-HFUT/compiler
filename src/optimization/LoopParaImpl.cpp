@@ -19,15 +19,15 @@ bool LoopParallel::runImpl(Function*func){
         if(trip.iter != 1)
             continue;
 
-        ConstantInt *start = dynamic_cast<ConstantInt*>(trip.start);
-        ConstantInt *end = dynamic_cast<ConstantInt*>(trip.end);
-        if(!start || !end)
+        ConstantInt *startc = dynamic_cast<ConstantInt*>(trip.start);
+        ConstantInt *endc = dynamic_cast<ConstantInt*>(trip.end);
+        if(!startc || !endc)
             continue;
 
         // auto initialRange = rangeInfo.query(loop.initial, dom, nullptr, 5);
         // const auto isAligned = (initialRange.knownZeros() & 3) == 3;
         // auto boundRange = rangeInfo.query(loop.bound, dom, nullptr, 5);
-        const auto needSubLoop = (end->getValue() - start->getValue() ) < 400;
+        const auto needSubLoop = (endc->getValue() - startc->getValue() ) < 400;
 
         // 提取循环体
         LoopBodyInfo bodyInfo;
