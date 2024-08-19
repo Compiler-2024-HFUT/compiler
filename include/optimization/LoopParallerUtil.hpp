@@ -384,19 +384,20 @@ void runimpl(Module*module_,InfoManager*info_man_){
     const auto cond = CmpInst::createCmp( CmpOp::LT, next, end,subLoop);
     BranchInst::createCondBr(cond, subLoop, exit,subLoop);
 
-            // builder.setCurrentBlock(exit);
             if(giv && bodyInfo.recUsedByOuter) {
                 const auto ptr = GetElementPtrInst::createGep(payloadStorage,{ ConstantInt::get(0),ConstantInt::get(givOffset->getValue()/4)}, exit);
                 if(giv->getType()==i32) {
                     // if(module_.getTarget().isNativeSupported(InstructionID::AtomicAdd)) {
-                    //     builder.makeOp<AtomicAddInst>(ptr, bodyExec);
+                    //      builder.makeOp<AtomicAddInst>(ptr, bodyExec);
+                    AtomicAddInst::createAtomicAddInst(ptr, bodyExec, exit);
                     // } else {
                     //     Function* reduceAddI32 = lookupReduceAddI32(mod);
                     //     builder.makeOp<FunctionCallInst>(reduceAddI32, std::vector<Value*>{ ptr, bodyExec });
                     // }
                 } else if(giv->getType()==f32) {
-                    // Function* reduceAddF32 = lookupReduceAddF32(mod);
+                    Function* reduceAddF32 = getReduceAddF32(mod); // ??
                     // builder.makeOp<FunctionCallInst>(reduceAddF32, std::vector<Value*>{ ptr, bodyExec });
+                    CallInst::createCall(reduceAddF32, {ptr, bodyExec}, exit);
                 } else
                     assert(0);
             }
@@ -410,11 +411,13 @@ void runimpl(Module*module_,InfoManager*info_man_){
                 StoreInst::createStore( bodyInfo.rec,givPtr,bodyInfo.rec->getParent());
                 popback_insertbefore(bodyInfo.rec,bodyInfo.rec->getParent());
             }
-            // for(auto [k, v] : payload) {
-            //     const auto ptr = builder.makeOp<PtrAddInst>(payloadStorage, ConstantInteger::get(i32, static_cast<intmax_t>(v)),
-            //                                                 PointerType::get(k->getType()));
-            //     builder.makeOp<StoreInst>(ptr, k);
-            // }
+            for(auto [k, v] : payload) {
+                // ??
+                // const auto ptr = GetElementPtrInst::createGep(payloadStorage, ConstantInt::get(i32, static_cast<intmax_t>(v)),
+                //                                             PointerType::get(k->getType()));
+                // 
+                // builder.makeOp<StoreInst>(ptr, k);
+            }
 
             // builder.makeOp<FunctionCallInst>(
             //     parallelFor,
