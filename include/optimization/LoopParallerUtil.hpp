@@ -395,7 +395,7 @@ void runimpl(Module*module_,InfoManager*info_man_){
                     //     builder.makeOp<FunctionCallInst>(reduceAddI32, std::vector<Value*>{ ptr, bodyExec });
                     // }
                 } else if(giv->getType()==f32) {
-                    Function* reduceAddF32 = getReduceAddF32(mod); // ??
+                    Function* reduceAddF32 = getReduceAddF32(module_); // ??
                     // builder.makeOp<FunctionCallInst>(reduceAddF32, std::vector<Value*>{ ptr, bodyExec });
                     CallInst::createCall(reduceAddF32, {ptr, bodyExec}, exit);
                 } else
@@ -413,6 +413,12 @@ void runimpl(Module*module_,InfoManager*info_man_){
             }
             for(auto [k, v] : payload) {
                 // ??
+                const auto ptr = GetElementPtrInst::createGep(payloadStorage, { ConstantInt::get(0),ConstantInt::get(static_cast<int>(v/4))},bodyInfo.recNext->getParent());
+                                                    // PointerType::get(k->getType()));
+                popback_insertbefore(bodyInfo.recNext,bodyInfo.recNext->getParent());
+
+                StoreInst::createStore(k,ptr,bodyInfo.recNext->getParent());
+                popback_insertbefore(bodyInfo.recNext,bodyInfo.recNext->getParent());
                 // const auto ptr = GetElementPtrInst::createGep(payloadStorage, ConstantInt::get(i32, static_cast<intmax_t>(v)),
                 //                                             PointerType::get(k->getType()));
                 // 
