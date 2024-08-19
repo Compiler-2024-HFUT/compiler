@@ -71,7 +71,6 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<CombinBB>();
     pm.addPass<Mem2Reg>();
     pm.addPass<DeadPHIEli>();
-    pm.addPass<GCM>();
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
     pm.addPass<InstrCombine>();
@@ -81,6 +80,7 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<InstrResolve>();
     pm.addPass<DCE>();
     pm.addPass<DFE>();
+    pm.addPass<GCM>();
 
     //loop pass
     pm.addPass<LoopSimplified>();
