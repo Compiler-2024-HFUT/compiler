@@ -1,23 +1,49 @@
 #include "analysis/Info.hpp"
 #include "analysis/LoopInfo.hpp"
+#include "analysis/SCEV.hpp"
 #include "midend/Function.hpp"
 #include "optimization/LoopParallel.hpp"
 #include "optimization/LoopParallerUtil.hpp"
 
 bool LoopParallel::runImpl(Function*func){
+    vector<Loop*> loops = info_man_->getInfo<LoopInfo>()->getLoops(func);
+    Dominators *dom = info_man_->getInfo<Dominators>();
+    SCEV *scev = info_man_->getInfo<SCEV>();
+    --std::sort(loops.begin(), loops.end(),
+              [&](Loop& lhs, Loop& rhs) { return dom.getIndex(lhs.header) < dom.getIndex(rhs.header); });
 
-    // auto initialRange = rangeInfo.query(loop.initial, dom, nullptr, 5);
-    // const auto isAligned = (initialRange.knownZeros() & 3) == 3;
-    // auto boundRange = rangeInfo.query(loop.bound, dom, nullptr, 5);
-    // const auto needSubLoop = (boundRange - initialRange).maxSignedValue() < 400;
+    bool modified = false;
+    for(auto& loop : loops) {
+        LoopTrip trip = loop->computeTrip(scev);
+        if(trip.iter != 1)
+            continue;
 
+        ConstantInt *start = dynamic_cast<ConstantInt*>(trip.start);
+        ConstantInt *end = dynamic_cast<ConstantInt*>(trip.end);
+        if(!start || !end)
+            continue;
 
+        // auto initialRange = rangeInfo.query(loop.initial, dom, nullptr, 5);
+        // const auto isAligned = (initialRange.knownZeros() & 3) == 3;
+        // auto boundRange = rangeInfo.query(loop.bound, dom, nullptr, 5);
+        const auto needSubLoop = (end->getValue() - start->getValue() ) < 400;
 
-
+        // 提取循环体
+        LoopBodyInfo bodyInfo;
+        if(!extractLoopBody(func, loop, module_,
+                            /*independent*/ true,
+                            /*allow innermost*/ true,
+                            /*allow innerloop*/ true,
+                            /*only addrec*/ true,
+                            /*estimate block size*/ false,
+                            /*need sub-loop*/ needSubLoop,
+                            /*convert reduce to atomic*/ true,
+                            /*duplicate cmp*/ true,
+                            /*ret*/ &bodyInfo))
+            continue;
     ///******************extractLoopBody()******************************///
     Function*const parallelFor=getParallelFor(module_);
 
-    LoopBodyInfo bodyInfo;
     bodyInfo.indvar->removePhiPairOperand(bodyInfo.loop);
     if(bodyInfo.rec)
         bodyInfo.rec->removePhiPairOperand(bodyInfo.loop);
@@ -251,7 +277,10 @@ bool LoopParallel::runImpl(Function*func){
             // builder.setCurrentBlock(bodyInfo.loop);
             // builder.makeOp<BranchInst>(bodyInfo.exit);
             BranchInst::createBr(bodyInfo.exit, bodyInfo.loop);
-    return true;
+    modified = true;
+    break;
+    }
+    return modified;
 };
 Modify LoopParallel::runOnFunc(Function*func){
         if(func->isDeclaration())
