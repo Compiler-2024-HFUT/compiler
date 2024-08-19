@@ -414,3 +414,21 @@ LoadFImm* Sequence::createLoadFImm(FReg* frd, FConst* f_val){
     insts.push_back(inst);
     return inst;   
 }
+
+Fmv_w_x* Sequence::createFmv_w_x (FReg* freg, GReg* g_val){
+    auto inst = new Fmv_w_x(freg, g_val, this);
+    insts.push_back(inst);
+    return inst;   
+}
+
+Fmv_x_w* Sequence::createFmv_x_w(GReg* greg, FReg* f_val){
+    auto inst = new Fmv_x_w(greg, f_val, this);
+    insts.push_back(inst);
+    return inst;   
+}
+
+AtomicAdd* Sequence::createAtomicAdd(GReg* rd, GReg* rs1, GReg* rs2){
+    auto inst = new AtomicAdd(rd, rs1, rs2, this);
+    insts.push_back(inst);
+    return inst;   
+}

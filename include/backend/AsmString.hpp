@@ -43,5 +43,6 @@ class AsmString{
 #define CALL(label) (AsmString::space+"call"+AsmString::space+(label)->print()+AsmString::newline)
 //fcvt.w.s
 #define FCVTWS(op, rd, rs1) (AsmString::space + (op) + AsmString::space + (rd)->print() + AsmString::comma +  (rs1)->print() + ", rtz"+AsmString::newline)
-
+//amoadd.w rd, rs2, (rs1)
+#define AMOADD(op, rd, rs2, rs1) (AsmString::space + (op) + AsmString::space + (rd)->print() + AsmString::comma + (rs2)->print() +AsmString::comma+"("+ (rs1)->print()+")" +AsmString::newline) 
 #endif

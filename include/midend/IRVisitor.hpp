@@ -30,6 +30,8 @@ class IRVisitor{
         virtual void visit(LoadOffsetInst &node) = 0;
         virtual void visit(StoreOffsetInst &node) = 0;
         virtual void visit(LoadImmInst &node) = 0;
+        virtual void visit(CastInst &node) = 0;
+        virtual void visit(AtomicAddInst &node) = 0;
 
 };
 

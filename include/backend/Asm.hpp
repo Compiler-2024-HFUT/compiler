@@ -267,6 +267,9 @@ class PhiPass;
 class Sh2Add;
 class LoadIImm;
 class LoadFImm;
+class Fmv_x_w;
+class Fmv_w_x;
+class AtomicAdd;
 
 
 
@@ -371,6 +374,11 @@ class Sequence{
         Sh2Add* createSh2Add(GReg* rd,GReg* rs1,GReg* rs2);
         LoadIImm* createLoadIImm(GReg* grd, IConst* i_val);
         LoadFImm* createLoadFImm(FReg* frd, FConst* f_val);
+        Fmv_w_x* createFmv_w_x(FReg* freg, GReg* g_val);
+        Fmv_x_w* createFmv_x_w(GReg* greg, FReg* f_val);
+        AtomicAdd* createAtomicAdd(GReg* rd, GReg* rs1, GReg* rs2);
+
+        
 
     private:
         BasicBlock* bb;
@@ -529,7 +537,10 @@ class AsmInst{
             //性能优化指令
             sh2add,  //加速地址计算
             loadiimm,
-            loadfimm
+            loadfimm,
+            fmv_w_x,
+            fmv_x_w,
+            atomic_add
 
         };
     public:
@@ -1424,4 +1435,38 @@ class LoadFImm: public AsmInst{
 
 };
 
+class Fmv_w_x: public AsmInst{
+    public:
+        Fmv_w_x(FReg* frd, GReg* g_val, Sequence* seq)
+        :frd(frd), g_val(g_val), AsmInst(Op::fmv_w_x, seq){}
+        ::std::string print() final;
+
+    private:
+        FReg* frd;
+        GReg* g_val;
+};
+
+
+class Fmv_x_w: public AsmInst{
+    public:
+        Fmv_x_w(GReg* grd, FReg* f_val, Sequence* seq)
+        :grd(grd), f_val(f_val), AsmInst(Op::fmv_x_w, seq){}
+        ::std::string print() final;
+
+    private:
+        GReg* grd;
+        FReg* f_val;
+};
+
+class AtomicAdd: public AsmInst{
+    public:
+        AtomicAdd(GReg* rd, GReg* rs1, GReg* rs2, Sequence* seq)
+        :rd(rd), rs1(rs1), rs2(rs2), AsmInst(Op::atomic_add, seq){}
+        ::std::string print() final;
+
+    private:
+        GReg* rd;
+        GReg* rs1;
+        GReg* rs2;
+};
 #endif

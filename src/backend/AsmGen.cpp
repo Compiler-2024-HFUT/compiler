@@ -343,115 +343,8 @@ void AsmGen::visit(BasicBlock &node){
     for(auto &inst: sequence->getBBOfSeq()->getInstructions()) {
         if(inst->isTerminator()) {
             //处理尾指令
-            //********************************装载临时寄存器到指令********************
-                if(!inst->isAlloca() && !inst->isPhi()){
-        
-
-    std::set<int> record_iregs;
-    std::set<int> load_iregs;
-    std::set<int> record_fregs;
-    std::set<int> load_fregs;
-
-    std::vector<std::pair<IRA*, IRIA*>> resault_iregs;
-    std::vector<std::pair<FRA*, IRIA*>> resault_fregs;
-    
-
-    loadITmpReg(inst, &load_iregs, &record_iregs);
-    loadFTmpReg(inst, &load_fregs, &record_fregs);
-
-    if(!inst->isVoid()) {
-        if(inst->getType()->isFloatType()) {
-
-            recordFReg(inst, &record_fregs);
-        } else {
-
-            recordIReg(inst, &record_iregs);
-        }
-    }
-
-    for(auto ld_reg: load_iregs) {        
-        resault_iregs.push_back(std::make_pair(new IRA(ld_reg), tmp_iregs_loc[ld_reg]));
-    }
-
-    for(auto ld_reg: load_fregs) {
-        resault_fregs.push_back(std::make_pair(new FRA(ld_reg), tmp_fregs_loc[ld_reg]));
-    }
-
-    if(! resault_iregs.empty())
-        sequence->createLoadTmpRegs(resault_iregs);
-    
-    if(! resault_fregs.empty())
-        sequence->createLoadTmpRegs(resault_fregs);
-
-    for(auto del_reg: record_iregs) {
-        auto del_loc = tmp_iregs_loc[del_reg];
-        free_locs_for_tmp_regs_saved.insert(del_loc);
-        cur_tmp_iregs.erase(del_reg);
-        tmp_iregs_loc.erase(del_reg);
-    }
-
-    for(auto del_reg: record_fregs) {
-        auto del_loc = tmp_fregs_loc[del_reg];
-        free_locs_for_tmp_regs_saved.insert(del_loc);
-        cur_tmp_fregs.erase(del_reg);
-        tmp_fregs_loc.erase(del_reg);
-    }
-}
-            //********************************装载临时寄存器到指令********************        
-            if(inst->isRet()) {
-                inst->accept(*this);
-            } else {
-                //*****************************处理phi**********************
-            if(dynamic_cast<CmpBrInst*>(inst)){
-                auto c_inst = dynamic_cast<CmpBrInst*>(inst);
-                initPhi();
-                succ_bb = dynamic_cast<BasicBlock*>(c_inst->getOperand(2));
-                fail_bb = dynamic_cast<BasicBlock*>(c_inst->getOperand(3));
-                process();
-                handleCmpbr(c_inst);
-                if(succ_move_inst)  sequence->appendInst(succ_move_inst);
-                if(succ_br_inst)    sequence->appendInst(succ_br_inst);
-                if(fail_move_inst)  sequence->appendInst(fail_move_inst);
-                if(fail_br_inst)    sequence->appendInst(fail_br_inst);
-            }
-            else if(dynamic_cast<FCmpBrInst*>(inst)){
-                auto fc_inst = dynamic_cast<FCmpBrInst*>(inst);
-                initPhi();
-                succ_bb = dynamic_cast<BasicBlock*>(fc_inst->getOperand(2));
-                fail_bb = dynamic_cast<BasicBlock*>(fc_inst->getOperand(3));
-                process();
-                handleFCmpbr(fc_inst);
-                if(succ_move_inst)  sequence->appendInst(succ_move_inst);
-                if(succ_br_inst)    sequence->appendInst(succ_br_inst);
-                if(fail_move_inst)  sequence->appendInst(fail_move_inst);
-                if(fail_br_inst)    sequence->appendInst(fail_br_inst);
-            }
-            else{
-                auto br = dynamic_cast<BranchInst*>(inst); 
-                initPhi();
-                if(br->getNumOperands() == 1) {
-                    succ_bb = dynamic_cast<BasicBlock*>(br->getOperand(0));
-                } else {
-                    succ_bb = dynamic_cast<BasicBlock*>(br->getOperand(1));
-                    fail_bb = dynamic_cast<BasicBlock*>(br->getOperand(2));
-                }
-                process();
-                handleBr(br);
-                if(br->getNumOperands() == 1) {
-                    if(succ_move_inst)  sequence->appendInst(succ_move_inst);
-                    if(succ_br_inst)    sequence->appendInst(succ_br_inst);
-        
-                } else {
-                    if(succ_br_inst)    sequence->appendInst(succ_br_inst);
-                    if(fail_move_inst)  sequence->appendInst(fail_move_inst);
-                    if(fail_br_inst)    sequence->appendInst(fail_br_inst);
-                }
-        
-            }
-               // phi_union(br_inst);
-        
-                //*****************************处理phi**********************
-            }
+        br_inst = inst;
+        break;
         }
 
  
@@ -854,6 +747,115 @@ void AsmGen::visit(BasicBlock &node){
             //**********************************存储临时寄存器的值到栈中***********************
         } 
 }
+            //********************************装载临时寄存器到指令********************
+                if(!br_inst->isAlloca() && !br_inst->isPhi()){
+        
+
+    std::set<int> record_iregs;
+    std::set<int> load_iregs;
+    std::set<int> record_fregs;
+    std::set<int> load_fregs;
+
+    std::vector<std::pair<IRA*, IRIA*>> resault_iregs;
+    std::vector<std::pair<FRA*, IRIA*>> resault_fregs;
+    
+
+    loadITmpReg(br_inst, &load_iregs, &record_iregs);
+    loadFTmpReg(br_inst, &load_fregs, &record_fregs);
+
+    if(!br_inst->isVoid()) {
+        if(br_inst->getType()->isFloatType()) {
+
+            recordFReg(br_inst, &record_fregs);
+        } else {
+
+            recordIReg(br_inst, &record_iregs);
+        }
+    }
+
+    for(auto ld_reg: load_iregs) {        
+        resault_iregs.push_back(std::make_pair(new IRA(ld_reg), tmp_iregs_loc[ld_reg]));
+    }
+
+    for(auto ld_reg: load_fregs) {
+        resault_fregs.push_back(std::make_pair(new FRA(ld_reg), tmp_fregs_loc[ld_reg]));
+    }
+
+    if(! resault_iregs.empty())
+        sequence->createLoadTmpRegs(resault_iregs);
+    
+    if(! resault_fregs.empty())
+        sequence->createLoadTmpRegs(resault_fregs);
+
+    for(auto del_reg: record_iregs) {
+        auto del_loc = tmp_iregs_loc[del_reg];
+        free_locs_for_tmp_regs_saved.insert(del_loc);
+        cur_tmp_iregs.erase(del_reg);
+        tmp_iregs_loc.erase(del_reg);
+    }
+
+    for(auto del_reg: record_fregs) {
+        auto del_loc = tmp_fregs_loc[del_reg];
+        free_locs_for_tmp_regs_saved.insert(del_loc);
+        cur_tmp_fregs.erase(del_reg);
+        tmp_fregs_loc.erase(del_reg);
+    }
+}
+            //********************************装载临时寄存器到指令********************        
+            if(br_inst->isRet()) {
+                br_inst->accept(*this);
+            } else {
+                //*****************************处理phi**********************
+            if(dynamic_cast<CmpBrInst*>(br_inst)){
+                auto c_inst = dynamic_cast<CmpBrInst*>(br_inst);
+                initPhi();
+                succ_bb = dynamic_cast<BasicBlock*>(c_inst->getOperand(2));
+                fail_bb = dynamic_cast<BasicBlock*>(c_inst->getOperand(3));
+                process();
+                handleCmpbr(c_inst);
+                if(succ_move_inst)  sequence->appendInst(succ_move_inst);
+                if(succ_br_inst)    sequence->appendInst(succ_br_inst);
+                if(fail_move_inst)  sequence->appendInst(fail_move_inst);
+                if(fail_br_inst)    sequence->appendInst(fail_br_inst);
+            }
+            else if(dynamic_cast<FCmpBrInst*>(br_inst)){
+                auto fc_inst = dynamic_cast<FCmpBrInst*>(br_inst);
+                initPhi();
+                succ_bb = dynamic_cast<BasicBlock*>(fc_inst->getOperand(2));
+                fail_bb = dynamic_cast<BasicBlock*>(fc_inst->getOperand(3));
+                process();
+                handleFCmpbr(fc_inst);
+                if(succ_move_inst)  sequence->appendInst(succ_move_inst);
+                if(succ_br_inst)    sequence->appendInst(succ_br_inst);
+                if(fail_move_inst)  sequence->appendInst(fail_move_inst);
+                if(fail_br_inst)    sequence->appendInst(fail_br_inst);
+            }
+            else{
+                auto br = dynamic_cast<BranchInst*>(br_inst); 
+                initPhi();
+                if(br->getNumOperands() == 1) {
+                    succ_bb = dynamic_cast<BasicBlock*>(br->getOperand(0));
+                } else {
+                    succ_bb = dynamic_cast<BasicBlock*>(br->getOperand(1));
+                    fail_bb = dynamic_cast<BasicBlock*>(br->getOperand(2));
+                }
+                process();
+                handleBr(br);
+                if(br->getNumOperands() == 1) {
+                    if(succ_move_inst)  sequence->appendInst(succ_move_inst);
+                    if(succ_br_inst)    sequence->appendInst(succ_br_inst);
+        
+                } else {
+                    if(succ_br_inst)    sequence->appendInst(succ_br_inst);
+                    if(fail_move_inst)  sequence->appendInst(fail_move_inst);
+                    if(fail_br_inst)    sequence->appendInst(fail_br_inst);
+                }
+        
+            }
+               // phi_union(br_inst);
+        
+                //*****************************处理phi**********************
+            }
 
 }
 
@@ -1234,6 +1236,34 @@ void AsmGen::visit(LoadImmInst &node){
         sequence->createLoadFImm(frd, f_const);
     }
 }
+
+//使用浮点移动指令，用来在整数寄存器和浮点寄存器之间传输数据，不改变数据的位模式。
+//FMV.X.W指令将一个单精度浮点数从浮点寄存器移动到整数寄存器。
+//FMV.W.X指令将一个32位整数从整数寄存器移动到浮点寄存器。
+void AsmGen::visit(CastInst &node){
+    auto inst = &node;
+    auto type = inst->getOperand(0)->getType()->isFloatType();
+    //freg--->ireg
+    if(type){
+        auto g_rd = getGRD(inst);
+        auto f_rs = dynamic_cast<FReg*>(getFRS1(inst));
+        sequence->createFmv_x_w(g_rd, f_rs);
+    }
+    //ireg--->freg
+    else{
+        auto f_rd = getFRD(inst);
+        auto g_rs = dynamic_cast<GReg*>(getIRS1(inst));
+        sequence->createFmv_w_x(f_rd, g_rs);
+    }
+}
+
+ void AsmGen::visit(AtomicAddInst &node){
+    auto inst = &node;
+    auto rd = getGRD(inst);
+    auto rs1 = dynamic_cast<GReg*>(getAllocaReg(inst->getOperand(0)));
+    auto rs2 = dynamic_cast<GReg*>(getAllocaReg(inst->getOperand(1)));
+    sequence->createAtomicAdd(rd, rs1, rs2);
+ }
 
 void AsmGen::visitAdd(BinaryInst* inst){
     auto ird = getGRD(inst);
@@ -2519,6 +2549,7 @@ void AsmGen::getIPass(Instruction* inst, Value* lst_val){
                         if(dynamic_cast<ConstantInt*>(lst_val)) {
                           
                             phi_isrcs.push_back(new IConstPool(dynamic_cast<ConstantInt*>(lst_val)->getValue()));
+                            
                            
                         } else if(ival2interval.find(lst_val)!=ival2interval.end()){
                             if(ival2interval[lst_val]->reg >= 0) {

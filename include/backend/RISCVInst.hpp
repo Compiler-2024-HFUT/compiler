@@ -85,7 +85,9 @@ class RISCVInst{
         //---------------------M_End------------------------
         
         static ::std::string sh2add(GReg *rd, GReg *rs1, GReg *rs2);
-
+        static ::std::string fmv_w_x(FReg *f_rd, GReg *g_val);
+        static ::std::string fmv_x_w(GReg *g_rd, FReg *f_val);
+        static ::std::string atomic_add(GReg *rd, GReg *rs1, GReg *rs2);
 
 
         
