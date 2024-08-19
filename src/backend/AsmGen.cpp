@@ -35,6 +35,10 @@ void AsmGen::visit(Function &node){
     ::std::vector<int> reg_iid_s={};
     ::std::vector<int> reg_fid_s={};
 
+    //搜集使用寄存器信息的，只不过在这里随着搜集定义寄存器信息的扫描后，后面就不用扫描了
+    ::std::vector<int> reg_iid_use_s={};
+    ::std::vector<int> reg_fid_use_s={};
+
     //call表，用于存储上一个call，以便保存上一个call的返回寄存器
     ::std::vector<Instruction*> call_table ={};
 
@@ -45,14 +49,20 @@ void AsmGen::visit(Function &node){
     auto farg_vector = func->getFArgs();
     for(int p = 0; p<iarg_num; p++){
      auto check = ival2interval.find(iarg_vector[p]);
-     if(check!=ival2interval.end())
-         reg_iid_s.push_back(ival2interval[iarg_vector[p]]->reg);
+     if(check!=ival2interval.end()){
+        reg_iid_s.push_back(ival2interval[iarg_vector[p]]->reg);
+        reg_iid_use_s.push_back(ival2interval[iarg_vector[p]]->reg);
+     }
+         
     }
  
     for(int p = 0; p<farg_num; p++){
      auto check = fval2interval.find(farg_vector[p]);
-     if(check!=fval2interval.end())
-         reg_fid_s.push_back(fval2interval[farg_vector[p]]->reg);
+     if(check!=fval2interval.end()){
+        reg_fid_s.push_back(fval2interval[farg_vector[p]]->reg);
+        reg_fid_use_s.push_back(fval2interval[farg_vector[p]]->reg);
+     }
+         
     }
  
     //记录上条call指令传递结果的寄存器、gep指令的mov的目的寄存器以及该call指令前面指令的目的寄存器
@@ -67,12 +77,14 @@ void AsmGen::visit(Function &node){
                          if(fval2interval.find(pre_call_inst)!=fval2interval.end() && fval2interval[pre_call_inst]){
                              int freg = fval2interval[pre_call_inst]->reg;
                              reg_fid_s.push_back(freg);
+                             reg_fid_use_s.push_back(freg);
                          }
                      }
                      else{
                          if(ival2interval.find(pre_call_inst)!=ival2interval.end() && ival2interval[pre_call_inst]){
                               int ireg = ival2interval[pre_call_inst]->reg;
                              reg_iid_s.push_back(ireg);
+                             reg_iid_use_s.push_back(ireg);
                          }
                      }
                  }
@@ -97,6 +109,7 @@ void AsmGen::visit(Function &node){
                      auto check = ival2interval.find(iargs[i]);
                      if(check!=ival2interval.end()){
                          para_reg_iids.push_back(ival2interval[iargs[i]]->reg);
+                         reg_iid_use_s.push_back(ival2interval[iargs[i]]->reg);
                      }
                  }
  
@@ -104,6 +117,7 @@ void AsmGen::visit(Function &node){
                      auto check = fval2interval.find(fargs[i]);
                      if(check!=fval2interval.end()){
                          para_reg_fids.push_back(fval2interval[fargs[i]]->reg);
+                         reg_fid_use_s.push_back(fval2interval[fargs[i]]->reg);
                      }
                  }
  
@@ -126,16 +140,22 @@ void AsmGen::visit(Function &node){
                     auto f_interval = fval2interval.find(base);
                     if(f_interval!=fval2interval.end()){
                         int freg_id_inst = static_cast<int>(f_interval->second->reg);
-                        if(freg_id_inst >-1 && freg_id_inst <32)
+                        if(freg_id_inst >-1 && freg_id_inst <32){
                             reg_fid_s.push_back(freg_id_inst);
+                            reg_fid_use_s.push_back(freg_id_inst);
+                        }
+                            
                     }
                 }
                 else{
                     auto i_interval = ival2interval.find(base);
                     if(i_interval!=ival2interval.end()){
                         int ireg_id_inst = static_cast<int>(i_interval->second->reg);
-                        if(ireg_id_inst >-1 && ireg_id_inst <32)
+                        if(ireg_id_inst >-1 && ireg_id_inst <32){
                             reg_iid_s.push_back(ireg_id_inst);
+                            reg_iid_use_s.push_back(ireg_id_inst);
+                        }
+                            
                     }
                 }
               } 
@@ -144,16 +164,22 @@ void AsmGen::visit(Function &node){
                     auto f_interval = fval2interval.find(inst);
                     if(f_interval!=fval2interval.end()){
                         int freg_id_inst = static_cast<int>(f_interval->second->reg);
-                        if(freg_id_inst >-1 && freg_id_inst <32)
+                        if(freg_id_inst >-1 && freg_id_inst <32){
                             reg_fid_s.push_back(freg_id_inst);
+                            reg_fid_use_s.push_back(freg_id_inst);
+                        }
+                            
                     }
                 }
                 else{
                     auto i_interval = ival2interval.find(inst);
                     if(i_interval!=ival2interval.end()){
                         int ireg_id_inst = static_cast<int>(i_interval->second->reg);
-                        if(ireg_id_inst >-1 && ireg_id_inst <32)
-                            reg_iid_s.push_back(ireg_id_inst);
+                        if(ireg_id_inst >-1 && ireg_id_inst <32){
+                             reg_iid_s.push_back(ireg_id_inst);
+                             reg_iid_use_s.push_back(ireg_id_inst);
+                        }
+                           
                     }
                 }
          }
@@ -187,6 +213,1030 @@ void AsmGen::visit(Function &node){
         }
     }
     //******************************选择某call指令前使用到的寄存器，以便与后面的保存现场和恢复现场配合，减少访存指令******************************
+
+    //******************************选择某call指令后使用到的寄存器，以便与后面的保存现场和恢复现场配合，减少访存指令******************************
+    //正向扫描
+    ::std::vector<Instruction*> call_use_table;
+    for(auto bb_: func->getBasicBlocks()){
+        for(auto inst_: bb_->getInstructions()){
+            if(inst_->isCall()){
+                if(call_use_table.size()>0){
+                    auto pre_call_inst = call_use_table.back();
+                    call_use_ireg_map[pre_call_inst] = reg_iid_use_s;
+                    call_use_freg_map[pre_call_inst] = reg_fid_use_s;
+                }
+                call_use_table.push_back(inst_);
+            }
+            else{
+                if(inst_->getNumOperands()>0){
+                    getUseRegs(inst_, &reg_iid_use_s, &reg_fid_use_s);
+                }
+                if(inst_->isTerminator() && !inst_->isRet()){
+
+
+                    
+                    if(dynamic_cast<CmpBrInst*>(inst_)){
+                        auto c_inst = dynamic_cast<CmpBrInst*>(inst_);
+                            restore_ireg_s.clear();
+    restore_freg_s.clear();
+    succ_move_inst = nullptr;
+    fail_move_inst = nullptr;
+    move_inst = nullptr;
+
+    succ_br_inst = nullptr;
+    fail_br_inst = nullptr;
+    
+
+    succ_bb = nullptr;
+    fail_bb = nullptr;
+
+    ireg2loc.clear();
+    freg2loc.clear();
+
+    
+    have_succ_move = false;
+    have_fail_move = false;
+
+
+
+
+    for(auto ireg: tmp_iregs_loc) {
+        auto ira = new IRA(ireg.first);
+        restore_ireg_s.push_back(std::make_pair(ira, ireg.second));
+    }
+
+    for(auto freg: tmp_fregs_loc) {
+        auto fra = new FRA(freg.first);
+        restore_freg_s.push_back(std::make_pair(fra, freg.second));
+    }
+
+    tmp_iregs_loc.clear();
+    tmp_fregs_loc.clear();
+    cur_tmp_iregs.clear();
+    cur_tmp_fregs.clear();
+    free_locs_for_tmp_regs_saved.clear();
+    cur_tmp_reg_saved_stack_offset = 0;
+                        succ_bb = dynamic_cast<BasicBlock*>(c_inst->getOperand(2));
+                        fail_bb = dynamic_cast<BasicBlock*>(c_inst->getOperand(3));
+                        std::vector<std::pair<AddressMode*, AddressMode*>> i_address;
+                        std::vector<std::pair<AddressMode*, AddressMode*>> f_address;
+                        for(auto succ: bb_->getSuccBasicBlocks()) {
+                            i_address.clear();
+                            f_address.clear();
+                            phi_isrcs.clear();
+                            phi_fsrcs.clear();
+                            phi_itargets.clear();
+                            phi_ftargets.clear();
+                            bool is_succ_bb;
+                            Value *last_value;
+                            if(succ == succ_bb) {
+                                is_succ_bb = true;
+                                move_inst = &succ_move_inst;
+                            } else {
+                                is_succ_bb = false;
+                                move_inst = &fail_move_inst;
+                            }
+                           
+                            for(auto inst: succ->getInstructions()) {
+                                if(inst->isPhi()){
+                                    last_value = nullptr;
+                            if(inst->getType()->isFloatType()) {
+                                     
+                                dst_ptr = nullptr;
+                                setDFPtr(inst);
+                                for(auto opr: inst->getOperands()) {
+                                if(dynamic_cast<BasicBlock*>(opr)) {
+                                if(dynamic_cast<BasicBlock*>(opr) == bb_) {
+        
+                                if(dynamic_cast<ConstantFP*>(last_value)) {
+                          
+                                    phi_fsrcs.push_back(new FConstPool(dynamic_cast<ConstantFP*>(last_value)->getValue()));
+                           
+                                } else if(fval2interval.find(last_value)!=fval2interval.end()){
+                            if(fval2interval[last_value]->reg >= 0) {
+                                if(freg2loc.find(fval2interval[last_value]->reg) == freg2loc.end()) 
+                                    freg2loc.insert({fval2interval[last_value]->reg, new FRA(fval2interval[last_value]->reg)});
+                             
+                                phi_fsrcs.push_back(freg2loc[fval2interval[last_value]->reg]);
+                           
+                            } else {
+                               
+                                phi_fsrcs.push_back( val2stack[last_value]);
+                          
+                            }
+                        }
+                              phi_ftargets.push_back(dst_ptr);
+                    }
+                    } else {
+                        last_value = opr;
+                    }
+                }
+            } else {
+                                           dst_ptr = nullptr;
+               setDIPtr(inst);
+                for(auto opr: inst->getOperands()) {
+                    if(dynamic_cast<BasicBlock*>(opr)) {
+                        if(dynamic_cast<BasicBlock*>(opr) == bb_) {
+        
+                        if(dynamic_cast<ConstantInt*>(last_value)) {
+                          
+                            phi_isrcs.push_back(new IConstPool(dynamic_cast<ConstantInt*>(last_value)->getValue()));
+                            
+                           
+                        } else if(ival2interval.find(last_value)!=ival2interval.end()){
+                            if(ival2interval[last_value]->reg >= 0) {
+                                if(ireg2loc.find(ival2interval[last_value]->reg) == ireg2loc.end()) 
+                                    ireg2loc.insert({ival2interval[last_value]->reg, new IRA(ival2interval[last_value]->reg)});
+                             
+                                phi_isrcs.push_back(ireg2loc[ival2interval[last_value]->reg]);
+                           
+                            } else {
+                               
+                                phi_isrcs.push_back( val2stack[last_value]);
+                          
+                            }
+                        }
+                              phi_itargets.push_back(dst_ptr);
+                    }
+                    } else {
+                        last_value = opr;
+                    }
+                }
+            }
+            }
+            else{
+                break;
+            }
+            
+
+
+        }
+                            if(!phi_isrcs.empty()) {
+                                mov_value(&i_address, phi_isrcs, phi_itargets, false);
+                            }
+                            if(!phi_fsrcs.empty()) {
+                                mov_value(&f_address, phi_fsrcs, phi_ftargets, true);
+                            }
+                            if(!i_address.empty()){
+                                for(auto i_: i_address){
+                                    auto src = i_.second;
+                                    if(dynamic_cast<IRA*>(src)){
+                                        reg_iid_use_s.push_back(static_cast<int>(dynamic_cast<IRA*>(src)->getReg()));
+                                    }
+                                }
+                            }
+                            if(!f_address.empty()){
+                                 for(auto f_: f_address){
+                                    auto src = f_.second;
+                                    if(dynamic_cast<FRA*>(src)){
+                                        reg_fid_use_s.push_back(static_cast<int>(dynamic_cast<FRA*>(src)->getReg()));
+                                    }
+                                }
+                            }
+                        }
+ 
+                    }
+                    else if(dynamic_cast<FCmpBrInst*>(inst_)){
+                        auto fc_inst = dynamic_cast<FCmpBrInst*>(inst_);
+    restore_ireg_s.clear();
+    restore_freg_s.clear();
+    succ_move_inst = nullptr;
+    fail_move_inst = nullptr;
+    move_inst = nullptr;
+
+    succ_br_inst = nullptr;
+    fail_br_inst = nullptr;
+    
+
+    succ_bb = nullptr;
+    fail_bb = nullptr;
+
+    ireg2loc.clear();
+    freg2loc.clear();
+
+    
+    have_succ_move = false;
+    have_fail_move = false;
+
+
+
+
+    for(auto ireg: tmp_iregs_loc) {
+        auto ira = new IRA(ireg.first);
+        restore_ireg_s.push_back(std::make_pair(ira, ireg.second));
+    }
+
+    for(auto freg: tmp_fregs_loc) {
+        auto fra = new FRA(freg.first);
+        restore_freg_s.push_back(std::make_pair(fra, freg.second));
+    }
+
+    tmp_iregs_loc.clear();
+    tmp_fregs_loc.clear();
+    cur_tmp_iregs.clear();
+    cur_tmp_fregs.clear();
+    free_locs_for_tmp_regs_saved.clear();
+    cur_tmp_reg_saved_stack_offset = 0;
+                        succ_bb = dynamic_cast<BasicBlock*>(fc_inst->getOperand(2));
+                        fail_bb = dynamic_cast<BasicBlock*>(fc_inst->getOperand(3));
+                        std::vector<std::pair<AddressMode*, AddressMode*>> i_address;
+                        std::vector<std::pair<AddressMode*, AddressMode*>> f_address;
+                        for(auto succ: bb_->getSuccBasicBlocks()) {
+                            i_address.clear();
+                            f_address.clear();
+                            phi_isrcs.clear();
+                            phi_fsrcs.clear();
+                            phi_itargets.clear();
+                            phi_ftargets.clear();
+                            bool is_succ_bb;
+                            Value *last_value;
+                            if(succ == succ_bb) {
+                                is_succ_bb = true;
+                                move_inst = &succ_move_inst;
+                            } else {
+                                is_succ_bb = false;
+                                move_inst = &fail_move_inst;
+                            }
+                            for(auto inst: succ->getInstructions()) {
+            
+            if(inst->isPhi()){
+                last_value = nullptr;
+            if(inst->getType()->isFloatType()) {
+                                    
+                dst_ptr = nullptr;
+                setDFPtr(inst);
+                for(auto opr: inst->getOperands()) {
+                    if(dynamic_cast<BasicBlock*>(opr)) {
+                        if(dynamic_cast<BasicBlock*>(opr) == bb_) {
+        
+                        if(dynamic_cast<ConstantFP*>(last_value)) {
+                          
+                            phi_fsrcs.push_back(new FConstPool(dynamic_cast<ConstantFP*>(last_value)->getValue()));
+                           
+                        } else if(fval2interval.find(last_value)!=fval2interval.end()){
+                            if(fval2interval[last_value]->reg >= 0) {
+                                if(freg2loc.find(fval2interval[last_value]->reg) == freg2loc.end()) 
+                                    freg2loc.insert({fval2interval[last_value]->reg, new FRA(fval2interval[last_value]->reg)});
+                             
+                                phi_fsrcs.push_back(freg2loc[fval2interval[last_value]->reg]);
+                           
+                            } else {
+                               
+                                phi_fsrcs.push_back( val2stack[last_value]);
+                          
+                            }
+                        }
+                              phi_ftargets.push_back(dst_ptr);
+                    }
+                    } else {
+                        last_value = opr;
+                    }
+                }
+            } else {
+                                        dst_ptr = nullptr;
+               setDIPtr(inst);
+                for(auto opr: inst->getOperands()) {
+                    if(dynamic_cast<BasicBlock*>(opr)) {
+                        if(dynamic_cast<BasicBlock*>(opr) == bb_) {
+        
+                        if(dynamic_cast<ConstantInt*>(last_value)) {
+                          
+                            phi_isrcs.push_back(new IConstPool(dynamic_cast<ConstantInt*>(last_value)->getValue()));
+                            
+                           
+                        } else if(ival2interval.find(last_value)!=ival2interval.end()){
+                            if(ival2interval[last_value]->reg >= 0) {
+                                if(ireg2loc.find(ival2interval[last_value]->reg) == ireg2loc.end()) 
+                                    ireg2loc.insert({ival2interval[last_value]->reg, new IRA(ival2interval[last_value]->reg)});
+                             
+                                phi_isrcs.push_back(ireg2loc[ival2interval[last_value]->reg]);
+                           
+                            } else {
+                               
+                                phi_isrcs.push_back( val2stack[last_value]);
+                          
+                            }
+                        }
+                              phi_itargets.push_back(dst_ptr);
+                    }
+                    } else {
+                        last_value = opr;
+                    }
+                }
+            }
+            }
+            else{
+                break;
+            }
+            
+
+
+        }
+                            if(!phi_isrcs.empty()) {
+                                mov_value(&i_address, phi_isrcs, phi_itargets, false);
+                            }
+                            if(!phi_fsrcs.empty()) {
+                                mov_value(&f_address, phi_fsrcs, phi_ftargets, true);
+                            }
+                            if(!i_address.empty()){
+                                for(auto i_: i_address){
+                                    auto src = i_.second;
+                                    if(dynamic_cast<IRA*>(src)){
+                                        reg_iid_use_s.push_back(static_cast<int>(dynamic_cast<IRA*>(src)->getReg()));
+                                    }
+                                }
+                            }
+                            if(!f_address.empty()){
+                                 for(auto f_: f_address){
+                                    auto src = f_.second;
+                                    if(dynamic_cast<FRA*>(src)){
+                                        reg_fid_use_s.push_back(static_cast<int>(dynamic_cast<FRA*>(src)->getReg()));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else{
+                         auto br = dynamic_cast<BranchInst*>(inst_); 
+    restore_ireg_s.clear();
+    restore_freg_s.clear();
+    succ_move_inst = nullptr;
+    fail_move_inst = nullptr;
+    move_inst = nullptr;
+
+    succ_br_inst = nullptr;
+    fail_br_inst = nullptr;
+    
+
+    succ_bb = nullptr;
+    fail_bb = nullptr;
+
+    ireg2loc.clear();
+    freg2loc.clear();
+
+    
+    have_succ_move = false;
+    have_fail_move = false;
+
+
+
+
+    for(auto ireg: tmp_iregs_loc) {
+        auto ira = new IRA(ireg.first);
+        restore_ireg_s.push_back(std::make_pair(ira, ireg.second));
+    }
+
+    for(auto freg: tmp_fregs_loc) {
+        auto fra = new FRA(freg.first);
+        restore_freg_s.push_back(std::make_pair(fra, freg.second));
+    }
+
+    tmp_iregs_loc.clear();
+    tmp_fregs_loc.clear();
+    cur_tmp_iregs.clear();
+    cur_tmp_fregs.clear();
+    free_locs_for_tmp_regs_saved.clear();
+    cur_tmp_reg_saved_stack_offset = 0;
+                         if(br->getNumOperands() == 1) {
+                             succ_bb = dynamic_cast<BasicBlock*>(br->getOperand(0));
+                         } else {
+                             succ_bb = dynamic_cast<BasicBlock*>(br->getOperand(1));
+                             fail_bb = dynamic_cast<BasicBlock*>(br->getOperand(2));
+                         }
+                        std::vector<std::pair<AddressMode*, AddressMode*>> i_address;
+                        std::vector<std::pair<AddressMode*, AddressMode*>> f_address;
+                        for(auto succ: bb_->getSuccBasicBlocks()) {
+                            i_address.clear();
+                            f_address.clear();
+                            phi_isrcs.clear();
+                            phi_fsrcs.clear();
+                            phi_itargets.clear();
+                            phi_ftargets.clear();
+                            bool is_succ_bb;
+                            Value *last_value;
+                            if(succ == succ_bb) {
+                                is_succ_bb = true;
+                                move_inst = &succ_move_inst;
+                            } else {
+                                is_succ_bb = false;
+                                move_inst = &fail_move_inst;
+                            }
+                           for(auto inst: succ->getInstructions()) {
+            
+            if(inst->isPhi()){
+                last_value = nullptr;
+            if(inst->getType()->isFloatType()) {
+                      
+                dst_ptr = nullptr;
+                setDFPtr(inst);
+                for(auto opr: inst->getOperands()) {
+                    if(dynamic_cast<BasicBlock*>(opr)) {
+                        if(dynamic_cast<BasicBlock*>(opr) == bb_) {
+        
+                        if(dynamic_cast<ConstantFP*>(last_value)) {
+                          
+                            phi_fsrcs.push_back(new FConstPool(dynamic_cast<ConstantFP*>(last_value)->getValue()));
+                           
+                        } else if(fval2interval.find(last_value)!=fval2interval.end()){
+                            if(fval2interval[last_value]->reg >= 0) {
+                                if(freg2loc.find(fval2interval[last_value]->reg) == freg2loc.end()) 
+                                    freg2loc.insert({fval2interval[last_value]->reg, new FRA(fval2interval[last_value]->reg)});
+                             
+                                phi_fsrcs.push_back(freg2loc[fval2interval[last_value]->reg]);
+                           
+                            } else {
+                               
+                                phi_fsrcs.push_back( val2stack[last_value]);
+                          
+                            }
+                        }
+                              phi_ftargets.push_back(dst_ptr);
+                    }
+                    } else {
+                        last_value = opr;
+                    }
+                }
+            } else {
+                            dst_ptr = nullptr;
+               setDIPtr(inst);
+                for(auto opr: inst->getOperands()) {
+                    if(dynamic_cast<BasicBlock*>(opr)) {
+                        if(dynamic_cast<BasicBlock*>(opr) == bb_) {
+        
+                        if(dynamic_cast<ConstantInt*>(last_value)) {
+                          
+                            phi_isrcs.push_back(new IConstPool(dynamic_cast<ConstantInt*>(last_value)->getValue()));
+                            
+                           
+                        } else if(ival2interval.find(last_value)!=ival2interval.end()){
+                            if(ival2interval[last_value]->reg >= 0) {
+                                if(ireg2loc.find(ival2interval[last_value]->reg) == ireg2loc.end()) 
+                                    ireg2loc.insert({ival2interval[last_value]->reg, new IRA(ival2interval[last_value]->reg)});
+                             
+                                phi_isrcs.push_back(ireg2loc[ival2interval[last_value]->reg]);
+                           
+                            } else {
+                               
+                                phi_isrcs.push_back( val2stack[last_value]);
+                          
+                            }
+                        }
+                              phi_itargets.push_back(dst_ptr);
+                    }
+                    } else {
+                        last_value = opr;
+                    }
+                }
+            }
+            }
+            else{
+                break;
+            }
+            
+
+
+        }
+                            if(!phi_isrcs.empty()) {
+                                mov_value(&i_address, phi_isrcs, phi_itargets, false);
+                            }
+                            if(!phi_fsrcs.empty()) {
+                                mov_value(&f_address, phi_fsrcs, phi_ftargets, true);
+                            }
+                            if(!i_address.empty()){
+                                for(auto i_: i_address){
+                                    auto src = i_.second;
+                                    if(dynamic_cast<IRA*>(src)){
+                                        reg_iid_use_s.push_back(static_cast<int>(dynamic_cast<IRA*>(src)->getReg()));
+                                    }
+                                }
+                            }
+                            if(!f_address.empty()){
+                                 for(auto f_: f_address){
+                                    auto src = f_.second;
+                                    if(dynamic_cast<FRA*>(src)){
+                                        reg_fid_use_s.push_back(static_cast<int>(dynamic_cast<FRA*>(src)->getReg()));
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+    }
+
+    //反向扫描
+        for(auto bb_riter = func->getBasicBlocks().rbegin(); bb_riter!= func->getBasicBlocks().rend(); bb_riter++ ){
+        auto bb_reverse = *bb_riter;
+        for(auto inst_riter = bb_reverse->getInstructions().rbegin(); inst_riter!=bb_reverse->getInstructions().rend(); inst_riter++){
+            auto inst_reverse = *inst_riter;
+            if(inst_reverse->isCall()){
+                call_use_ireg_map[inst_reverse] = reg_iid_use_s;
+                call_use_freg_map[inst_reverse] = reg_fid_use_s;
+            }
+            else{
+                
+                if(inst_reverse->getNumOperands()>0){
+                    getUseRegs(inst_reverse, &reg_iid_use_s, &reg_fid_use_s);
+                }
+                if(inst_reverse->isTerminator() && !inst_reverse->isRet()){
+
+
+
+
+                    if(dynamic_cast<CmpBrInst*>(inst_reverse)){
+                        auto c_inst = dynamic_cast<CmpBrInst*>(inst_reverse);
+                            restore_ireg_s.clear();
+    restore_freg_s.clear();
+    succ_move_inst = nullptr;
+    fail_move_inst = nullptr;
+    move_inst = nullptr;
+
+    succ_br_inst = nullptr;
+    fail_br_inst = nullptr;
+    
+
+    succ_bb = nullptr;
+    fail_bb = nullptr;
+
+    ireg2loc.clear();
+    freg2loc.clear();
+
+    
+    have_succ_move = false;
+    have_fail_move = false;
+
+
+
+
+    for(auto ireg: tmp_iregs_loc) {
+        auto ira = new IRA(ireg.first);
+        restore_ireg_s.push_back(std::make_pair(ira, ireg.second));
+    }
+
+    for(auto freg: tmp_fregs_loc) {
+        auto fra = new FRA(freg.first);
+        restore_freg_s.push_back(std::make_pair(fra, freg.second));
+    }
+
+    tmp_iregs_loc.clear();
+    tmp_fregs_loc.clear();
+    cur_tmp_iregs.clear();
+    cur_tmp_fregs.clear();
+    free_locs_for_tmp_regs_saved.clear();
+    cur_tmp_reg_saved_stack_offset = 0;
+                        succ_bb = dynamic_cast<BasicBlock*>(c_inst->getOperand(2));
+                        fail_bb = dynamic_cast<BasicBlock*>(c_inst->getOperand(3));
+                        std::vector<std::pair<AddressMode*, AddressMode*>> i_address;
+                        std::vector<std::pair<AddressMode*, AddressMode*>> f_address;
+                        for(auto succ: bb_reverse->getSuccBasicBlocks()) {
+                            i_address.clear();
+                            f_address.clear();
+                            phi_isrcs.clear();
+                            phi_fsrcs.clear();
+                            phi_itargets.clear();
+                            phi_ftargets.clear();
+                            bool is_succ_bb;
+                            Value *last_value;
+                            if(succ == succ_bb) {
+                                is_succ_bb = true;
+                                move_inst = &succ_move_inst;
+                            } else {
+                                is_succ_bb = false;
+                                move_inst = &fail_move_inst;
+                            }
+                           
+                            for(auto inst: succ->getInstructions()) {
+                                if(inst->isPhi()){
+                                    last_value = nullptr;
+                            if(inst->getType()->isFloatType()) {
+                                     
+                                dst_ptr = nullptr;
+                                setDFPtr(inst);
+                                for(auto opr: inst->getOperands()) {
+                                if(dynamic_cast<BasicBlock*>(opr)) {
+                                if(dynamic_cast<BasicBlock*>(opr) == bb_reverse) {
+        
+                                if(dynamic_cast<ConstantFP*>(last_value)) {
+                          
+                                    phi_fsrcs.push_back(new FConstPool(dynamic_cast<ConstantFP*>(last_value)->getValue()));
+                           
+                                } else if(fval2interval.find(last_value)!=fval2interval.end()){
+                            if(fval2interval[last_value]->reg >= 0) {
+                                if(freg2loc.find(fval2interval[last_value]->reg) == freg2loc.end()) 
+                                    freg2loc.insert({fval2interval[last_value]->reg, new FRA(fval2interval[last_value]->reg)});
+                             
+                                phi_fsrcs.push_back(freg2loc[fval2interval[last_value]->reg]);
+                           
+                            } else {
+                               
+                                phi_fsrcs.push_back( val2stack[last_value]);
+                          
+                            }
+                        }
+                              phi_ftargets.push_back(dst_ptr);
+                    }
+                    } else {
+                        last_value = opr;
+                    }
+                }
+            } else {
+                                           dst_ptr = nullptr;
+               setDIPtr(inst);
+                for(auto opr: inst->getOperands()) {
+                    if(dynamic_cast<BasicBlock*>(opr)) {
+                        if(dynamic_cast<BasicBlock*>(opr) == bb_reverse) {
+        
+                        if(dynamic_cast<ConstantInt*>(last_value)) {
+                          
+                            phi_isrcs.push_back(new IConstPool(dynamic_cast<ConstantInt*>(last_value)->getValue()));
+                            
+                           
+                        } else if(ival2interval.find(last_value)!=ival2interval.end()){
+                            if(ival2interval[last_value]->reg >= 0) {
+                                if(ireg2loc.find(ival2interval[last_value]->reg) == ireg2loc.end()) 
+                                    ireg2loc.insert({ival2interval[last_value]->reg, new IRA(ival2interval[last_value]->reg)});
+                             
+                                phi_isrcs.push_back(ireg2loc[ival2interval[last_value]->reg]);
+                           
+                            } else {
+                               
+                                phi_isrcs.push_back( val2stack[last_value]);
+                          
+                            }
+                        }
+                              phi_itargets.push_back(dst_ptr);
+                    }
+                    } else {
+                        last_value = opr;
+                    }
+                }
+            }
+            }
+            else{
+                break;
+            }
+            
+
+
+        }
+                            if(!phi_isrcs.empty()) {
+                                mov_value(&i_address, phi_isrcs, phi_itargets, false);
+                            }
+                            if(!phi_fsrcs.empty()) {
+                                mov_value(&f_address, phi_fsrcs, phi_ftargets, true);
+                            }
+                            if(!i_address.empty()){
+                                for(auto i_: i_address){
+                                    auto src = i_.second;
+                                    if(dynamic_cast<IRA*>(src)){
+                                        reg_iid_use_s.push_back(static_cast<int>(dynamic_cast<IRA*>(src)->getReg()));
+                                    }
+                                }
+                            }
+                            if(!f_address.empty()){
+                                 for(auto f_: f_address){
+                                    auto src = f_.second;
+                                    if(dynamic_cast<FRA*>(src)){
+                                        reg_fid_use_s.push_back(static_cast<int>(dynamic_cast<FRA*>(src)->getReg()));
+                                    }
+                                }
+                            }
+                        }
+ 
+                    }
+                    else if(dynamic_cast<FCmpBrInst*>(inst_reverse)){
+                        auto fc_inst = dynamic_cast<FCmpBrInst*>(inst_reverse);
+    restore_ireg_s.clear();
+    restore_freg_s.clear();
+    succ_move_inst = nullptr;
+    fail_move_inst = nullptr;
+    move_inst = nullptr;
+
+    succ_br_inst = nullptr;
+    fail_br_inst = nullptr;
+    
+
+    succ_bb = nullptr;
+    fail_bb = nullptr;
+
+    ireg2loc.clear();
+    freg2loc.clear();
+
+    
+    have_succ_move = false;
+    have_fail_move = false;
+
+
+
+
+    for(auto ireg: tmp_iregs_loc) {
+        auto ira = new IRA(ireg.first);
+        restore_ireg_s.push_back(std::make_pair(ira, ireg.second));
+    }
+
+    for(auto freg: tmp_fregs_loc) {
+        auto fra = new FRA(freg.first);
+        restore_freg_s.push_back(std::make_pair(fra, freg.second));
+    }
+
+    tmp_iregs_loc.clear();
+    tmp_fregs_loc.clear();
+    cur_tmp_iregs.clear();
+    cur_tmp_fregs.clear();
+    free_locs_for_tmp_regs_saved.clear();
+    cur_tmp_reg_saved_stack_offset = 0;
+                        succ_bb = dynamic_cast<BasicBlock*>(fc_inst->getOperand(2));
+                        fail_bb = dynamic_cast<BasicBlock*>(fc_inst->getOperand(3));
+                        std::vector<std::pair<AddressMode*, AddressMode*>> i_address;
+                        std::vector<std::pair<AddressMode*, AddressMode*>> f_address;
+                        for(auto succ: bb_reverse->getSuccBasicBlocks()) {
+                            i_address.clear();
+                            f_address.clear();
+                            phi_isrcs.clear();
+                            phi_fsrcs.clear();
+                            phi_itargets.clear();
+                            phi_ftargets.clear();
+                            bool is_succ_bb;
+                            Value *last_value;
+                            if(succ == succ_bb) {
+                                is_succ_bb = true;
+                                move_inst = &succ_move_inst;
+                            } else {
+                                is_succ_bb = false;
+                                move_inst = &fail_move_inst;
+                            }
+                            for(auto inst: succ->getInstructions()) {
+            
+            if(inst->isPhi()){
+                last_value = nullptr;
+            if(inst->getType()->isFloatType()) {
+                                    
+                dst_ptr = nullptr;
+                setDFPtr(inst);
+                for(auto opr: inst->getOperands()) {
+                    if(dynamic_cast<BasicBlock*>(opr)) {
+                        if(dynamic_cast<BasicBlock*>(opr) == bb_reverse) {
+        
+                        if(dynamic_cast<ConstantFP*>(last_value)) {
+                          
+                            phi_fsrcs.push_back(new FConstPool(dynamic_cast<ConstantFP*>(last_value)->getValue()));
+                           
+                        } else if(fval2interval.find(last_value)!=fval2interval.end()){
+                            if(fval2interval[last_value]->reg >= 0) {
+                                if(freg2loc.find(fval2interval[last_value]->reg) == freg2loc.end()) 
+                                    freg2loc.insert({fval2interval[last_value]->reg, new FRA(fval2interval[last_value]->reg)});
+                             
+                                phi_fsrcs.push_back(freg2loc[fval2interval[last_value]->reg]);
+                           
+                            } else {
+                               
+                                phi_fsrcs.push_back( val2stack[last_value]);
+                          
+                            }
+                        }
+                              phi_ftargets.push_back(dst_ptr);
+                    }
+                    } else {
+                        last_value = opr;
+                    }
+                }
+            } else {
+                                        dst_ptr = nullptr;
+               setDIPtr(inst);
+                for(auto opr: inst->getOperands()) {
+                    if(dynamic_cast<BasicBlock*>(opr)) {
+                        if(dynamic_cast<BasicBlock*>(opr) == bb_reverse) {
+        
+                        if(dynamic_cast<ConstantInt*>(last_value)) {
+                          
+                            phi_isrcs.push_back(new IConstPool(dynamic_cast<ConstantInt*>(last_value)->getValue()));
+                            
+                           
+                        } else if(ival2interval.find(last_value)!=ival2interval.end()){
+                            if(ival2interval[last_value]->reg >= 0) {
+                                if(ireg2loc.find(ival2interval[last_value]->reg) == ireg2loc.end()) 
+                                    ireg2loc.insert({ival2interval[last_value]->reg, new IRA(ival2interval[last_value]->reg)});
+                             
+                                phi_isrcs.push_back(ireg2loc[ival2interval[last_value]->reg]);
+                           
+                            } else {
+                               
+                                phi_isrcs.push_back( val2stack[last_value]);
+                          
+                            }
+                        }
+                              phi_itargets.push_back(dst_ptr);
+                    }
+                    } else {
+                        last_value = opr;
+                    }
+                }
+            }
+            }
+            else{
+                break;
+            }
+            
+
+
+        }
+                            if(!phi_isrcs.empty()) {
+                                mov_value(&i_address, phi_isrcs, phi_itargets, false);
+                            }
+                            if(!phi_fsrcs.empty()) {
+                                mov_value(&f_address, phi_fsrcs, phi_ftargets, true);
+                            }
+                            if(!i_address.empty()){
+                                for(auto i_: i_address){
+                                    auto src = i_.second;
+                                    if(dynamic_cast<IRA*>(src)){
+                                        reg_iid_use_s.push_back(static_cast<int>(dynamic_cast<IRA*>(src)->getReg()));
+                                    }
+                                }
+                            }
+                            if(!f_address.empty()){
+                                 for(auto f_: f_address){
+                                    auto src = f_.second;
+                                    if(dynamic_cast<FRA*>(src)){
+                                        reg_fid_use_s.push_back(static_cast<int>(dynamic_cast<FRA*>(src)->getReg()));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else{
+                         auto br = dynamic_cast<BranchInst*>(inst_reverse); 
+    restore_ireg_s.clear();
+    restore_freg_s.clear();
+    succ_move_inst = nullptr;
+    fail_move_inst = nullptr;
+    move_inst = nullptr;
+
+    succ_br_inst = nullptr;
+    fail_br_inst = nullptr;
+    
+
+    succ_bb = nullptr;
+    fail_bb = nullptr;
+
+    ireg2loc.clear();
+    freg2loc.clear();
+
+    
+    have_succ_move = false;
+    have_fail_move = false;
+
+
+
+
+    for(auto ireg: tmp_iregs_loc) {
+        auto ira = new IRA(ireg.first);
+        restore_ireg_s.push_back(std::make_pair(ira, ireg.second));
+    }
+
+    for(auto freg: tmp_fregs_loc) {
+        auto fra = new FRA(freg.first);
+        restore_freg_s.push_back(std::make_pair(fra, freg.second));
+    }
+
+    tmp_iregs_loc.clear();
+    tmp_fregs_loc.clear();
+    cur_tmp_iregs.clear();
+    cur_tmp_fregs.clear();
+    free_locs_for_tmp_regs_saved.clear();
+    cur_tmp_reg_saved_stack_offset = 0;
+                         if(br->getNumOperands() == 1) {
+                             succ_bb = dynamic_cast<BasicBlock*>(br->getOperand(0));
+                         } else {
+                             succ_bb = dynamic_cast<BasicBlock*>(br->getOperand(1));
+                             fail_bb = dynamic_cast<BasicBlock*>(br->getOperand(2));
+                         }
+                        std::vector<std::pair<AddressMode*, AddressMode*>> i_address;
+                        std::vector<std::pair<AddressMode*, AddressMode*>> f_address;
+                        for(auto succ: bb_reverse->getSuccBasicBlocks()) {
+                            i_address.clear();
+                            f_address.clear();
+                            phi_isrcs.clear();
+                            phi_fsrcs.clear();
+                            phi_itargets.clear();
+                            phi_ftargets.clear();
+                            bool is_succ_bb;
+                            Value *last_value;
+                            if(succ == succ_bb) {
+                                is_succ_bb = true;
+                                move_inst = &succ_move_inst;
+                            } else {
+                                is_succ_bb = false;
+                                move_inst = &fail_move_inst;
+                            }
+                           for(auto inst: succ->getInstructions()) {
+            
+            if(inst->isPhi()){
+                last_value = nullptr;
+            if(inst->getType()->isFloatType()) {
+                      
+                dst_ptr = nullptr;
+                setDFPtr(inst);
+                for(auto opr: inst->getOperands()) {
+                    if(dynamic_cast<BasicBlock*>(opr)) {
+                        if(dynamic_cast<BasicBlock*>(opr) == bb_reverse) {
+        
+                        if(dynamic_cast<ConstantFP*>(last_value)) {
+                          
+                            phi_fsrcs.push_back(new FConstPool(dynamic_cast<ConstantFP*>(last_value)->getValue()));
+                           
+                        } else if(fval2interval.find(last_value)!=fval2interval.end()){
+                            if(fval2interval[last_value]->reg >= 0) {
+                                if(freg2loc.find(fval2interval[last_value]->reg) == freg2loc.end()) 
+                                    freg2loc.insert({fval2interval[last_value]->reg, new FRA(fval2interval[last_value]->reg)});
+                             
+                                phi_fsrcs.push_back(freg2loc[fval2interval[last_value]->reg]);
+                           
+                            } else {
+                               
+                                phi_fsrcs.push_back( val2stack[last_value]);
+                          
+                            }
+                        }
+                              phi_ftargets.push_back(dst_ptr);
+                    }
+                    } else {
+                        last_value = opr;
+                    }
+                }
+            } else {
+                            dst_ptr = nullptr;
+               setDIPtr(inst);
+                for(auto opr: inst->getOperands()) {
+                    if(dynamic_cast<BasicBlock*>(opr)) {
+                        if(dynamic_cast<BasicBlock*>(opr) == bb_reverse) {
+        
+                        if(dynamic_cast<ConstantInt*>(last_value)) {
+                          
+                            phi_isrcs.push_back(new IConstPool(dynamic_cast<ConstantInt*>(last_value)->getValue()));
+                            
+                           
+                        } else if(ival2interval.find(last_value)!=ival2interval.end()){
+                            if(ival2interval[last_value]->reg >= 0) {
+                                if(ireg2loc.find(ival2interval[last_value]->reg) == ireg2loc.end()) 
+                                    ireg2loc.insert({ival2interval[last_value]->reg, new IRA(ival2interval[last_value]->reg)});
+                             
+                                phi_isrcs.push_back(ireg2loc[ival2interval[last_value]->reg]);
+                           
+                            } else {
+                               
+                                phi_isrcs.push_back( val2stack[last_value]);
+                          
+                            }
+                        }
+                              phi_itargets.push_back(dst_ptr);
+                    }
+                    } else {
+                        last_value = opr;
+                    }
+                }
+            }
+            }
+            else{
+                break;
+            }
+            
+
+
+        }
+                            if(!phi_isrcs.empty()) {
+                                mov_value(&i_address, phi_isrcs, phi_itargets, false);
+                            }
+                            if(!phi_fsrcs.empty()) {
+                                mov_value(&f_address, phi_fsrcs, phi_ftargets, true);
+                            }
+                            if(!i_address.empty()){
+                                for(auto i_: i_address){
+                                    auto src = i_.second;
+                                    if(dynamic_cast<IRA*>(src)){
+                                        reg_iid_use_s.push_back(static_cast<int>(dynamic_cast<IRA*>(src)->getReg()));
+                                    }
+                                }
+                            }
+                            if(!f_address.empty()){
+                                 for(auto f_: f_address){
+                                    auto src = f_.second;
+                                    if(dynamic_cast<FRA*>(src)){
+                                        reg_fid_use_s.push_back(static_cast<int>(dynamic_cast<FRA*>(src)->getReg()));
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+    }
+
+    //******************************选择某call指令后使用到的寄存器，以便与后面的保存现场和恢复现场配合，减少访存指令******************************
 
     //为函数的参数分配内存空间
     if(func->getIArgs().size() > 8) 
@@ -431,8 +1481,9 @@ void AsmGen::visit(BasicBlock &node){
                 if(!call_inst->getType()->isIntegerType() || ireg != call_inst_reg)
         
                if(::std::find(call_define_ireg_map[inst].begin(), call_define_ireg_map[inst].end(), ireg) != call_define_ireg_map[inst].end()){
-                 //   ::std::cout<<"ireg："<<ireg<<::std::endl;
-                   caller_save_iregs.push_back(ireg);
+                                 if(::std::find(call_use_ireg_map[inst].begin(), call_use_ireg_map[inst].end(), ireg) != call_use_ireg_map[inst].end()){
+                     caller_save_iregs.push_back(ireg);
+                }
                 }
                 
             }
@@ -442,7 +1493,9 @@ void AsmGen::visit(BasicBlock &node){
               
                if(::std::find(call_define_freg_map[inst].begin(), call_define_freg_map[inst].end(), freg) != call_define_freg_map[inst].end()){
                  //   ::std::cout<<"freg："<<freg<<::std::endl;
+                     if(::std::find(call_use_freg_map[inst].begin(), call_use_freg_map[inst].end(), freg) != call_use_freg_map[inst].end()){
                     caller_save_fregs.push_back(freg);
+                 }
                 }
 
             }
@@ -3449,4 +4502,28 @@ void AsmGen::recordFReg(Instruction* inst, std::set<int>* record_fregs){
         }
     }
     return;
+}
+
+void AsmGen::getUseRegs(Instruction* inst, ::std::vector<int>* reg_iid_use_s,::std::vector<int>* reg_fid_use_s ){
+    int num = inst->getNumOperands();
+    for(int i=0; i<num; i++){
+        auto src = inst->getOperand(i);
+        if(src->getType()->isFloatType()){
+            auto f_interval = fval2interval.find(src);
+            if(f_interval!=fval2interval.end()){
+                int freg_id = static_cast<int>(f_interval->second->reg);
+                if(freg_id>-1 && freg_id<32)
+                    reg_fid_use_s->push_back(freg_id);
+            }
+        }
+        else{
+            auto i_interval = ival2interval.find(src);
+            if(i_interval!=ival2interval.end()){
+                int ireg_id = static_cast<int>(i_interval->second->reg);
+                if(ireg_id>-1 && ireg_id<32)
+                    reg_iid_use_s->push_back(ireg_id);
+            }
+
+        }
+    }
 }

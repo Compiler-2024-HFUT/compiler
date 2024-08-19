@@ -331,7 +331,7 @@ class AsmGen : public IRVisitor{
     void mov_value(std::vector<std::pair<AddressMode*, AddressMode*>>* to_move_locs, std::vector<AddressMode*>& src, std::vector<AddressMode*>&dst, bool is_float);
     
 
-
+    void getUseRegs(Instruction* inst, ::std::vector<int>* reg_iid_use_s,::std::vector<int>* reg_fid_use_s );
         
     Val *getAllocaReg(Value* value);
 
@@ -341,6 +341,10 @@ class AsmGen : public IRVisitor{
     //收集call指令前定义寄存器的信息
     ::std::map<Instruction* , ::std::vector<int>> call_define_ireg_map;
     ::std::map<Instruction* , ::std::vector<int>> call_define_freg_map;
+
+    //收集call指令后定义寄存器的信息
+    ::std::map<Instruction* , ::std::vector<int>> call_use_ireg_map;
+    ::std::map<Instruction* , ::std::vector<int>> call_use_freg_map;
 
     ::std::vector<std::pair<AddressMode*, AddressMode*>> iparas_pass;
     ::std::vector<std::pair<AddressMode*, AddressMode*>> fparas_pass;
