@@ -16,6 +16,7 @@ public:
 
     //// return parent or null(if none)
     Function *getParent() { return parent_; }
+    void setParent(Function *parent) { parent_ = parent; }
 
     Module *getModule();
 

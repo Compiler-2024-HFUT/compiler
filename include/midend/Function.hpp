@@ -55,6 +55,9 @@ public:
 private:
     void buildArgs();
 
+public:
+    Argument *addArg(Type *type);
+
 private:
     std::list<BasicBlock *> basic_blocks_;  //& basic blocks
     std::list<Argument *> arguments_;       //& arguments  

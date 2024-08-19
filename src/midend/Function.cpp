@@ -20,6 +20,20 @@ void Function::buildArgs() {
     }
 }
 
+Argument *Function::addArg(Type *type) {
+    auto *func_ty = getFunctionType();
+    func_ty->addArg(type);
+
+    Argument *new_arg = new Argument(type, "", this, getNumOfArgs() - 1);
+    arguments_.push_back(new_arg);
+    if(new_arg->getType()->isFloatType()) {
+        f_args_.push_back(new_arg);
+    } else {
+        i_args_.push_back(new_arg);
+    }
+    return new_arg;
+}
+
 Function::Function(FunctionType *ty, const std::string &name, Module *parent)
     : Value(ty, name), parent_(parent), seq_cnt_(0) {
     parent->addFunction(this);
