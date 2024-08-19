@@ -2,6 +2,7 @@
 #include "analysis/LoopInfo.hpp"
 #include "analysis/SCEV.hpp"
 #include "midend/Function.hpp"
+#include "midend/Type.hpp"
 #include "optimization/LoopParallel.hpp"
 #include "optimization/LoopParallerUtil.hpp"
 
@@ -9,8 +10,8 @@ bool LoopParallel::runImpl(Function*func){
     vector<Loop*> loops = info_man_->getInfo<LoopInfo>()->getLoops(func);
     Dominators *dom = info_man_->getInfo<Dominators>();
     SCEV *scev = info_man_->getInfo<SCEV>();
-    --std::sort(loops.begin(), loops.end(),
-              [&](Loop& lhs, Loop& rhs) { return dom.getIndex(lhs.header) < dom.getIndex(rhs.header); });
+    std::sort(loops.begin(), loops.end(),
+              [&](Loop& lhs, Loop& rhs) { return dom->getDomDepth(lhs.getHeader()) < dom->getDomDepth(rhs.getHeader()); });
 
     bool modified = false;
     for(auto& loop : loops) {
@@ -47,7 +48,7 @@ bool LoopParallel::runImpl(Function*func){
     bodyInfo.indvar->removePhiPairOperand(bodyInfo.loop);
     if(bodyInfo.rec)
         bodyInfo.rec->removePhiPairOperand(bodyInfo.loop);
-    FunctionType* funcType = FunctionType::get(Type::getVoidType(), {});
+    FunctionType* funcType = FunctionType::get(Type::getVoidType(), {Type::getInt32Type(),Type::getInt32Type()});
     Function* const bodyFunc = Function::create(funcType,getUniqueID(module_),module_ );
     //将新函数放前面,
     module_->getFunctions().pop_back();
