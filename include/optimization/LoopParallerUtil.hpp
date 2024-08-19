@@ -14,7 +14,8 @@
 #include <cassert>
 #include <string>
 #include <unordered_set>
-
+// static std::list<Instruction*>::iterator glb_insert_pos;
+// static BasicBlock* glb_insert_bb;
 static Function* getParallelFor(Module*module) {
         for(auto func : module->getFunctions())
             if(func->getName() == "xcParallelFor")
@@ -148,6 +149,38 @@ static bool isConstant(Value* val) {
     }
     return false;
 }
+static Value* expandConstant(Value* val,BasicBlock*to_insertbb,std::list<Instruction*>::iterator insert_pos) {
+    if(dynamic_cast<Constant*>(val) || dynamic_cast<GlobalVariable*>(val))
+        return val;
+    bool isend=false;
+    Instruction*insertins=0;
+
+    if(insert_pos==to_insertbb->getInstructions().end()){
+        isend=true;
+    }else{
+        insertins=*insert_pos;
+    }
+
+    if(auto old_ins=dynamic_cast<Instruction*>(val)) {
+        auto inst = old_ins->copyInst(to_insertbb);
+        to_insertbb->getInstructions().pop_back();
+        for(int i=0;i< inst->getNumOperands();i++){
+            if(isend)
+                inst->replaceOperand(i,expandConstant(inst->getOperand(i), to_insertbb,to_insertbb->getInstructions().end()));
+            else
+                inst->replaceOperand(i,expandConstant(inst->getOperand(i), to_insertbb,to_insertbb->findInstruction(insertins)));
+
+        }
+        if(isend)
+            to_insertbb->insertInstr(to_insertbb->getInstructions().end(),inst);
+        else
+            to_insertbb->insertInstr(to_insertbb->findInstruction(insertins),inst);
+        return inst;
+    }
+
+        // reportUnreachable(CMMC_LOCATION());
+    assert(0);
+}
 static void popback_insertbefore(Instruction*before_this,BasicBlock*to_popback){
     auto to_insert=to_popback->getInstructions().back();
     to_popback->getInstructions().pop_back();
@@ -255,20 +288,10 @@ void runimpl(Module*module_,InfoManager*info_man_){
     const auto exit =  BasicBlock::create("exit",bodyFunc);
     // builder.setCurrentBlock(entry);
     // curbb=entry;
-    // const auto bodyExec = bodyInfo.recNext->clone();
-    /*
-    Instruction* FunctionCallInst::clone() const {
-    std::vector<Value*> args;
-    auto arguments = this->arguments();
-    args.reserve(arguments.size());
-    for(auto arg : arguments) {
-        args.push_back(arg);
-    }
-    return make<FunctionCallInst>(lastOperand(), args);
-    }
-    */
+    const auto bodyExec = bodyInfo.recNext->copyInst(subLoop);
+    subLoop->getInstructions().pop_back();
     ///*********************不知道如何处理***************//
-    BasicBlock*bodyExec;
+    // BasicBlock*bodyExec;
     const auto indVar = PhiInst::createPhi(i32,entry);
     entry->addInstruction(indVar);
     indVar->addPhiPairOperand( beg,entry);
@@ -280,34 +303,40 @@ void runimpl(Module*module_,InfoManager*info_man_){
         }else{
             giv=nullptr;
         }
-       auto remapArgument = [&](Value* operand,Instruction*user) {
-                // if(operand->value == bodyInfo.indvar) {
-                //     operand->resetValue(indVar);
-                // } else if(operand->value == bodyInfo.rec) {
-                //     operand->resetValue(giv);
-                // } else {
-                //     if(isConstant(operand->value)) {
-                //         operand->resetValue(expandConstant(operand->value, builder));
-                //         builder.setCurrentBlock(entry);
-                //     } else {
-                //         bool replaced = false;
-                //         for(auto& [param, offset] : payload) {
-                //             if(operand->value == param) {
-                //                 const auto ptr = builder.makeOp<PtrAddInst>(
-                //                     payloadStorage, ConstantInteger::get(i32, static_cast<intmax_t>(offset)),
-                //                     PointerType::get(param->getType()));
-                //                 const auto val = builder.makeOp<LoadInst>(ptr);
-                //                 operand->resetValue(val);
-                //                 replaced = true;
-                //                 break;
-                //             }
-                //         }
-                //         if(!replaced)
-                //             reportUnreachable(CMMC_LOCATION());
-                //     }
-                // }
+       auto remapArgument = [&](Value* operand,Instruction*user,int op_offset,BasicBlock*insertbb,std::list<Instruction*>::iterator insert_pos){
+                if(operand== bodyInfo.indvar) {
+                    // operand->resetValue(indVar);
+                    user->replaceOperand(op_offset,indVar);
+                } else if(operand == bodyInfo.rec) {
+                    user->replaceOperand(op_offset,giv);
+                    // operand->resetValue(giv);
+                } else {
+                    if(isConstant(operand)) {
+                        user->replaceOperand(op_offset,expandConstant(operand, insertbb,insert_pos));
+                        // builder.setCurrentBlock(entry);
+                    } else {
+                        bool replaced = false;
+                        for(auto& [param, offset] : payload) {
+                            if(operand == param) {
+                                const auto ptr = GetElementPtrInst::createGep(payloadStorage, {ConstantInt::get(0),ConstantInt::get(givOffset->getValue()/4)},insertbb);
+                                insertbb->getInstructions().pop_back();
+                                insertbb->insertInstr(insert_pos,ptr);
+                                const auto val = LoadInst::createLoad(ptr->getType()->getPointerElementType(),ptr,insertbb);
+                                insertbb->getInstructions().pop_back();
+                                insertbb->insertInstr(insert_pos,val);
+                                user->replaceOperand(op_offset,val);
+                                replaced = true;
+                                break;
+                            }
+                        }
+                        if(!replaced)
+                            assert(0);
+                            // reportUnreachable(CMMC_LOCATION());
+                    }
+                }
             };
-
+        for(int i=0;i<bodyExec->getNumOperands();++i)
+            remapArgument(bodyExec->getOperand(i),bodyExec,i,entry,entry->getInstructions().end());
     if(giv) {
         // giv->insertBefore(subLoop, subLoop->instructions().end());
         if(giv->getType()==i32) {
@@ -315,15 +344,13 @@ void runimpl(Module*module_,InfoManager*info_man_){
                 //ptradd==>add i32* i32
                 //ptradd==>add f32* i32
                 //最好用gep代替
-                // const auto ptr = builder.makeOp<PtrAddInst>(payloadStorage, givOffset, PointerType::get(i32));
                 const auto ptr = GetElementPtrInst::createGep(payloadStorage, {ConstantInt::get(0),ConstantInt::get(givOffset->getValue()/4)},entry);
                 // Value*ptr;
                 const auto initial = LoadInst::createLoad(i32,ptr,entry);
                 const auto step = bodyInfo.recInnerStep;
                 const auto offset = BinaryInst::createMul( beg, step,entry);
-                // builder.setInsertPoint(entry, offset->asIterator());
                 //remaparg插入的指令会被放到offset前
-                // remapArgument(offset->mutableOperands().back().get());
+                remapArgument(offset->getOperands().back(),offset,offset->getNumOperands()-1,entry,entry->findInstruction(offset));
                 // builder.setCurrentBlock(entry);
                 const auto realInitial = BinaryInst::createAdd(  initial, offset,entry);
                 giv->addPhiPairOperand( realInitial,entry);
@@ -331,16 +358,14 @@ void runimpl(Module*module_,InfoManager*info_man_){
                 giv->addPhiPairOperand( ConstantInt::get( 0),entry);
         } else if(giv->getType()==f32) {
             if(bodyInfo.recUsedByInner) {
-                // const auto ptr = builder.makeOp<PtrAddInst>(payloadStorage, givOffset, PointerType::get(f32));
                 const auto ptr = GetElementPtrInst::createGep(payloadStorage,{ConstantInt::get(0),ConstantInt::get(givOffset->getValue()/4)}, entry);
                 const auto initial = LoadInst::createLoad(f32,ptr,entry);
-                // const auto initial = builder.makeOp<LoadInst>(ptr);
                 const auto step = bodyInfo.recInnerStep;
                 const auto offset = BinaryInst::createFMul(CastInst::createCastInst(f32,beg), step,entry);
                 // builder.setInsertPoint(entry, offset->asIterator());
                 auto offset_iter=entry->findInstruction(offset);
                 //remaparg插入的指令会被放到offset前
-                // remapArgument(offset->mutableOperands().back().get());
+                remapArgument(offset->getOperands().back(),offset,offset->getNumOperands()-1,entry,entry->findInstruction(offset));
                 // builder.setCurrentBlock(entry);
                 const auto realInitial = BinaryInst::createFAdd( initial, offset,entry);
                 giv->addPhiPairOperand(realInitial,entry );
@@ -352,13 +377,12 @@ void runimpl(Module*module_,InfoManager*info_man_){
     }
     BranchInst::createBr(subLoop,entry);
 
-    // bodyExec->insertBefore(subLoop, subLoop->instructions().end());
+    subLoop->addInstruction(bodyExec);
     // builder.setCurrentBlock(subLoop);
     const auto next = BinaryInst::createAdd( indVar, ConstantInt::get( 1),subLoop);
     indVar->addPhiPairOperand( next,subLoop);
     const auto cond = CmpInst::createCmp( CmpOp::LT, next, end,subLoop);
     BranchInst::createCondBr(cond, subLoop, exit,subLoop);
-    // builder.setCurrentBlock(exit);
 
             // builder.setCurrentBlock(exit);
             if(giv && bodyInfo.recUsedByOuter) {
