@@ -80,7 +80,6 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<InstrResolve>();
     pm.addPass<DCE>();
     pm.addPass<DFE>();
-    pm.addPass<GCM>();
 
     //loop pass
     pm.addPass<LoopSimplified>();
