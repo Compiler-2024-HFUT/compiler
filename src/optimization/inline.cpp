@@ -161,6 +161,27 @@ using ::std::list,::std::map;
     delete call;
     return _newcall;
 }
+bool __caninline(CallInst*call){
+    auto func=(Function*)call->getOperand(0);
+    int ins_num=0;
+    int bb_num=0;
+
+    for(auto b:func->getBasicBlocks()){
+        for(auto ins:b->getInstructions()){
+            ++ins_num;
+        }
+        ++bb_num;
+    }
+    bool has_const=false;
+    for(auto v:call->getOperands()){
+        if(dynamic_cast<Constant*>(v))
+            has_const=true;
+    }
+    if(call->getParent()->getParent()->getName()=="main"&&has_const==false&&(ins_num>=100||bb_num>20)){
+        return false;
+    }
+    return true;
+}
 Modify FuncInline::run(){
     auto fan=info_man_->getInfo<FuncAnalyse>();
     func_call_=getCallInfo(module_);
@@ -174,7 +195,8 @@ Modify FuncInline::run(){
         auto __seiter=fan->direct_se_info.find((Function*)call->getOperand(0));
         if(__seiter->second.isGetVar()||__seiter->second.isPutVar())
             continue;
-        insertFunc(call,{call->getParent()->getParent()});
+        if(__caninline(call))
+            insertFunc(call,{call->getParent()->getParent()});
     }
     Modify ret{};
     ret.modify_instr=true;

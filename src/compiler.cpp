@@ -100,6 +100,7 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<SCCP>();
 
     //inline and g2l pass
+    pm.addPass<CombinBB>();
     pm.addPass<FuncInline>();
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
