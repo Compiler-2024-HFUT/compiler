@@ -88,42 +88,12 @@ bool GenLoadImm::runOnBB(BasicBlock*b,std::vector<std::pair<int,Instruction*>>ca
             ins->getParent()->insertInstr(insert_pos,newimmIns);
         }
     };
-    auto islog2=[](int num){
-    if(num<=0){
-        return 0;
-    }
-    int ret=0;
-    int curnum=1;
-    while(curnum<num){
-        curnum=curnum<<1;
-        ++ret;
-    }
-    if(curnum!=num)
-        return 0;
-    return ret;
-};
     auto &ins_list=b->getInstructions();
     for(auto iter=ins_list.begin();iter!=ins_list.end();){
         auto cur_iter=iter;
         auto ins=*cur_iter;
         ++iter;
-        if(ins->isDiv()||ins->isRem()){
-            int const_op_num=-1;
-            int const_val;
-            if(dynamic_cast<ConstantInt*>(ins->getOperand(0))){
-                const_op_num=0;
-            }else if(dynamic_cast<Constant*>(ins->getOperand(1))){
-                const_op_num=1;
-            }
-            if(const_op_num==-1)
-                continue;
-            const_val=((ConstantInt*)ins->getOperand(const_op_num))->getValue();
-            if(const_val==0)
-                continue;
-            if(islog2(const_val)>0&&const_op_num==1)
-                continue;
-            genImm(cur_iter,ins,const_op_num,const_val,caches);
-        }else if(ins->isSub()||ins->isCmp()||ins->isXor()||ins->isOr()||ins->isAnd()){
+        if(ins->isDiv()||ins->isRem()||ins->isSub()||ins->isCmp()||ins->isXor()||ins->isOr()||ins->isAnd()){
             int const_op_num=-1;
             int const_val;
             if(dynamic_cast<ConstantInt*>(ins->getOperand(0))){
