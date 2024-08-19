@@ -1,14 +1,27 @@
 #include "optimization/LoopParallel.hpp"
 
+#include <algorithm>
+using std::find;
+
+// maybe bug
+// ops phi
+// no pop inst!! only phi did't push inst
+// resetValue
+// users is uselist??
+
 static void retargetBasicBlock(BasicBlock* target, BasicBlock* oldSource, BasicBlock* newSource) {
     for(auto& inst : target->getInstructions()) {
         if(inst->isPhi()) {
             const auto phi = dynamic_cast<PhiInst*>(inst);
-            if(phi->incomings().count(newSource)) {
-                assert(phi->incomings().at(oldSource) == phi->incomings().at(newSource));
-                phi->removeSource(oldSource);
-            } else
-                phi->replaceSource(oldSource, newSource);
+            auto &phiOps = phi->getOperands();
+            if(find(phiOps.begin(), phiOps.end(), newSource) != phiOps.end()) {
+                phi->removePhiPairOperand(oldSource);
+            } else {
+                for(int i = 1; i < phiOps.size(); i += 2) {
+                    if(phiOps[i] == oldSource)
+                        phiOps[i] = newSource;
+                }
+            }
         } else
             break;
     }
@@ -20,18 +33,10 @@ static void resetTarget(Instruction* branchOrSwitch, BasicBlock* oldTarget, Basi
     };
 
     // only br??
-    // if(branchOrSwitch->getInstID() == InstructionID::Switch) {
-    //     const auto switchInst = branchOrSwitch->as<SwitchInst>();
-    //     handleTarget(switchInst->defaultTarget());
-    //     for(auto& [val, target] : switchInst->edges()) {
-    //         handleTarget(target);
-    //     }
-    // } else {
-        const auto branch = dynamic_cast<BranchInst*>(branchOrSwitch);
-        assert(branch->getOperand(1) == oldTarget || branch->getOperand(2) == oldTarget);
-        handleTarget(dynamic_cast<BasicBlock*>(branch->getOperand(1)));
-        handleTarget(dynamic_cast<BasicBlock*>(branch->getOperand(2)));
-    // }
+    const auto branch = dynamic_cast<BranchInst*>(branchOrSwitch);
+    assert(branch->getOperand(1) == oldTarget || branch->getOperand(2) == oldTarget);
+    handleTarget(dynamic_cast<BasicBlock*>(branch->getOperand(1)));
+    handleTarget(dynamic_cast<BasicBlock*>(branch->getOperand(2)));
 }
 
 static bool matchAddRec(Value *giv, BasicBlock *latch, std::unordered_set<Value*>& values) {
@@ -41,7 +46,7 @@ static bool matchAddRec(Value *giv, BasicBlock *latch, std::unordered_set<Value*
     
     Value *givNext = nullptr;
     vector<Value*> ops = givI->getOperands();
-    for(int i = 1; i < ops.size(); ++i) {
+    for(int i = 1; i < ops.size(); i += 2) {
         if(ops[i] == latch)
             givNext = ops[i-1];
     }
@@ -52,7 +57,7 @@ static bool matchAddRec(Value *giv, BasicBlock *latch, std::unordered_set<Value*
     if(givNextI) {
         Value* v2;
         if(givNextI->isPhi()) {
-            
+            // bughere??            
             vector<Value*> ops = givNextI->getOperands();
             for(int i = 1; i < ops.size(); ++i) {
                 if(ops[i-1] == givI) {
@@ -208,7 +213,7 @@ bool LoopParallel::extractLoopBody(Function *func, Loop *loop, Module *mod, bool
     if(giv) {
         vector<Value*> vals = {giv};
         vector<Value*> ops = dynamic_cast<PhiInst*>(giv)->getOperands();
-        for(int i = 1; i < ops.size(); ++i) {
+        for(int i = 1; i < ops.size(); i+=2) {
             if(ops[i] == loop->getSingleLatch()) {
                 vals.push_back(ops[i-1]);
             }
@@ -232,7 +237,7 @@ bool LoopParallel::extractLoopBody(Function *func, Loop *loop, Module *mod, bool
 
     Value *givNext;
     vector<Value*> ops = dynamic_cast<Instruction*>(giv)->getOperands();
-    for(int i = 1; i < ops.size(); ++i) {
+    for(int i = 1; i < ops.size(); i+=2) {
         if(ops[i] == loop->getSingleLatch())
             givNext = ops[i-1];
     }
@@ -287,6 +292,7 @@ bool LoopParallel::extractLoopBody(Function *func, Loop *loop, Module *mod, bool
     if(!cmp->isCmp())
         return false;
     const auto loopnext = cmp->getOperand(0);
+    const auto loopbound = cmp->getOperand(1);
 
     allowedToBeUsedByOuter.insert(loopnext);
     if(giv) {
@@ -460,15 +466,14 @@ bool LoopParallel::extractLoopBody(Function *func, Loop *loop, Module *mod, bool
     for(auto [k, v] : val2arg) {
         arg2Val.emplace(v, k);
         // TrackableValue = Instruction, Argument, GlobalVariable
-        // auto track = k->as<TrackableValue>();
         auto track = k;
         for(auto it = track->getUseList().begin(); it != track->getUseList().end();) {
             auto next = std::next(it);
             Value *user = (*it).val_;
             if(body.count( dynamic_cast<Instruction*>(user)->getParent()) ) {
-                --
-                // it.ref()->resetValue(v);
-
+                // (*it)->resetValue(v);
+                if(user != v)
+                    (*it).val_ = v;
             }
             it = next;
         }
@@ -504,7 +509,7 @@ bool LoopParallel::extractLoopBody(Function *func, Loop *loop, Module *mod, bool
         auto& inst = *it;
         if(inst->isPhi()) {
             const auto next = std::next(it);
-            inst.insertBefore(newLoop, newLoop->getInstructions().begin());
+            newLoop->addInstrBegin(inst);
             it = next;
         } else
             break;
@@ -518,23 +523,18 @@ bool LoopParallel::extractLoopBody(Function *func, Loop *loop, Module *mod, bool
             retargetBasicBlock(succ, loop->getSingleLatch(), newLoop);
     }
 
-    // builder.setCurrentBasicBlock(newLoop);
     const auto call = CallInst::createCall(bodyFunc, callArgs, newLoop);
     const auto next = dynamic_cast<Instruction*>(loopnext)->copyInst(newLoop);
-    // next->insertBefore(newLoop, newLoop->getInstructions().end());
     newLoop->insertInstr(newLoop->getInstructions().end(), next);
     const auto cond = dynamic_cast<Instruction*>(oldCond)->copyInst(newLoop);
-    // cond->insertBefore(newLoop, newLoop->getInstructions().end());
     newLoop->insertInstr(newLoop->getInstructions().end(), cond);
-    // builder.setCurrentBasicBlock(newLoop);
-    // builder.makeOp<BranchInst>(cond, prob, newLoop, exit);
     BranchInst::createCondBr(cond, newLoop, dynamic_cast<BasicBlock*>(exit), newLoop);
 
-    loop->getIndVar()->removeSource(loop->getSingleLatch());
-    loop->getIndVar()->addIncoming(newLoop, next);
+    loop->getIndVar()->removePhiPairOperand(loop->getSingleLatch());
+    loop->getIndVar()->addPhiPairOperand(newLoop, next);
     if(giv) {
-        giv->as<PhiInst>()->removeSource(loop->getSingleLatch());
-        giv->as<PhiInst>()->addIncoming(newLoop, call);
+        dynamic_cast<PhiInst*>(giv)->removePhiPairOperand(loop->getSingleLatch());
+        dynamic_cast<PhiInst*>(giv)->addPhiPairOperand(newLoop, call);
     }
     for(auto inst : std::initializer_list<Instruction*>{ cond, next, loop->getIndVar(),
                                                          giv ? dynamic_cast<Instruction*>(giv) : nullptr }) {
@@ -542,10 +542,16 @@ bool LoopParallel::extractLoopBody(Function *func, Loop *loop, Module *mod, bool
             continue;
         for(auto& operand : inst->getOperands()) {
             if(auto it = arg2Val.find(operand); it != arg2Val.end()) {
-                operand->resetValue(it->second);
+                // operand->resetValue(it->second);
+                if(operand != it->second) {
+                    operand = it->second;
+                }
             }
-            if(operand == loopnext)
-                operand->resetValue(next);
+            if(operand == loopnext) {
+                // operand->resetValue(next);
+                if(operand != next)
+                    operand = next;
+            } 
         }
     }
 
@@ -554,13 +560,16 @@ bool LoopParallel::extractLoopBody(Function *func, Loop *loop, Module *mod, bool
             continue;
         if(!dynamic_cast<Instruction*>(val))
             continue;
-        const auto tracked = val->as<TrackableValue>();
+        // track is inst\arg\globalvar
+        const auto tracked = val;
         Value* rep = val == loopnext ? next : call;
-        for(auto it = tracked->users().begin(); it != tracked->users().end();) {
+        for(auto it = tracked->getUseList().begin(); it != tracked->getUseList().end();) {
             auto nextIt = std::next(it);
-            auto block = it.ref()->user->getParent();
+            auto user = dynamic_cast<Instruction*>( (*it).val_ );
+            auto block = user->getParent();
             if(block != newLoop && !body.count(block)) {
-                it.ref()->resetValue(rep);
+                if(user != rep)
+                    (*it).val_ = rep;
             }
             it = nextIt;
         }
@@ -569,13 +578,13 @@ bool LoopParallel::extractLoopBody(Function *func, Loop *loop, Module *mod, bool
     if(ret) {
         ret->loop = newLoop;
         ret->indvar = loop->getIndVar();
-        ret->bound = loop.bound;
+        ret->bound = loopbound;
         ret->rec = (giv ? dynamic_cast<PhiInst*>(giv) : nullptr);
         ret->recUsedByOuter = givUsedByOuter;
         ret->recUsedByInner = givUsedByInner;
         ret->recInnerStep = givAddRecInnerStep;
         ret->recNext = call;
-        ret->exit = exit;
+        ret->exit = dynamic_cast<BasicBlock*>(exit);
     }
     return true;
 }
