@@ -529,7 +529,7 @@ bool LoopParallel::extractLoopBody(Function *func, Loop *loop, Module *mod, bool
     const auto call = CallInst::createCall(bodyFunc, callArgs, newLoop);
     const auto next = dynamic_cast<Instruction*>(loopnext)->copyInst(newLoop);
     newLoop->insertInstr(newLoop->getInstructions().end(), next);
-    const auto cond = dynamic_cast<Instruction*>(oldCond)->copyInst(newLoop);
+    cond = dynamic_cast<Instruction*>(oldCond)->copyInst(newLoop);
     newLoop->insertInstr(newLoop->getInstructions().end(), cond);
     BranchInst::createCondBr(cond, newLoop, dynamic_cast<BasicBlock*>(exit), newLoop);
 
