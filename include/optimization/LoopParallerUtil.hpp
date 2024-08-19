@@ -412,30 +412,37 @@ void runimpl(Module*module_,InfoManager*info_man_){
                 popback_insertbefore(bodyInfo.rec,bodyInfo.rec->getParent());
             }
             for(auto [k, v] : payload) {
-                // ??
-                const auto ptr = GetElementPtrInst::createGep(payloadStorage, { ConstantInt::get(0),ConstantInt::get(static_cast<int>(v/4))},bodyInfo.recNext->getParent());
-                                                    // PointerType::get(k->getType()));
-                popback_insertbefore(bodyInfo.recNext,bodyInfo.recNext->getParent());
-
-                StoreInst::createStore(k,ptr,bodyInfo.recNext->getParent());
-                popback_insertbefore(bodyInfo.recNext,bodyInfo.recNext->getParent());
                 // const auto ptr = GetElementPtrInst::createGep(payloadStorage, ConstantInt::get(i32, static_cast<intmax_t>(v)),
                 //                                             PointerType::get(k->getType()));
-                // 
                 // builder.makeOp<StoreInst>(ptr, k);
+                const auto ptr = GetElementPtrInst::createGep(payloadStorage, { ConstantInt::get(0),ConstantInt::get(static_cast<int>(v/4))},bodyInfo.recNext->getParent());
+                popback_insertbefore(bodyInfo.recNext,bodyInfo.recNext->getParent());
+                StoreInst::createStore(k,ptr,bodyInfo.recNext->getParent());
+                popback_insertbefore(bodyInfo.recNext,bodyInfo.recNext->getParent());
+                
             }
 
+            // the order of inst is right??
             // builder.makeOp<FunctionCallInst>(
             //     parallelFor,
             //     std::vector<Value*>{ bodyInfo.indvar, bodyInfo.bound,
             //                          builder.makeOp<FunctionPtrInst>(bodyFunc, PointerType::get(IntegerType::get(8))) });
-            // if(giv && bodyInfo.recUsedByOuter) {
-            //     const auto val = builder.makeOp<LoadInst>(givPtr);
-            //     bodyInfo.recNext->replaceWith(val);
-            // }
-            // bodyInfo.loop->instructions().erase(bodyInfo.recNext->asIterator(), bodyInfo.loop->instructions().end());
+            Value *bodyFuncPtr = GetElementPtrInst::createGep(bodyFunc, {ConstantInt::get(0),ConstantInt::get(0)}, bodyInfo.recNext->getParent());
+            popback_insertbefore(bodyInfo.recNext,bodyInfo.recNext->getParent());
+            CallInst::createCall(parallelFor, { bodyInfo.indvar, bodyInfo.bound, bodyFuncPtr}, bodyInfo.recNext->getParent());
+            popback_insertbefore(bodyInfo.recNext,bodyInfo.recNext->getParent());
+            
+            if(giv && bodyInfo.recUsedByOuter) {
+                // const auto val = builder.makeOp<LoadInst>(givPtr);
+                Value *val = LoadInst::createLoad(giv->getType(), givPtr, bodyInfo.recNext->getParent());
+                popback_insertbefore(bodyInfo.recNext,bodyInfo.recNext->getParent());
+                // bodyInfo.recNext->replaceWith(val);
+                bodyInfo.recNext->replaceAllUseWith(val);
+            }
+            bodyInfo.loop->getInstructions().erase(bodyInfo.loop->findInstruction(bodyInfo.recNext), bodyInfo.loop->getInstructions().end());
             // builder.setCurrentBlock(bodyInfo.loop);
             // builder.makeOp<BranchInst>(bodyInfo.exit);
+            BranchInst::createBr(bodyInfo.exit, bodyInfo.loop);
 
     BranchInst::createBr(bodyInfo.exit,bodyInfo.loop);
 };
