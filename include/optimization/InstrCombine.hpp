@@ -17,10 +17,11 @@ private:
     Instruction* combineAdd(Instruction*instr);
     Instruction* combineMul(Instruction*instr);
     Instruction* combineFAdd(Instruction*instr);
+    Instruction* combineFSub(Instruction*instr);
     Instruction* combineFMul(Instruction*instr);
     Instruction* combineSub(Instruction*instr);
     Instruction* combineDiv(Instruction*instr);
-    // Instruction* combineRem(Instruction*instr);
+    Instruction* combineRem(Instruction*instr);
     Instruction* combineShl(Instruction*instr);
     Instruction* combineAsr(Instruction*instr);
     Instruction* combineOr(Instruction*instr);

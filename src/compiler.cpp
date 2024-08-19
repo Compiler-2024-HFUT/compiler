@@ -43,6 +43,8 @@
 #include "optimization/LICM.hpp"
 #include "optimization/LoopUnroll.hpp"
 #include "optimization/LoopStrengthReduction.hpp"
+#include "optimization/BBSort.hpp"
+#include "optimization/GCM.hpp"
 
 #include "optimization/BreakGEP.hpp"
 #include "optimization/CombineJJ.hpp"
@@ -78,6 +80,7 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<InstrResolve>();
     pm.addPass<DCE>();
     pm.addPass<DFE>();
+    pm.addPass<GCM>();
 
     //loop pass
     pm.addPass<LoopSimplified>();
@@ -100,6 +103,7 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<SCCP>();
 
     //inline and g2l pass
+    pm.addPass<CombinBB>();
     pm.addPass<FuncInline>();
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
@@ -144,7 +148,8 @@ void Compiler::buildOpt(PassManager &pm){
     //genvr之前没有vr
     pm.addPass<VRE>();
 
-    // pm.addPass<PureFuncCache>();
+    pm.addPass<PureFuncCache>();
+
     pm.addPass<GenVR>();
 
     pm.addPass<CombinBB>();
@@ -159,6 +164,7 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<GenLoadImm>();
     pm.addPass<DCE>();
 
+    pm.addPass<BBSort>();
 }
 
 void Compiler::buildDefault(PassManager &pm){
@@ -172,7 +178,8 @@ void Compiler::buildDefault(PassManager &pm){
     pm.addPass<GenLoadImm>();
     lir(pm);
     pm.addPass<DCE>();
-    
+
+    pm.addPass<BBSort>();
 }
 Compiler::Compiler(int argc, char** argv):lir([](PassManager&pm){
     pm.addPass<CombineJJ>();
