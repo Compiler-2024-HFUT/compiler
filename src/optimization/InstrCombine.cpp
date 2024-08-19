@@ -165,10 +165,17 @@ Instruction* InstrCombine::combineMul(Instruction*instr){
             return replaceInstUsesWith(instr,lhs);
         }
         if(bin_lhs){
-            if(bin_lhs->isLsl()&&dynamic_cast<ConstantInt*>(bin_lhs->getOperand(1))){
-                auto lhs_op1=(ConstantInt*)(bin_lhs);
-                return BinaryInst::create(Instruction::OpID::mul,bin_lhs,
-                    ConstantInt::getFromBin(cr,Instruction::OpID::shl,lhs_op1));
+            // a/9*3
+            if(bin_lhs->isDiv()&&dynamic_cast<ConstantInt*>(bin_lhs->getOperand(1))){
+                auto lhs_op1=(ConstantInt*)(bin_lhs->getOperand(1));
+                if(cr->getValue()%lhs_op1->getValue()==0){
+                    return BinaryInst::create(Instruction::OpID::mul,bin_lhs->getOperand(0),ConstantInt::get(cr->getValue()/lhs_op1->getValue()));
+                }else if(lhs_op1->getValue()%cr->getValue()==0){
+                    return BinaryInst::create(Instruction::OpID::sdiv,bin_lhs->getOperand(0),ConstantInt::get(lhs_op1->getValue()/cr->getValue()));
+                }
+            }else if(bin_lhs->isMul()&&dynamic_cast<ConstantInt*>(bin_lhs->getOperand(1))){
+                auto lhs_op1=(ConstantInt*)(bin_lhs->getOperand(1));
+                    return BinaryInst::create(Instruction::OpID::mul,bin_lhs->getOperand(0),ConstantInt::get(cr->getValue()*lhs_op1->getValue()));
             }
         }else{
             // int log2_cr=log2(cr->getValue());
@@ -206,7 +213,7 @@ Instruction* InstrCombine::combineSub(Instruction*instr){
                 auto new_lhs=ConstantInt::getFromBin(l_const,Instruction::OpID::sub,rhs_lhs_ci);
                 return BinaryInst::create(Instruction::OpID::add,bin_rhs->getOperand(1),new_lhs);
             }
-        }else if(bin_rhs->isAdd()){
+        }else if(bin_rhs->isAdd()&&bin_rhs->useOne()){
             //c1-(c2+a)==>(c1-c2)-a ==>c3-a
             if(auto rhs_lhs_ci=dynamic_cast<ConstantInt*>(bin_rhs->getOperand(0));rhs_lhs_ci&&l_const){
                 instr->replaceOperand(0,ConstantInt::getFromBin(l_const,Instruction::OpID::sub,rhs_lhs_ci));
@@ -254,7 +261,7 @@ Instruction* InstrCombine::combineAdd(Instruction*instr){
         }
         //(a - c1) + c2 => a + (c2 - c1)
         if(blhs){
-            if(blhs->isAdd()){
+            if(blhs->isAdd()&&blhs->useOne()){
                 if(auto lhs_rhs_ci=dynamic_cast<ConstantInt*>(blhs->getOperand(1))){
                     instr->replaceOperand(0,blhs->getOperand(0));
                     instr->replaceOperand(1,ConstantInt::getFromBin(cons_r,Instruction::OpID::add,lhs_rhs_ci));
@@ -263,19 +270,17 @@ Instruction* InstrCombine::combineAdd(Instruction*instr){
             //(-a)+b ==> b-a
             //a+(-b) ==> a-b
             }else if(__is__neg(blhs)){
-            return BinaryInst::create(Instruction::OpID::sub,rhs,blhs->getOperand(1));
-            //(a*c1)+a==>a*(c1+1)
-            }else if(blhs->isMul()&&blhs->getOperand(0)==rhs&&blhs->useOne()){
-                if(auto lhs_rhs_ci=dynamic_cast<ConstantInt*>(blhs->getOperand(1))){
-                    blhs->replaceOperand(1,ConstantInt::get(lhs_rhs_ci->getValue()+1));
-                    return replaceInstUsesWith(instr,blhs);
-                }
+                return BinaryInst::create(Instruction::OpID::sub,rhs,blhs->getOperand(1));
             }
+            return ret;
         }
-        return ret;
     }
-
-
+    if(blhs&&blhs->isMul()&&blhs->getOperand(0)==rhs&&blhs->useOne()){
+        if(auto lhs_rhs_ci=dynamic_cast<ConstantInt*>(blhs->getOperand(1))){
+            blhs->replaceOperand(1,ConstantInt::get(lhs_rhs_ci->getValue()+1));
+            return replaceInstUsesWith(instr,blhs);
+        }
+    }
     if(brhs){
         if(__is__neg(brhs))
             return BinaryInst::create(Instruction::OpID::sub,lhs,brhs->getOperand(1));
@@ -325,7 +330,7 @@ Instruction* InstrCombine::combineDiv(Instruction*instr){
         return replaceInstUsesWith(instr,ConstantInt::get(cl->getValue()/cr->getValue()));
     }if(cr!=nullptr){
         if(cr->getValue()==1){
-            ret=replaceInstUsesWith(instr,lhs);
+            return replaceInstUsesWith(instr,lhs);
         }else if(cr->getValue()==-1){
             return BinaryInst::create(Instruction::OpID::sub,ConstantInt::get(0),lhs);
         }else{
@@ -337,6 +342,9 @@ Instruction* InstrCombine::combineDiv(Instruction*instr){
                     if(lhs_rhs_const->getValue()%cr->getValue()==0){
                         ret=BinaryInst::create(Instruction::OpID::mul,lhs_bin->getOperand(0),
                             ConstantInt::get(lhs_rhs_const->getValue()/cr->getValue()));
+                    }else if(cr->getValue()%lhs_rhs_const->getValue()==0){
+                        ret=BinaryInst::create(Instruction::OpID::sdiv,lhs_bin->getOperand(0),
+                            ConstantInt::get(cr->getValue()/lhs_rhs_const->getValue()));
                     }
                 }
             //a/c1/c2 ==>a/(c1*c2)
@@ -397,6 +405,100 @@ Instruction* InstrCombine::combineRem(Instruction*instr){
 }
 Instruction* InstrCombine::combineFAdd(Instruction*instr){
     Instruction*ret=_simplify_bin((BinaryInst*)instr);
+    auto lhs=instr->getOperand(0),rhs=instr->getOperand(1);
+    auto blhs=dynamic_cast<Instruction*>(lhs);
+    auto brhs=dynamic_cast<Instruction*>(rhs);
+    if(auto cons_r=dynamic_cast<ConstantFP*>(rhs)){
+        if(cons_r->getValue()==0.0)
+            return replaceInstUsesWith(instr,lhs);
+        //(a - c1) + c2 => a + (c2 - c1)
+        if(blhs){
+            if(blhs->isFAdd()&&blhs->useOne()){
+                if(auto lhs_rhs_ci=dynamic_cast<ConstantFP*>(blhs->getOperand(1))){
+                    instr->replaceOperand(0,blhs->getOperand(0));
+                    instr->replaceOperand(1,ConstantFP::getFromBin(cons_r,Instruction::OpID::fadd,lhs_rhs_ci));
+                    ret=instr;
+                    return ret;
+                }
+
+            }
+        }
+        return ret;
+    }
+            //(-a)+b ==> b-a
+            //a+(-b) ==> a-b
+    if(blhs&&__is__neg(blhs)){
+                return BinaryInst::create(Instruction::OpID::fsub,rhs,blhs->getOperand(1));
+            }
+    if(brhs&&__is__neg(brhs)){
+        return BinaryInst::create(Instruction::OpID::fsub,lhs,brhs->getOperand(1));
+    }
+    //(a*c1)+a==>a*(c1+1)
+    if(blhs&&blhs->isFMul()&&blhs->getOperand(0)==rhs&&blhs->useOne()){
+        if(auto lhs_rhs_ci=dynamic_cast<ConstantFP*>(blhs->getOperand(1))){
+            blhs->replaceOperand(1,ConstantFP::get(lhs_rhs_ci->getValue()+1.f));
+            return replaceInstUsesWith(instr,blhs);
+        }
+    }
+    return ret;
+}
+Instruction* InstrCombine::combineFSub(Instruction*instr){
+    Instruction*ret=0;
+    auto lhs=instr->getOperand(0),rhs=instr->getOperand(1);
+    auto l_const=dynamic_cast<ConstantFP*>(lhs),r_const=dynamic_cast<ConstantFP*>(rhs);
+    //a-a ==>0
+    if(lhs==rhs)
+        return replaceInstUsesWith(instr,ConstantFP::get(0));
+    // a- (0-b)==>a+b
+    if(__is__neg(rhs)){
+        return BinaryInst::create(Instruction::OpID::fadd, lhs, ((Instruction*)rhs)->getOperand(1));
+    }
+    if(__is__neg(instr)){
+        if(auto r_ins=dynamic_cast<Instruction*>(rhs)){
+            if(r_ins->isSub())
+            return BinaryInst::create(Instruction::OpID::fsub, r_ins->getOperand(1),r_ins->getOperand(0));
+        }
+    }
+    auto bin_rhs=dynamic_cast<Instruction*>(rhs);
+    if(bin_rhs){
+        if(bin_rhs->isFSub()){
+            //c1-(c2-a)==>(c1-c2)+a ==>c3+a==>a+c3
+            if(auto rhs_lhs_ci=dynamic_cast<ConstantFP*>(bin_rhs->getOperand(0));rhs_lhs_ci&&l_const){
+                auto new_lhs=ConstantFP::getFromBin(l_const,Instruction::OpID::fsub,rhs_lhs_ci);
+                return BinaryInst::create(Instruction::OpID::add,bin_rhs->getOperand(1),new_lhs);
+            }
+        }else if(bin_rhs->isFAdd()&&bin_rhs->useOne()){
+            //c1-(c2+a)==>(c1-c2)-a ==>c3-a
+            if(auto rhs_lhs_ci=dynamic_cast<ConstantFP*>(bin_rhs->getOperand(0));rhs_lhs_ci&&l_const){
+                instr->replaceOperand(0,ConstantFP::getFromBin(l_const,Instruction::OpID::fsub,rhs_lhs_ci));
+                instr->replaceOperand(1,bin_rhs->getOperand(1));
+                return instr;
+            }
+        }
+        //a-(a+b)==>-b
+        if(bin_rhs->isFAdd()){
+            if(bin_rhs->getOperand(0)==lhs){
+                return BinaryInst::create(Instruction::OpID::fsub, ConstantFP::get(0), bin_rhs->getOperand(1));
+            }else if(bin_rhs->getOperand(1)==lhs){
+                //a-(b+a)
+                return BinaryInst::create(Instruction::OpID::fsub, ConstantFP::get(0), bin_rhs->getOperand(0));
+            }
+        }
+    }
+    auto bin_lhs=dynamic_cast<Instruction*>(lhs);
+    if(bin_lhs){
+        if(bin_lhs->isFAdd()){
+            //(b+ a) - b => a
+            if(bin_lhs->getOperand(0)==rhs){
+                return replaceInstUsesWith(instr,bin_lhs->getOperand(1));
+            //(a + b) - b => a
+            }else if(bin_lhs->getOperand(1)==rhs){
+                return replaceInstUsesWith(instr,bin_lhs->getOperand(0));
+            }
+        }
+    }
+    
+
     return ret;
 }
 Instruction* InstrCombine::combineFMul(Instruction*instr){
@@ -559,6 +661,7 @@ InstrCombine::InstrCombine(Module *m,InfoManager*im):FunctionPass(m,im),combine_
     {Instruction::OpID::asr,[this](Instruction* instr)->Instruction* { return combineAsr(instr); }},
     {Instruction::OpID::cmp,[this](Instruction* instr)->Instruction* { return combineCmp(instr); }},
     {Instruction::OpID::fadd,[this](Instruction* instr)->Instruction* { return combineFAdd(instr); }},
+    {Instruction::OpID::fsub,[this](Instruction* instr)->Instruction* { return combineFSub(instr); }},
     {Instruction::OpID::fmul,[this](Instruction* instr)->Instruction* { return combineFMul(instr); }},
 
     // {Instruction::OpID::lsr,[this](Instruction* instr)->Instruction* { return combineMul(instr); }},
