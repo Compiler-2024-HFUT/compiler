@@ -332,7 +332,7 @@ bool LoopParallel::extractLoopBody(Function *func, Loop *loop, Module *mod, bool
             }
         std::vector<std::pair<Instruction*, Instruction*>> workList;
         
-        /* don't add atomic add now
+        ///* don't add atomic add now
         for(auto [k, v] : loadStoreMap) {
             if(v == 3) {
                 if(convertReduceToAtomic) {
@@ -386,15 +386,18 @@ bool LoopParallel::extractLoopBody(Function *func, Loop *loop, Module *mod, bool
             const auto block = load->getParent();
             const auto ptr = store->getOperand(1);
             const auto val = dynamic_cast<Instruction*>(store->getOperand(0));
+            // bughere
             const auto inc = val->getOperand(0) == load ? val->getOperand(1) : val->getOperand(0);
-            const auto atomicAdd = make<AtomicAddInst>(ptr, inc);
-            auto& insts = block->getInstructions();
-            insts.erase(load->asNode());
-            insts.erase(val->asNode());
-            atomicAdd->insertBefore(block, store->asIterator());
-            insts.erase(store->asNode());
+            const auto atomicAdd = AtomicAddInst::createAtomicAddInst(ptr, inc, block);
+            block->getInstructions().pop_back();
+            auto &insts = block->getInstructions();
+            insts.remove(load);
+            insts.remove(val);
+            // atomicAdd->insertBefore(block, store->asIterator());
+            block->insertInstr(block->findInstruction(store), atomicAdd);
+            insts.remove(store);
         }
-        */
+        //*/
     }
 
     auto getUniqueID = [&] {
