@@ -82,7 +82,7 @@ Instruction* _simplify_bin(BinaryInst*bin_ins){
             auto c1=bin_lhs->getOperand(1);
             auto c2=bin_rhs->getOperand(1);
             bin_lhs->replaceOperand(1,bin_rhs->getOperand(0));
-            bin_rhs->replaceOperand(0,c2);
+            bin_rhs->replaceOperand(0,c1);
             return bin_ins;
         }
     }
