@@ -43,6 +43,7 @@
 #include "optimization/LICM.hpp"
 #include "optimization/LoopUnroll.hpp"
 #include "optimization/LoopStrengthReduction.hpp"
+#include "optimization/BBSort.hpp"
 
 #include "optimization/BreakGEP.hpp"
 #include "optimization/CombineJJ.hpp"
@@ -161,6 +162,7 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<GenLoadImm>();
     pm.addPass<DCE>();
 
+    pm.addPass<BBSort>();
 }
 
 void Compiler::buildDefault(PassManager &pm){
@@ -174,7 +176,8 @@ void Compiler::buildDefault(PassManager &pm){
     pm.addPass<GenLoadImm>();
     lir(pm);
     pm.addPass<DCE>();
-    
+
+    pm.addPass<BBSort>();
 }
 Compiler::Compiler(int argc, char** argv):lir([](PassManager&pm){
     pm.addPass<CombineJJ>();
