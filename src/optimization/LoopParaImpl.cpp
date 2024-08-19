@@ -11,7 +11,7 @@ bool LoopParallel::runImpl(Function*func){
     Dominators *dom = info_man_->getInfo<Dominators>();
     SCEV *scev = info_man_->getInfo<SCEV>();
     std::sort(loops.begin(), loops.end(),
-              [&](Loop& lhs, Loop& rhs) { return dom->getDomDepth(lhs.getHeader()) < dom->getDomDepth(rhs.getHeader()); });
+              [&](Loop* lhs, Loop* rhs) { return dom->getDomDepth(lhs->getHeader()) < dom->getDomDepth(rhs->getHeader()); });
 
     bool modified = false;
     for(auto& loop : loops) {

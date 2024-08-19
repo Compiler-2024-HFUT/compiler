@@ -51,7 +51,7 @@ public:
 
     //后端遍历
     virtual void accept(IRVisitor &visitor) final;
-  
+    bool is_Parallel=false;
 private:
     void buildArgs();
 
