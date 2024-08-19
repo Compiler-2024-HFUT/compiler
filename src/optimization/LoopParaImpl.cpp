@@ -1,4 +1,5 @@
 #include "analysis/Info.hpp"
+#include "analysis/LoopInfo.hpp"
 #include "midend/Function.hpp"
 #include "optimization/LoopParallel.hpp"
 #include "optimization/LoopParallerUtil.hpp"
@@ -34,6 +35,8 @@ bool LoopParallel::runImpl(Function*func){
             if(isAligned)
                 bodyFunc->attr().addAttr(FunctionAttribute::AlignedParallelBody
     */
+    bodyFunc->is_Parallel=true;
+
     std::vector<std::pair<Value*, size_t>> payload;
     size_t totalSize = 0;
     size_t maxAlignment = 0;
@@ -248,16 +251,19 @@ bool LoopParallel::runImpl(Function*func){
             // builder.setCurrentBlock(bodyInfo.loop);
             // builder.makeOp<BranchInst>(bodyInfo.exit);
             BranchInst::createBr(bodyInfo.exit, bodyInfo.loop);
-
-    BranchInst::createBr(bodyInfo.exit,bodyInfo.loop);
+    return true;
 };
 Modify LoopParallel::runOnFunc(Function*func){
         if(func->isDeclaration())
             return {};
         // if(func.attr().hasAttr(FunctionAttribute::LoopBody))
         //     return false;
-        // if(func.attr().hasAttr(FunctionAttribute::ParallelBody))
-        //     return false;
+        auto info=info_man_->getInfo<LoopInfo>();
+        if(info->getLoops(func).empty())
+            return{};
+        if(func->is_Parallel){
+            return {};
+        }
         Modify ret{};
         while(runImpl(func)) {
             ret.modify_bb = true;
