@@ -44,6 +44,7 @@
 #include "optimization/LoopUnroll.hpp"
 #include "optimization/LoopStrengthReduction.hpp"
 #include "optimization/BBSort.hpp"
+#include "optimization/GCM.hpp"
 
 #include "optimization/BreakGEP.hpp"
 #include "optimization/CombineJJ.hpp"
@@ -70,6 +71,7 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<CombinBB>();
     pm.addPass<Mem2Reg>();
     pm.addPass<DeadPHIEli>();
+    pm.addPass<GCM>();
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
     pm.addPass<InstrCombine>();
