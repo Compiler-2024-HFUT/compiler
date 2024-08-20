@@ -177,6 +177,8 @@ bool __caninline(CallInst*call){
         if(dynamic_cast<Constant*>(v))
             has_const=true;
     }
+    if(bb_num==1)
+        return true;
     if(call->getParent()->getParent()->getName()=="main"&&has_const==false&&(ins_num>=100||bb_num>20)){
         return false;
     }
