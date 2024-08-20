@@ -1,5 +1,6 @@
 #include "optimization/instrResolve.hpp"
 #include "midend/BasicBlock.hpp"
+#include "midend/Instruction.hpp"
 std::vector<Instruction*> InstrResolve::resolveAdd(Instruction*instr){
     auto lhs=dynamic_cast<Instruction*>(instr->getOperand(0));
     if(lhs==0)
@@ -86,15 +87,21 @@ std::vector<Instruction*> InstrResolve::resolveRAdd(Instruction*instr){
 
 Modify InstrResolve::runOnFunc(Function*func){
     Modify ret{};
+    if(func->isDeclaration())
+    
+        return ret;
+
     for(auto b:func->getBasicBlocks()){
-        for(auto iter=b->getInstructions().begin();iter!=b->getInstructions().end();){
+
+        auto &i_list=b->getInstructions();
+        for(auto iter=i_list.begin();iter!=i_list.end();){
             auto ins=*iter;
             auto cur_iter=iter;
             iter++;
             std::vector<Instruction*> new_ins;
-            if(ins->isBinary()&&ins->useEmpty()){
+            if((ins->isAdd()||ins->isMul())&&ins->useEmpty()){
                 ins->removeUseOfOps();
-                b->getInstructions().erase(cur_iter);
+                i_list.erase(cur_iter);
                 delete ins;
                 continue;
             }
@@ -110,7 +117,7 @@ Modify InstrResolve::runOnFunc(Function*func){
                 continue;
             ret.modify_instr=true;
             ins->replaceAllUseWith(new_ins.back());
-            b->getInstructions().insert(cur_iter,new_ins.begin(),new_ins.end());
+            i_list.insert(cur_iter,new_ins.begin(),new_ins.end());
         }
     }
     return ret;

@@ -180,6 +180,9 @@ bool __caninline(CallInst*call){
     if(call->getParent()->getParent()->getName()=="main"&&has_const==false&&(ins_num>=100||bb_num>20)){
         return false;
     }
+    if((ins_num>=50||bb_num>10)&&call->getOperand(0)->getUseNum()>40&&has_const==false){
+        return false;
+    }
     return true;
 }
 Modify FuncInline::run(){
