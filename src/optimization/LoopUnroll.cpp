@@ -29,12 +29,17 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip, int time) {
         if(isComRec) {
             while(time > 1 && ( countBBNum(loop) * time > UNROLLING_BB_SIZE || countInstNum(loop) * time > UNROLLING_INST_SIZE ))
                 time /= 2;
-            if(time <= 1)
+            if(time <= 1 || trip.step % time == 0)
                 return;
         }
     }
     
     LOG_WARNING("Unroll Common Loop<"+ loop->getHeader()->getName() + ">")
+
+    if(trip.step < time) {
+        return;
+    }
+
     vector<BB*> blockToAdd = {};
 
     BB *header = loop->getHeader();
@@ -157,10 +162,15 @@ void LoopUnroll::unrollCommonLoop(Loop *loop, LoopTrip trip, int time) {
             Instruction *iterA = phiValIter[phi][i-1];
             Instruction *iterB = phiValIter[phi][i];
 
-            vector<Value*> &ops = iterB->getOperands();
-            for(int j = 0; j < ops.size(); j++) {
-                if(ops[j] == phi) {
-                    iterB->replaceOperand(j, iterA);
+            if( !isEntireUnroll && ( iterB->isAdd() || iterB->isSub() ) && dynamic_cast<ConstantInt*>(iterB->getOperand(1)) ) {
+                iterB->replaceOperand(0, phi);
+                iterB->replaceOperand(1, ConstantInt::get( iterB->isAdd() ? (i+1) * trip.iter : (i+1) * -trip.iter ));
+            } else {
+                vector<Value*> &ops = iterB->getOperands();
+                for(int j = 0; j < ops.size(); j++) {
+                    if(ops[j] == phi) {
+                        iterB->replaceOperand(j, iterA);
+                    }
                 }
             }
         }
@@ -186,8 +196,17 @@ void LoopUnroll::unrollPartialLoop(Loop *loop, LoopTrip trip, int time) {
         time /= 2;
     if(time <= 1)
         return;
-    
+
     LOG_WARNING("Unroll Partial Loop<"+ loop->getHeader()->getName() + ">")
+
+    if(trip.step < time) {
+        return;
+    }
+    if(trip.step % time == 0) {
+        unrollCommonLoop(loop, trip, time);
+        return;
+    }
+
     Loop *newLoop = loop->copyLoop();
     unrollCommonLoop(loop, trip, time);
     

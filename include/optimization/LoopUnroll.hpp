@@ -56,7 +56,7 @@ using std::vector;
 // Magic Num，后期考虑时间、空间局部性进行修改
 #define MAX_ITER                2048        // looptrip的iter大于此值不进行展开，使得header里面的加法可以直接使用addi    
 #define MIN_ITER                -2048       // looptrip的iter小于此值不进行展开           
-#define UNROLLING_TIME          4           // 循环展开次数
+#define UNROLLING_TIME          16           // 循环展开次数
 #define UNROLLING_BB_SIZE       128         // 展开后循环体基本块数不超过该数
 #define UNROLLING_INST_SIZE     1024        // 展开后循环体指令数不超过该数
 #define DIRECT_UNROLLING_TIME   128
