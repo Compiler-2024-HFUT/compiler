@@ -72,11 +72,9 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<Mem2Reg>();
     pm.addPass<DeadPHIEli>();
     pm.addPass<SCCP>();
-    pm.addPass<CombinBB>();
     pm.addPass<InstrCombine>();
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
-    pm.addPass<InstrCombine>();
     pm.addPass<InstrResolve>();
     pm.addPass<DCE>();
     pm.addPass<DFE>();
@@ -86,19 +84,23 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<LoopStrengthReduction>();
     pm.addPass<LICM>();
     pm.addPass<LoopUnroll>();
-    pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
+    pm.addPass<SCCP>();
     pm.addPass<DCE>();
     pm.addPass<InstrCombine>();
-
+    pm.addPass<SCCP>();
+    pm.addPass<InstrResolve>();
+    pm.addPass<InstrResolve>();
+    pm.addPass<InstrResolve>();
+    pm.addPass<DCE>();
     //arrpass
     pm.addPass<MoveAlloca>();
     pm.addPass<ValNumbering>();
-    pm.addPass<CombinBB>();
     pm.addPass<ArrReduc>();
     pm.addPass<SplitArr>();
     pm.addPass<Mem2Reg>();
     pm.addPass<DCE>();
+    pm.addPass<InstrCombine>();
     pm.addPass<SCCP>();
 
     //inline and g2l pass
@@ -117,22 +119,16 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<InstrCombine>();
     pm.addPass<Add2Mul>();
     pm.addPass<ConstBr>();
-    pm.addPass<ValNumbering>();
     pm.addPass<ArrReduc>();
+
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
-    pm.addPass<InstrResolve>();
-    pm.addPass<InstrResolve>();
-    pm.addPass<InstrResolve>();
-    pm.addPass<SCCP>();
-    pm.addPass<DCE>();
     pm.addPass<InstrResolve>();
     pm.addPass<InstrResolve>();
     pm.addPass<InstrResolve>();
     pm.addPass<DCE>();
     //gep loadimm and licm pass
     pm.addPass<BreakGEP>();
-    pm.addPass<InstrResolve>();
     pm.addPass<InstrResolve>();
     pm.addPass<InstrResolve>();
     pm.addPass<DCE>();
