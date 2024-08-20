@@ -121,15 +121,21 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<ArrReduc>();
     pm.addPass<SCCP>();
     pm.addPass<CombinBB>();
+    pm.addPass<InstrResolve>();
+    pm.addPass<InstrResolve>();
+    pm.addPass<InstrResolve>();
+    pm.addPass<DCE>();
 
     //gep loadimm and licm pass
     pm.addPass<BreakGEP>();
     pm.addPass<InstrResolve>();
-    pm.addPass<LoopSimplified>();
-    pm.addPass<LICM>();
-
+    pm.addPass<InstrResolve>();
+    pm.addPass<InstrResolve>();
+    pm.addPass<DCE>();
     pm.addPass<CombinBB>();
-    // pm.addPass<SCCP>();
+    pm.addPass<SCCP>();
+    pm.addPass<InstrCombine>();
+    pm.addPass<InstrCombine>();
     pm.addPass<InstrCombine>();
     pm.addPass<Add2Mul>();
     pm.addPass<DCE>();
@@ -141,6 +147,8 @@ void Compiler::buildOpt(PassManager &pm){
     pm.addPass<GepCombine>();
     pm.addPass<DCE>();
 
+    pm.addPass<LoopSimplified>();
+    pm.addPass<LICM>();
 
     //recursion pass
     pm.addPass<CombinBB>();
