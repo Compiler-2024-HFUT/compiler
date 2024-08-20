@@ -7,6 +7,11 @@
 
 队伍成员：牟长青、吴钦洲、焦超然、魏子尧
 
+## 团队协作分工：
+牟长青：语义分析、MIR生成、LIR生成、LIR优化、后端优化、生成汇编、测试  
+吴钦洲：语义分析、MIR生成、MIR优化、测试  
+焦超然：词法分析、语法分析、语义分析、MIR生成、MIR优化、LIR优化  
+魏子尧：测试  
 ## 项目简介
 
 这是一个 SysY 2022语言的编译器，目标平台是星光2。
@@ -46,14 +51,18 @@ xmake build
 * instrcombine：指令合并
 * sccp：常量折叠
 * DCE：死代码删除
-* DPE：循环phi删除
+* DeadPHIEli：循环phi删除
 * Dominators：支配信息分析
 * FuncInline：函数内联
 * G2L：全局变量局部化
 * LoopInvariant：循环不变量
 * LICM：循环不变量外提
+* LoopStrengthReduction:循环强度削弱
+* LoopUnroll：循环展开
 * Mem2Reg：构造 SSA 形式 IR
 * valnumbering：值编号
+* PureFuncCache：对部分递归函数进行缓存
+* GepCombine：合并gep指令
 * 等等
 ### 低层 IR
 
@@ -62,6 +71,7 @@ xmake build
 设计上贴近riscv isa，与后端相配合共同完成指令选择。
 
 * breakGEP：将 GEP 指令拆分为子指令
+* MemInstOffset：访存指令偏移化
 * Cmbinejj：将比较指令和分支指令合并,方便后端指令生成
 * loadimm：由于riscv架构对于立即数限制较多,故将部分立即数提升为寄存器
 
