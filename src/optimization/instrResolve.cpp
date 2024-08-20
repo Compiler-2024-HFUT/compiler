@@ -16,6 +16,7 @@ std::vector<Instruction*> InstrResolve::resolveAdd(Instruction*instr){
         }
         
     }
+    //a+(b+c1)
     if(auto rhs=dynamic_cast<Instruction*>(instr->getOperand(1));rhs&&rhs->isAdd()){
         if(auto rhs_r=dynamic_cast<ConstantInt*>(rhs->getOperand(1));rhs_r&&rhs_r->getValue()>-513&&rhs_r->getValue()<512){
             auto ins1=BinaryInst::create(Instruction::OpID::add,lhs,rhs->getOperand(0));
@@ -91,6 +92,12 @@ Modify InstrResolve::runOnFunc(Function*func){
             auto cur_iter=iter;
             iter++;
             std::vector<Instruction*> new_ins;
+            if(ins->isBinary()&&ins->useEmpty()){
+                ins->removeUseOfOps();
+                b->getInstructions().erase(cur_iter);
+                delete ins;
+                continue;
+            }
             if(ins->isAdd())
                 new_ins=resolveAdd(ins);
             else continue;
