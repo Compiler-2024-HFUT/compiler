@@ -43,6 +43,18 @@ bool GepCombine::adduseOneCombine(Function*func){
                         ins_list.insert(cur_iter,new_gep2);
                         inser_bb->insertInstr(inser_bb->findInstruction(add),new_gep1);
                     }
+                }else if(auto use_gep=dynamic_cast<GetElementPtrInst*>(ins->getOperand(0));use_gep&&use_gep->getNumOperands()==2){
+                    if(dynamic_cast<ConstantInt*>(use_gep->getOperand(1))&&dynamic_cast<ConstantInt*>(ins->getOperand(1))){
+                        int val=((ConstantInt*)(use_gep->getOperand(1)))->getValue()+((ConstantInt*)(ins->getOperand(1)))->getValue();
+                        if(val>511||val<-512)
+                            continue;;
+                        ins->replaceOperand(0,use_gep->getOperand(0));
+                        ins->replaceOperand(1,ConstantInt::get(val));
+                        if(use_gep->useEmpty())
+                            use_gep->getParent()->deleteInstr(use_gep);
+                        use_gep=dynamic_cast<GetElementPtrInst*>(ins->getOperand(0));
+                    }
+
                 }
             }
         }
